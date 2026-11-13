@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PPTaken brand previews</title>
+<link rel="icon" href="../logo/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../../packages/ui/fonts/fonts.css">
+<link rel="stylesheet" href="../../../packages/ui/dist/tokens.css">
+<link rel="stylesheet" href="../../../packages/ui/dist/icons.css">
+<link rel="stylesheet" href="../../../packages/ui/components.css">
+<link rel="stylesheet" href="preview.css">
+<style>
+  .intro { display: grid; gap: var(--ppt-space-6); margin-bottom: var(--ppt-space-12); }
+  .intro [data-logo] { height: 72px; }
+  @media (max-width: 600px) { .intro [data-logo] { height: 52px; } }
+  .gallery .ppt-card { min-height: 168px; align-content: start; }
+  .gallery .go { margin-top: auto; display: inline-flex; align-items: center; gap: 6px; color: var(--ppt-interactive); font-size: var(--ppt-text-sm); font-weight: 600; }
+  .gallery .ppt-icon { width: 18px; height: 18px; }
+</style>
+<script src="logo-data.js" defer></script>
+<script src="preview.js" defer></script>
+</head>
+<body>
+<main class="page">
+  <section class="intro hero">
+    <span data-logo="lockup"></span>
+    <h1 class="ppt-display" style="max-width:16ch" data-es="Calma de bastidor, precisión de foco.">Calm backstage, precise spotlight.</h1>
+    <p class="ppt-lead" style="max-width:56ch" data-es="Pantallas de referencia del sistema de diseño de PPTaken. Cada una funciona en claro y oscuro (barra inferior), en inglés y español, a 360 px y a 1280 px.">Reference screens for the PPTaken design system. Each works in light and dark (bottom bar), in English and Spanish, at 360 px and at 1280 px.</p>
+  </section>
+
+  <div class="gallery">
+    <a class="ppt-card" href="welcome.html"><span class="ppt-eyebrow">a · /bienvenida</span><span class="ppt-h2" data-es="Conecta tu agente">Connect your agent</span><span class="ppt-small ppt-muted" data-es="Pestañas Claude Code y claude.ai, prompt para copiar, estado de espera y de conexión.">Claude Code and claude.ai tabs, copy-prompt block, waiting and connected states.</span><span class="go"><span data-es="Abrir">Open</span><span class="ppt-icon" data-icon="arrow-right" aria-hidden="true"></span></span></a>
+    <a class="ppt-card" href="decks.html"><span class="ppt-eyebrow">b · /panel</span><span class="ppt-h2" data-es="Presentaciones">Presentations</span><span class="ppt-small ppt-muted" data-es="Lista con tarjetas 16:9, actividad del agente y estado vacío.">16:9 deck cards, agent activity table and the empty state.</span><span class="go"><span data-es="Abrir">Open</span><span class="ppt-icon" data-icon="arrow-right" aria-hidden="true"></span></span></a>
+    <a class="ppt-card" href="remote.html"><span class="ppt-eyebrow">c · /r</span><span class="ppt-h2" data-es="Remoto en el celular">Phone remote</span><span class="ppt-small ppt-muted" data-es="Siguiente enorme, reloj, láser y aviso de conexión. Oscuro por defecto.">Huge Next, clock, laser and connection notice. Dark by default.</span><span class="go"><span data-es="Abrir">Open</span><span class="ppt-icon" data-icon="arrow-right" aria-hidden="true"></span></span></a>
+    <a class="ppt-card" href="quiz.html"><span class="ppt-eyebrow">d · /a/:code</span><span class="ppt-h2" data-es="Pregunta del quiz">Quiz question</span><span class="ppt-small ppt-muted" data-es="Opciones de 64 px con forma, color y letra. Solo Inter, subconjunto latino.">64 px options with shape, colour and letter. Inter only, Latin subset.</span><span class="go"><span data-es="Abrir">Open</span><span class="ppt-icon" data-icon="arrow-right" aria-hidden="true"></span></span></a>
+    <a class="ppt-card" href="podium.html"><span class="ppt-eyebrow">e · projector</span><span class="ppt-h2" data-es="Podio del quiz">Quiz podium</span><span class="ppt-small ppt-muted" data-es="La única celebración permitida. Respeta movimiento reducido.">The only celebration allowed. Honours reduced motion.</span><span class="go"><span data-es="Abrir">Open</span><span class="ppt-icon" data-icon="arrow-right" aria-hidden="true"></span></span></a>
+    <a class="ppt-card" href="player.html"><span class="ppt-eyebrow">f · /p/:deckId</span><span class="ppt-h2" data-es="Visor neutro">Neutral player</span><span class="ppt-small ppt-muted" data-es="Letterbox negro, cero cromo; mueve el ratón para ver la interfaz gris. L enciende el láser.">Black letterbox, zero chrome; move the mouse to see the gray overlay. L toggles the laser.</span><span class="go"><span data-es="Abrir">Open</span><span class="ppt-icon" data-icon="arrow-right" aria-hidden="true"></span></span></a>
+    <a class="ppt-card" href="components.html"><span class="ppt-eyebrow">@pptaken/ui</span><span class="ppt-h2" data-es="Componentes">Components</span><span class="ppt-small ppt-muted" data-es="Todos los componentes, tipografía e iconos empaquetados.">Every component, the type scale and the packaged icons.</span><span class="go"><span data-es="Abrir">Open</span><span class="ppt-icon" data-icon="arrow-right" aria-hidden="true"></span></span></a>
+    <a class="ppt-card" href="logo.html"><span class="ppt-eyebrow">docs/brand/logo</span><span class="ppt-h2" data-es="Logotipo">Logo</span><span class="ppt-small ppt-muted" data-es="Versiones, legibilidad de 16 a 64 px, área de respeto y usos prohibidos.">Versions, legibility from 16 to 64 px, clear space and misuse.</span><span class="go"><span data-es="Abrir">Open</span><span class="ppt-icon" data-icon="arrow-right" aria-hidden="true"></span></span></a>
+  </div>
+
+  <div class="section-title"><h2 class="ppt-h2" data-es="Paleta">Palette</h2><span class="ppt-small ppt-muted" data-es="Valores del tema activo">Active theme values</span></div>
+  <div class="swatches">
+    <div class="swatch"><i style="background:var(--ppt-accent)"></i><b data-es="Foco">Spotlight</b><code>--ppt-accent</code></div>
+    <div class="swatch"><i style="background:var(--ppt-interactive)"></i><b data-es="Telón">Curtain</b><code>--ppt-interactive</code></div>
+    <div class="swatch"><i style="background:var(--ppt-text)"></i><b data-es="Tinta / Tiza">Ink / Chalk</b><code>--ppt-text</code></div>
+    <div class="swatch"><i style="background:var(--ppt-bg)"></i><b data-es="Papel / Bambalina">Paper / Backstage</b><code>--ppt-bg</code></div>
+    <div class="swatch"><i style="background:var(--ppt-success)"></i><b data-es="Éxito">Success</b><code>--ppt-success</code></div>
+    <div class="swatch"><i style="background:var(--ppt-warning)"></i><b data-es="Aviso">Warning</b><code>--ppt-warning</code></div>
+    <div class="swatch"><i style="background:var(--ppt-danger)"></i><b data-es="Peligro">Danger</b><code>--ppt-danger</code></div>
+    <div class="swatch"><i style="background:var(--ppt-stage-laser)"></i><b data-es="Láser (solo el puntero)">Laser (pointer only)</b><code>--ppt-stage-laser</code></div>
+  </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en" data-default-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F1115">
+<title>Remote · PPTaken</title>
+<link rel="icon" href="../logo/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../../packages/ui/fonts/fonts.css">
+<link rel="stylesheet" href="../../../packages/ui/dist/tokens.css">
+<link rel="stylesheet" href="../../../packages/ui/dist/icons.css">
+<link rel="stylesheet" href="../../../packages/ui/components.css">
+<link rel="stylesheet" href="preview.css">
+<script src="logo-data.js" defer></script>
+<script src="preview.js" defer></script>
+</head>
+<body data-states="presenting,laser,connection-lost">
+<main class="remote">
+  <div class="remote__top">
+    <span class="remote__conn" role="status" data-show-state="presenting laser">
+      <span class="ppt-dot ppt-dot--success" aria-hidden="true"></span><span data-es="Conectado">Connected</span>
+    </span>
+    <span class="remote__conn" role="status" data-show-state="connection-lost" style="color: var(--ppt-warning)">
+      <span class="ppt-icon" data-icon="wifi-slash" aria-hidden="true"></span><span data-es="Reconectando…">Reconnecting…</span>
+    </span>
+    <span class="remote__title">Q3 results for the sales team</span>
+    <button type="button" class="ppt-icon-btn" aria-label="More" data-es-label="Más"><span class="ppt-icon" data-icon="dots-three" aria-hidden="true"></span></button>
+  </div>
+
+  <div class="stack" style="gap: var(--ppt-space-3)">
+    <div class="ppt-notice ppt-notice--warning" data-show-state="connection-lost" role="alert">
+      <span class="ppt-icon" data-icon="wifi-slash" aria-hidden="true"></span>
+      <div class="ppt-notice__body">
+        <span class="ppt-notice__title" data-es="Se perdió la conexión.">Connection lost.</span>
+        <span class="ppt-notice__text" data-es="Sigues presentando; el celular volverá solo.">You are still presenting. Your phone will reconnect on its own.</span>
+      </div>
+    </div>
+    <div class="remote__clock">
+      <span class="ppt-eyebrow" data-es="Tiempo">Elapsed</span>
+      <span class="ppt-eyebrow" data-es="Slide">Slide</span>
+      <span class="remote__time" role="timer" aria-label="12 minutes 48 seconds elapsed">12:48</span>
+      <span class="remote__slide" aria-label="Slide 8 of 24">8<span> / 24</span></span>
+    </div>
+  </div>
+
+  <div class="remote__pad">
+    <div class="stack" style="gap: var(--ppt-space-3)">
+      <div class="remote__tools">
+        <button type="button" class="tool-btn" data-toggle-pressed aria-pressed="false" data-show-state="presenting connection-lost"><span class="ppt-icon" data-icon="cursor-click" aria-hidden="true"></span><span data-es="Láser">Laser</span></button>
+        <button type="button" class="tool-btn" aria-pressed="true" data-show-state="laser"><span class="ppt-icon" data-icon="cursor-click" aria-hidden="true"></span><span data-es="Láser activo">Laser on</span></button>
+        <button type="button" class="tool-btn"><span class="ppt-icon" data-icon="timer" aria-hidden="true"></span><span data-es="Reiniciar reloj">Reset clock</span></button>
+      </div>
+      <div class="laser-pad" data-show-state="laser" aria-label="Laser pad: drag to point on the screen">
+        <span class="laser-pad__dot" aria-hidden="true"></span>
+        <span data-es="Arrastra para señalar en la pantalla">Drag to point on the screen</span>
+      </div>
+      <button type="button" class="remote-btn" aria-keyshortcuts="ArrowLeft"><span class="ppt-icon" data-icon="arrow-left" aria-hidden="true"></span><span data-es="Anterior">Previous</span></button>
+    </div>
+    <button type="button" class="remote-btn remote-btn--next" aria-keyshortcuts="ArrowRight Space"><span class="ppt-icon" data-icon="arrow-right" aria-hidden="true"></span><span data-es="Siguiente">Next</span></button>
+  </div>
+</main>
+</body>
+</html>

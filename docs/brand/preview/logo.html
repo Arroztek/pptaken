@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Logo · PPTaken</title>
+<link rel="icon" href="../logo/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../../packages/ui/fonts/fonts.css">
+<link rel="stylesheet" href="../../../packages/ui/dist/tokens.css">
+<link rel="stylesheet" href="../../../packages/ui/dist/icons.css">
+<link rel="stylesheet" href="../../../packages/ui/components.css">
+<link rel="stylesheet" href="preview.css">
+<style>
+  .plate { display: flex; flex-wrap: wrap; align-items: end; gap: var(--ppt-space-8); padding: var(--ppt-space-8); border-radius: var(--ppt-radius-md); border: 1px solid var(--ppt-border); }
+  .plate--paper { background: #FAF7F2; color: #565C6B; }
+  .plate--ink { background: #0F1115; color: #A3A9B8; border-color: #2A2F3A; }
+  .plate figure { display: grid; justify-items: start; gap: 8px; margin: 0; }
+  .plate figcaption { font: 12px/1 var(--ppt-font-mono); }
+  .plate img { display: block; }
+  .clear { position: relative; display: inline-block; padding: 12px; outline: 1px dashed var(--ppt-interactive); outline-offset: 0; }
+  .clear::before { content: "x"; position: absolute; left: 0; top: 50%; translate: 0 -50%; width: 12px; text-align: center; font: 10px var(--ppt-font-mono); color: var(--ppt-interactive); }
+  .clear img { display: block; outline: 1px solid color-mix(in srgb, var(--ppt-interactive) 35%, transparent); }
+  .donts { display: grid; gap: var(--ppt-space-4); grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); }
+  .dont { display: grid; gap: var(--ppt-space-3); justify-items: center; padding: var(--ppt-space-6); }
+  .dont p { display: flex; align-items: center; gap: 6px; font-size: var(--ppt-text-sm); color: var(--ppt-danger); font-weight: 600; }
+  .pixel { image-rendering: pixelated; }
+</style>
+<script src="logo-data.js" defer></script>
+<script src="preview.js" defer></script>
+</head>
+<body>
+<header class="app-header">
+  <a href="index.html" data-logo="lockup" aria-label="PPTaken"></a>
+  <span class="app-header__spacer"></span>
+</header>
+<main class="page stack" style="gap: var(--ppt-space-8)">
+  <div class="page-head__text">
+    <p class="ppt-eyebrow">docs/brand/logo</p>
+    <h1 class="ppt-h1">Logo</h1>
+    <p class="ppt-muted" style="max-width:60ch">A P whose counter is a lit 16:9 slide with a next arrow. The stem is the screen's stand. Text converted to outlines; no font needed.</p>
+  </div>
+
+  <section class="stack" aria-labelledby="l1">
+    <h2 class="ppt-h2" id="l1">Horizontal lockup</h2>
+    <div class="plate plate--paper"><figure><img src="../logo/pptaken-lockup.svg" alt="PPTaken" height="64"><figcaption>pptaken-lockup.svg</figcaption></figure><figure><img src="../logo/pptaken-lockup.svg" alt="" height="32"><figcaption>32 px</figcaption></figure><figure><img src="../logo/pptaken-lockup.svg" alt="" height="24"><figcaption>24 px (min.)</figcaption></figure></div>
+    <div class="plate plate--ink"><figure><img src="../logo/pptaken-lockup-on-dark.svg" alt="PPTaken" height="64"><figcaption>pptaken-lockup-on-dark.svg</figcaption></figure><figure><img src="../logo/pptaken-lockup-on-dark.svg" alt="" height="32"><figcaption>32 px</figcaption></figure><figure><img src="../logo/pptaken-lockup-on-dark.svg" alt="" height="24"><figcaption>24 px (min.)</figcaption></figure></div>
+  </section>
+
+  <section class="stack" aria-labelledby="l2">
+    <h2 class="ppt-h2" id="l2">Isotype at 64, 32, 24 and 16 px</h2>
+    <div class="plate plate--paper">
+      <figure><img src="../logo/pptaken-isotype.svg" alt="PPTaken isotype" width="64" height="64"><figcaption>64</figcaption></figure>
+      <figure><img src="../logo/pptaken-isotype.svg" alt="" width="32" height="32"><figcaption>32</figcaption></figure>
+      <figure><img src="../logo/pptaken-isotype.svg" alt="" width="24" height="24"><figcaption>24</figcaption></figure>
+      <figure><img src="../logo/favicon-32.svg" alt="" width="32" height="32"><figcaption>favicon-32</figcaption></figure>
+      <figure><img src="../logo/favicon-16.svg" alt="" width="16" height="16"><figcaption>favicon-16</figcaption></figure>
+      <figure><img class="pixel" src="../logo/favicon-16.svg" alt="" width="64" height="64" style="image-rendering:pixelated"><figcaption>16, magnified</figcaption></figure>
+    </div>
+    <div class="plate plate--ink">
+      <figure><img src="../logo/pptaken-isotype-on-dark.svg" alt="PPTaken isotype" width="64" height="64"><figcaption>64</figcaption></figure>
+      <figure><img src="../logo/pptaken-isotype-on-dark.svg" alt="" width="32" height="32"><figcaption>32</figcaption></figure>
+      <figure><img src="../logo/pptaken-isotype-on-dark.svg" alt="" width="24" height="24"><figcaption>24</figcaption></figure>
+      <figure><img src="../logo/favicon-32-on-dark.svg" alt="" width="32" height="32"><figcaption>favicon-32</figcaption></figure>
+      <figure><img src="../logo/favicon-16-on-dark.svg" alt="" width="16" height="16"><figcaption>favicon-16</figcaption></figure>
+      <figure><img src="../logo/pptaken-app-icon.svg" alt="App icon" width="64" height="64"><figcaption>app icon</figcaption></figure>
+    </div>
+    <p class="ppt-small ppt-muted">Below 24 px the arrow turns to noise, so 16 to 23 px use the favicon drawing: same P, no arrow, snapped to the pixel grid.</p>
+  </section>
+
+  <section class="stack" aria-labelledby="l3">
+    <h2 class="ppt-h2" id="l3">One-ink versions</h2>
+    <div class="plate plate--paper">
+      <figure><img src="../logo/pptaken-lockup-mono-ink.svg" alt="PPTaken, ink" height="48"><figcaption>mono-ink</figcaption></figure>
+      <figure><img src="../logo/pptaken-lockup-stamp.svg" alt="PPTaken, stamp" height="48"><figcaption>stamp (single compound path)</figcaption></figure>
+    </div>
+    <div class="plate plate--ink"><figure><img src="../logo/pptaken-lockup-mono-chalk.svg" alt="PPTaken, chalk" height="48"><figcaption>mono-chalk</figcaption></figure></div>
+  </section>
+
+  <section class="stack" aria-labelledby="l4">
+    <h2 class="ppt-h2" id="l4">Clear space</h2>
+    <p class="ppt-small ppt-muted" style="max-width:60ch">Keep one stem width (x) free on every side. At 64 px tall the stem is 12 px.</p>
+    <div class="plate plate--paper"><span class="clear"><img src="../logo/pptaken-lockup.svg" alt="" height="64"></span><span class="clear"><img src="../logo/pptaken-isotype.svg" alt="" height="64" width="64"></span></div>
+  </section>
+
+  <section class="stack" aria-labelledby="l5">
+    <h2 class="ppt-h2" id="l5">Do not</h2>
+    <div class="donts">
+      <div class="ppt-card dont"><img src="../logo/pptaken-isotype.svg" alt="" width="64" height="64" style="transform: rotate(-12deg)"><p><span class="ppt-icon" data-icon="x" aria-hidden="true"></span>Rotate it</p></div>
+      <div class="ppt-card dont"><img src="../logo/pptaken-isotype.svg" alt="" width="64" height="64" style="filter: hue-rotate(140deg)"><p><span class="ppt-icon" data-icon="x" aria-hidden="true"></span>Change the amber</p></div>
+      <div class="ppt-card dont"><img src="../logo/pptaken-isotype.svg" alt="" width="64" height="64" style="filter: drop-shadow(4px 6px 4px rgba(0,0,0,.45))"><p><span class="ppt-icon" data-icon="x" aria-hidden="true"></span>Add a shadow</p></div>
+      <div class="ppt-card dont"><span style="display:grid;place-items:center;width:72px;height:72px;border-radius:16px;background:#FF7A1A"><img src="../logo/pptaken-isotype.svg" alt="" width="52" height="52"></span><p><span class="ppt-icon" data-icon="x" aria-hidden="true"></span>Box it in orange</p></div>
+    </div>
+  </section>
+</main>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en" data-default-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Q3 results for the sales team</title>
+<link rel="stylesheet" href="../../../packages/ui/fonts/fonts.css">
+<link rel="stylesheet" href="../../../packages/ui/dist/tokens.css">
+<link rel="stylesheet" href="../../../packages/ui/dist/icons.css">
+<link rel="stylesheet" href="../../../packages/ui/components.css">
+<link rel="stylesheet" href="preview.css">
+<style>
+  /* Preview tools stay invisible here unless hovered: the player has zero persistent chrome. */
+  body:has(.player) .pv-toolbar { opacity: 0; transition: opacity 200ms; }
+  body:has(.player) .pv-toolbar:hover, body:has(.player) .pv-toolbar:focus-within { opacity: 1; }
+</style>
+<script src="logo-data.js" defer></script>
+<script src="preview.js" defer></script>
+</head>
+<body data-states="clean,overlay,loading">
+<!-- Neutral player (05 §11). No brand inside: pure #000 letterbox, no logo, no bar.
+     Interface appears only on demand (mouse move or a key), in neutral gray mono, and fades after 2 s.
+     Exceptions allowed: the laser dot and the keyboard focus ring. -->
+<div class="player" id="player" tabindex="-1">
+  <div class="player__canvas" aria-roledescription="slide" aria-label="Slide 12 of 34" data-show-state="clean overlay">
+    <!-- The deck's own world (rendered in a sandboxed iframe in the product). -->
+    <div class="deck-slide">
+      <div>
+        <h2>Existing customers carried the quarter.</h2>
+        <p>Renewals and upgrades grew faster than new business for the first time since 2023. The next two slides show where.</p>
+      </div>
+      <div class="kpi">
+        <div><b>61%</b><span>of Q3 revenue from existing customers</span></div>
+        <div><b>+18%</b><span>upgrade revenue vs. Q2</span></div>
+        <div><b>94%</b><span>gross retention</span></div>
+      </div>
+      <span class="num">12</span>
+    </div>
+    <span class="player__laser" id="laser" hidden></span>
+    <div class="player__progress" aria-hidden="true"><i></i></div>
+  </div>
+
+  <!-- On-demand chrome -->
+  <div class="player__chrome" role="status" data-show-state="clean overlay">
+    <span><span class="ppt-num">12</span> / 34</span><span class="sep">·</span><span>18:42</span><span class="sep">·</span><span data-es="sin conexión, listo">offline, ready</span>
+  </div>
+  <div class="player__chrome player__chrome--right" data-show-state="clean overlay">
+    <span><kbd>N</kbd> <span data-es="notas">notes</span></span><span><kbd>R</kbd> <span data-es="remoto">remote</span></span><span><kbd>L</kbd> <span data-es="láser">laser</span></span>
+  </div>
+  <span class="player__status" role="img" aria-label="Offline: presenting from memory" data-show-state="clean overlay"></span>
+
+  <!-- Loading screen of a public link: the only place PPTaken is mentioned, outside the canvas. -->
+  <div class="player__loading" data-show-state="loading" role="status">
+    <span data-es="Lista para presentar sin conexión.">Ready to present offline.</span>
+    <span class="bar" aria-hidden="true"><i></i></span>
+    <span class="player__credit" data-es="Presentado con PPTaken">Presented with PPTaken</span>
+  </div>
+</div>
+<script>
+  // Preview behaviour: chrome wakes on mouse move / key and fades after 2 s. L toggles the laser.
+  const player = document.getElementById("player");
+  const laser = document.getElementById("laser");
+  let t;
+  const wake = () => { player.classList.add("is-awake"); clearTimeout(t); t = setTimeout(() => player.classList.remove("is-awake"), 2000); };
+  addEventListener("mousemove", (e) => {
+    wake();
+    if (!laser.hidden) {
+      const r = laser.parentElement.getBoundingClientRect();
+      laser.style.left = ((e.clientX - r.left) / r.width) * 100 + "%";
+      laser.style.top = ((e.clientY - r.top) / r.height) * 100 + "%";
+    }
+  });
+  addEventListener("keydown", (e) => { wake(); if (e.key.toLowerCase() === "l") laser.hidden = !laser.hidden; });
+</script>
+</body>
+</html>

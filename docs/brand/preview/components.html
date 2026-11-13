@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Components · PPTaken</title>
+<link rel="icon" href="../logo/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../../packages/ui/fonts/fonts.css">
+<link rel="stylesheet" href="../../../packages/ui/dist/tokens.css">
+<link rel="stylesheet" href="../../../packages/ui/dist/icons.css">
+<link rel="stylesheet" href="../../../packages/ui/components.css">
+<link rel="stylesheet" href="preview.css">
+<style>
+  .spec { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ppt-space-4); padding: var(--ppt-space-8) 0; border-top: 1px solid var(--ppt-border); }
+  .spec > header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--ppt-space-2); }
+  .spec code { font-family: var(--ppt-font-mono); font-size: var(--ppt-text-xs); color: var(--ppt-text-muted); }
+  .icons { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--ppt-space-2); }
+  .icons figure { display: grid; justify-items: center; gap: 6px; padding: 12px 4px; border-radius: var(--ppt-radius-sm); background: var(--ppt-surface); border: 1px solid var(--ppt-border); }
+  .icons figcaption { font: 11px/1.2 var(--ppt-font-mono); color: var(--ppt-text-muted); text-align: center; word-break: break-all; }
+  .icons .ppt-icon { width: 24px; height: 24px; }
+  .type-row { display: grid; grid-template-columns: 120px 1fr; gap: var(--ppt-space-4); align-items: baseline; padding: var(--ppt-space-3) 0; border-bottom: 1px solid var(--ppt-border); }
+  @media (max-width: 600px) { .type-row { grid-template-columns: 1fr; gap: 4px; } }
+  .demo-grid { display: grid; gap: var(--ppt-space-4); grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); align-items: start; }
+</style>
+<script src="logo-data.js" defer></script>
+<script src="preview.js" defer></script>
+</head>
+<body>
+<header class="app-header">
+  <a href="index.html" data-logo="lockup" aria-label="PPTaken"></a>
+  <span class="app-header__spacer"></span>
+  <div class="ppt-segmented" role="radiogroup" aria-label="Theme">
+    <button type="button" class="ppt-segmented__opt" role="radio" data-theme-opt="system" aria-label="System"><span class="ppt-icon" data-icon="desktop" aria-hidden="true"></span></button>
+    <button type="button" class="ppt-segmented__opt" role="radio" data-theme-opt="light" aria-label="Light"><span class="ppt-icon" data-icon="sun" aria-hidden="true"></span></button>
+    <button type="button" class="ppt-segmented__opt" role="radio" data-theme-opt="dark" aria-label="Dark"><span class="ppt-icon" data-icon="moon" aria-hidden="true"></span></button>
+  </div>
+</header>
+<main class="page">
+  <div class="page-head"><div class="page-head__text">
+    <p class="ppt-eyebrow">@pptaken/ui</p>
+    <h1 class="ppt-h1">Components</h1>
+    <p class="ppt-muted">Static mirror of the Svelte components. Same class names, same <span class="ppt-mono">components.css</span>.</p>
+  </div></div>
+
+  <section class="spec" aria-labelledby="s-type">
+    <header><h2 class="ppt-h2" id="s-type">Type</h2><code>--ppt-font-display / text / mono</code></header>
+    <div>
+      <div class="type-row"><code>display 800</code><span class="ppt-display">Your agent designs.</span></div>
+      <div class="type-row"><code>h1 700</code><span class="ppt-h1">You present.</span></div>
+      <div class="type-row"><code>h2 700</code><span class="ppt-h2">Calm backstage, precise spotlight.</span></div>
+      <div class="type-row"><code>body 400</code><span class="ppt-body">PPTaken does not paint the set. It raises the curtain on time, points the light exactly where it matters and makes sure the microphone works.</span></div>
+      <div class="type-row"><code>eyebrow mono</code><span class="ppt-eyebrow">Step 2 of 2</span></div>
+      <div class="type-row"><code>mono 500</code><span class="ppt-mono">K7M2QX · 0O 1lI · 18:42 · decks:write</span></div>
+    </div>
+  </section>
+
+  <section class="spec" aria-labelledby="s-btn">
+    <header><h2 class="ppt-h2" id="s-btn">Button</h2><code>Button.svelte · .ppt-btn</code></header>
+    <div class="row">
+      <button type="button" class="ppt-btn ppt-btn--primary"><span class="ppt-icon" data-icon="play" aria-hidden="true"></span>Present</button>
+      <button type="button" class="ppt-btn ppt-btn--secondary">Copy link</button>
+      <button type="button" class="ppt-btn ppt-btn--ghost">Cancel</button>
+      <button type="button" class="ppt-btn ppt-btn--danger"><span class="ppt-icon" data-icon="trash" aria-hidden="true"></span>Revoke token</button>
+      <button type="button" class="ppt-btn ppt-btn--secondary" disabled>Disabled</button>
+      <button type="button" class="ppt-btn ppt-btn--secondary" aria-busy="true"><span class="ppt-icon" data-icon="circle-notch" aria-hidden="true"></span>Saving</button>
+    </div>
+    <div class="row">
+      <button type="button" class="ppt-btn ppt-btn--secondary ppt-btn--sm">Small</button>
+      <button type="button" class="ppt-btn ppt-btn--secondary">Default</button>
+      <button type="button" class="ppt-btn ppt-btn--secondary ppt-btn--lg">Large</button>
+    </div>
+    <p class="ppt-small ppt-muted">Primary (Spotlight) appears once per screen. On this specimen page it appears once too.</p>
+  </section>
+
+  <section class="spec" aria-labelledby="s-iconbtn">
+    <header><h2 class="ppt-h2" id="s-iconbtn">IconButton</h2><code>IconButton.svelte · .ppt-icon-btn</code></header>
+    <div class="row">
+      <button type="button" class="ppt-icon-btn" aria-label="More"><span class="ppt-icon" data-icon="dots-three" aria-hidden="true"></span></button>
+      <button type="button" class="ppt-icon-btn ppt-icon-btn--secondary" aria-label="Copy"><span class="ppt-icon" data-icon="copy" aria-hidden="true"></span></button>
+      <button type="button" class="ppt-icon-btn" aria-label="Laser" aria-pressed="true" data-toggle-pressed><span class="ppt-icon" data-icon="cursor-click" aria-hidden="true"></span></button>
+      <button type="button" class="ppt-icon-btn ppt-icon-btn--sm" aria-label="Close"><span class="ppt-icon" data-icon="x" aria-hidden="true"></span></button>
+    </div>
+  </section>
+
+  <section class="spec" aria-labelledby="s-field">
+    <header><h2 class="ppt-h2" id="s-field">TextField</h2><code>TextField.svelte · .ppt-field</code></header>
+    <div class="demo-grid">
+      <div class="ppt-field">
+        <label class="ppt-field__label" for="f1">Link name</label>
+        <input class="ppt-input" id="f1" value="Board meeting, Nov 14" aria-describedby="f1h">
+        <span class="ppt-field__hint" id="f1h">Only you see this name.</span>
+      </div>
+      <div class="ppt-field">
+        <label class="ppt-field__label" for="f2">Nickname</label>
+        <input class="ppt-input" id="f2" value="a" aria-invalid="true" aria-describedby="f2e">
+        <span class="ppt-field__error" id="f2e"><span class="ppt-icon" data-icon="warning-circle" aria-hidden="true"></span>Use 2 to 20 characters.</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="spec" aria-labelledby="s-badge">
+    <header><h2 class="ppt-h2" id="s-badge">StatusBadge</h2><code>StatusBadge.svelte · .ppt-badge</code></header>
+    <div class="row">
+      <span class="ppt-badge ppt-badge--live"><span class="ppt-badge__dot" aria-hidden="true"></span>Live</span>
+      <span class="ppt-badge ppt-badge--draft"><span class="ppt-icon" data-icon="pencil-simple" aria-hidden="true"></span>Draft</span>
+      <span class="ppt-badge ppt-badge--connected"><span class="ppt-badge__dot" aria-hidden="true"></span>Connected</span>
+      <span class="ppt-badge ppt-badge--offline"><span class="ppt-icon" data-icon="wifi-slash" aria-hidden="true"></span>Offline</span>
+      <span class="ppt-badge ppt-badge--danger"><span class="ppt-icon" data-icon="x" aria-hidden="true"></span>Revoked</span>
+    </div>
+  </section>
+
+  <section class="spec" aria-labelledby="s-notice">
+    <header><h2 class="ppt-h2" id="s-notice">Notice and Toast</h2><code>Notice.svelte · Toast.svelte</code></header>
+    <div class="demo-grid">
+      <div class="ppt-notice" role="status"><span class="ppt-icon" data-icon="info" aria-hidden="true"></span><div class="ppt-notice__body"><span class="ppt-notice__title">Ready to present offline.</span><span class="ppt-notice__text">All 34 slides and 12 images are in memory.</span></div></div>
+      <div class="ppt-notice ppt-notice--success" role="status"><span class="ppt-icon" data-icon="check-circle" aria-hidden="true"></span><div class="ppt-notice__body"><span class="ppt-notice__title">Phone connected.</span><span class="ppt-notice__text">Android · Chrome</span></div></div>
+      <div class="ppt-notice ppt-notice--warning" role="status"><span class="ppt-icon" data-icon="warning" aria-hidden="true"></span><div class="ppt-notice__body"><span class="ppt-notice__title">Draft. Review it before your audience sees it.</span><span class="ppt-notice__text">Your agent wrote 8 questions. Approve them to launch the quiz.</span></div></div>
+      <div class="ppt-notice ppt-notice--danger" role="alert"><span class="ppt-icon" data-icon="warning-circle" aria-hidden="true"></span><div class="ppt-notice__body"><span class="ppt-notice__title">Your agent sent a slide that is too large.</span><span class="ppt-notice__text">We already told it. Nothing else changed.</span></div><button type="button" class="ppt-icon-btn ppt-icon-btn--sm" aria-label="Dismiss"><span class="ppt-icon" data-icon="x" aria-hidden="true"></span></button></div>
+    </div>
+    <div class="row"><div class="ppt-toast ppt-toast--static" role="status"><span class="ppt-icon" data-icon="check" aria-hidden="true"></span>Link copied.<button type="button" class="ppt-icon-btn" aria-label="Dismiss"><span class="ppt-icon" data-icon="x" aria-hidden="true"></span></button></div></div>
+  </section>
+
+  <section class="spec" aria-labelledby="s-tabs">
+    <header><h2 class="ppt-h2" id="s-tabs">Tabs</h2><code>Tabs.svelte · .ppt-tabs</code></header>
+    <div>
+      <div class="ppt-tabs" role="tablist" aria-label="Quiz">
+        <button class="ppt-tab" role="tab" id="t1" aria-controls="p1" aria-selected="true" tabindex="0">Questions</button>
+        <button class="ppt-tab" role="tab" id="t2" aria-controls="p2" aria-selected="false" tabindex="-1">Results</button>
+        <button class="ppt-tab" role="tab" id="t3" aria-controls="p3" aria-selected="false" tabindex="-1">Settings</button>
+      </div>
+      <div class="ppt-tabpanel" role="tabpanel" id="p1" aria-labelledby="t1" tabindex="0"><p class="ppt-muted ppt-small">8 questions, written by Claude Code at 10:31.</p></div>
+      <div class="ppt-tabpanel" role="tabpanel" id="p2" aria-labelledby="t2" tabindex="0" hidden><p class="ppt-muted ppt-small">No results yet.</p></div>
+      <div class="ppt-tabpanel" role="tabpanel" id="p3" aria-labelledby="t3" tabindex="0" hidden><p class="ppt-muted ppt-small">20 seconds per question.</p></div>
+    </div>
+  </section>
+
+  <section class="spec" aria-labelledby="s-code">
+    <header><h2 class="ppt-h2" id="s-code">BigCode, FramedQR, CopyField</h2><code>BigCode.svelte · FramedQR.svelte · CopyField.svelte</code></header>
+    <div class="demo-grid">
+      <div class="ppt-card stack">
+        <div class="ppt-bigcode">
+          <span class="ppt-eyebrow">Audience code</span>
+          <span class="ppt-bigcode__value" aria-hidden="true">K7M<span class="ppt-bigcode__sep" style="user-select:none">·</span>2QX</span><span class="ppt-sr-only">K 7 M, 2 Q X</span>
+          <span class="ppt-bigcode__hint">Go to <strong>slides.example.com/a</strong> and enter the code.</span>
+        </div>
+        <div class="ppt-copyfield">
+          <span class="ppt-copyfield__value" id="cf1">https://slides.example.com/a/K7M2QX</span>
+          <button type="button" class="ppt-btn ppt-btn--secondary ppt-btn--sm" data-copy="cf1"><span class="ppt-icon" data-icon="copy" aria-hidden="true"></span><span data-label>Copy</span></button>
+        </div>
+      </div>
+      <div class="ppt-card" style="display:grid;justify-items:center">
+        <figure class="ppt-qr">
+          <div class="ppt-qr__frame"><div class="ppt-qr__plate"><svg role="img" aria-label="QR code for slides.example.com/a/K7M2QX" shape-rendering="crispEdges" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 29 29" class="segno"><path class="qrline" stroke="#000" d="M0 0.5h7m1 0h3m2 0h1m1 0h1m1 0h3m2 0h7m-29 1h1m5 0h1m1 0h1m1 0h2m1 0h1m4 0h1m3 0h1m5 0h1m-29 1h1m1 0h3m1 0h1m2 0h1m1 0h2m3 0h1m2 0h2m1 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m1 0h2m1 0h2m1 0h2m1 0h1m4 0h1m1 0h3m1 0h1m-29 1h1m1 0h3m1 0h1m3 0h3m1 0h1m2 0h1m1 0h1m2 0h1m1 0h3m1 0h1m-29 1h1m5 0h1m2 0h2m2 0h1m2 0h2m1 0h1m2 0h1m5 0h1m-29 1h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7m-21 1h1m1 0h1m1 0h1m4 0h2m-19 1h1m1 0h2m1 0h3m2 0h1m1 0h2m1 0h1m1 0h2m3 0h1m2 0h1m1 0h2m-26 1h3m3 0h3m1 0h12m3 0h1m-28 1h2m3 0h1m2 0h1m3 0h1m2 0h1m1 0h1m1 0h2m1 0h1m2 0h2m-28 1h2m5 0h1m3 0h2m3 0h1m1 0h2m1 0h3m4 0h1m-23 1h5m3 0h4m2 0h1m4 0h2m-27 1h2m1 0h1m1 0h1m2 0h2m4 0h1m1 0h1m2 0h1m1 0h2m3 0h3m-29 1h2m1 0h2m1 0h1m3 0h4m2 0h1m1 0h3m1 0h2m2 0h3m-27 1h1m1 0h2m2 0h1m1 0h2m2 0h1m5 0h1m1 0h1m4 0h1m-28 1h7m1 0h1m1 0h1m3 0h1m1 0h1m2 0h2m2 0h3m1 0h1m-27 1h3m1 0h1m1 0h1m1 0h1m1 0h2m1 0h4m2 0h1m2 0h1m1 0h3m-28 1h1m1 0h6m1 0h2m2 0h5m2 0h1m1 0h1m1 0h1m1 0h1m-24 1h1m4 0h1m1 0h2m1 0h2m1 0h3m1 0h1m1 0h1m1 0h1m1 0h1m-26 1h4m1 0h3m2 0h1m1 0h14m-19 1h4m3 0h2m1 0h1m1 0h1m3 0h5m-29 1h7m1 0h2m1 0h1m2 0h1m1 0h2m1 0h2m1 0h1m1 0h2m1 0h1m-28 1h1m5 0h1m1 0h2m3 0h3m2 0h1m1 0h1m3 0h2m1 0h1m-28 1h1m1 0h3m1 0h1m4 0h2m2 0h4m1 0h5m1 0h2m-28 1h1m1 0h3m1 0h1m1 0h2m5 0h1m4 0h2m1 0h3m2 0h1m-29 1h1m1 0h3m1 0h1m1 0h1m1 0h2m1 0h1m3 0h4m2 0h1m2 0h1m1 0h1m-29 1h1m5 0h1m3 0h1m2 0h1m5 0h2m2 0h1m1 0h1m1 0h1m-28 1h7m1 0h1m2 0h5m1 0h5m1 0h1m1 0h1m1 0h1"/></svg></div></div>
+          <figcaption class="ppt-qr__caption">Scan to join</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="spec" aria-labelledby="s-card">
+    <header><h2 class="ppt-h2" id="s-card">Card, DeckCard, Kbd</h2><code>Card.svelte · DeckCard.svelte · Kbd.svelte</code></header>
+    <div class="demo-grid">
+      <article class="ppt-deck">
+        <div class="ppt-deck__thumb"><div class="slide slide--forest" aria-hidden="true"><div><h4>Spring plan</h4><p>Garden club, 2027</p></div><div class="disc"></div></div></div>
+        <div class="ppt-deck__body">
+          <h3 class="ppt-deck__title"><a href="#">Garden club: spring plan</a></h3>
+          <p class="ppt-deck__meta">11 slides · edited Nov 2</p>
+          <div class="ppt-deck__actions"><a class="ppt-btn ppt-btn--secondary ppt-btn--sm" href="player.html"><span class="ppt-icon" data-icon="play" aria-hidden="true"></span>Present</a><button type="button" class="ppt-icon-btn ppt-icon-btn--sm" aria-label="More actions"><span class="ppt-icon" data-icon="dots-three" aria-hidden="true"></span></button></div>
+        </div>
+      </article>
+      <div class="ppt-card stack">
+        <h3 class="ppt-h3">Keyboard</h3>
+        <p class="ppt-small ppt-muted">Press <kbd class="ppt-kbd">→</kbd> or <kbd class="ppt-kbd">Space</kbd> for next, <kbd class="ppt-kbd">R</kbd> to pair your phone, <kbd class="ppt-kbd">L</kbd> for the laser.</p>
+        <div class="ppt-card ppt-card--sunken"><p class="ppt-small">A sunken card for secondary content.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="spec" aria-labelledby="s-table">
+    <header><h2 class="ppt-h2" id="s-table">Table</h2><code>Table.svelte · .ppt-table</code></header>
+    <div class="ppt-table-wrap">
+      <table class="ppt-table">
+        <thead><tr><th scope="col">Token</th><th scope="col">Permissions</th><th scope="col">Last used</th><th scope="col"><span class="ppt-sr-only">Actions</span></th></tr></thead>
+        <tbody>
+          <tr><td>Claude Code, laptop</td><td class="is-mono">decks:read decks:write quiz:draft</td><td class="ppt-num">2 min ago</td><td class="is-num"><button type="button" class="ppt-btn ppt-btn--ghost ppt-btn--sm" data-open-dialog="dlg">Revoke</button></td></tr>
+          <tr><td>claude.ai (OAuth)</td><td class="is-mono">decks:read decks:write</td><td class="ppt-num">Yesterday</td><td class="is-num"><button type="button" class="ppt-btn ppt-btn--ghost ppt-btn--sm" data-open-dialog="dlg">Revoke</button></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="spec" aria-labelledby="s-dialog">
+    <header><h2 class="ppt-h2" id="s-dialog">Dialog</h2><code>Dialog.svelte · native &lt;dialog&gt;</code></header>
+    <div class="ppt-dialog ppt-dialog--static" role="presentation" style="margin:0">
+      <div class="ppt-dialog__inner">
+        <div class="ppt-dialog__head"><h3 class="ppt-h2">Revoke this token?</h3><button type="button" class="ppt-icon-btn" aria-label="Close"><span class="ppt-icon" data-icon="x" aria-hidden="true"></span></button></div>
+        <p class="ppt-muted">Claude Code on your laptop will stop working with PPTaken right away. Your presentations stay.</p>
+        <div class="ppt-dialog__actions"><button type="button" class="ppt-btn ppt-btn--ghost">Keep it</button><button type="button" class="ppt-btn ppt-btn--danger">Revoke token</button></div>
+      </div>
+    </div>
+    <dialog class="ppt-dialog" id="dlg" aria-labelledby="dlg-t">
+      <div class="ppt-dialog__inner">
+        <div class="ppt-dialog__head"><h3 class="ppt-h2" id="dlg-t">Revoke this token?</h3><button type="button" class="ppt-icon-btn" aria-label="Close" data-close-dialog><span class="ppt-icon" data-icon="x" aria-hidden="true"></span></button></div>
+        <p class="ppt-muted">Claude Code on your laptop will stop working with PPTaken right away. Your presentations stay.</p>
+        <div class="ppt-dialog__actions"><button type="button" class="ppt-btn ppt-btn--ghost" data-close-dialog autofocus>Keep it</button><button type="button" class="ppt-btn ppt-btn--danger" data-close-dialog>Revoke token</button></div>
+      </div>
+    </dialog>
+  </section>
+
+  <section class="spec" aria-labelledby="s-empty">
+    <header><h2 class="ppt-h2" id="s-empty">EmptyState</h2><code>EmptyState.svelte · .ppt-empty</code></header>
+    <div class="ppt-empty">
+      <svg class="ppt-empty__art" viewBox="0 0 240 160" fill="none" aria-hidden="true"><rect x="22" y="52" width="44" height="56" rx="8" stroke="currentColor" stroke-width="2.5"/><circle cx="44" cy="72" r="9" fill="#FFB224"/><circle cx="44" cy="72" r="15" stroke="#FFB224" stroke-opacity=".35" stroke-width="3"/><path d="M35 94H53M44 108V128M32 128H56" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M76 80H140" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 9"/><rect x="150" y="56" width="72" height="40.5" rx="3" fill="#FFB224"/><rect x="150" y="56" width="72" height="40.5" rx="3" stroke="currentColor" stroke-width="2.5"/><path d="M182 67.5L190.5 76.25L182 85" stroke="#16181D" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M174 118H184M179 113V123" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <h3 class="ppt-empty__title">No questions yet.</h3>
+      <p class="ppt-empty__text">Questions from your audience appear here. Anonymous, sorted by votes.</p>
+    </div>
+  </section>
+
+  <section class="spec" aria-labelledby="s-theme">
+    <header><h2 class="ppt-h2" id="s-theme">ThemeToggle</h2><code>ThemeToggle.svelte · .ppt-segmented</code></header>
+    <div class="row">
+      <div class="ppt-segmented" role="radiogroup" aria-label="Theme">
+        <button type="button" class="ppt-segmented__opt" role="radio" data-theme-opt="system" aria-label="System"><span class="ppt-icon" data-icon="desktop" aria-hidden="true"></span></button>
+        <button type="button" class="ppt-segmented__opt" role="radio" data-theme-opt="light" aria-label="Light"><span class="ppt-icon" data-icon="sun" aria-hidden="true"></span></button>
+        <button type="button" class="ppt-segmented__opt" role="radio" data-theme-opt="dark" aria-label="Dark"><span class="ppt-icon" data-icon="moon" aria-hidden="true"></span></button>
+      </div>
+      <span class="ppt-small ppt-muted">System follows <span class="ppt-mono">prefers-color-scheme</span>.</span>
+    </div>
+  </section>
+
+  <section class="spec" aria-labelledby="s-icons">
+    <header><h2 class="ppt-h2" id="s-icons">Icons</h2><code>Phosphor regular, MIT · Icon.svelte</code></header>
+    <div class="icons" id="icon-grid"></div>
+  </section>
+</main>
+<script>
+  // List every packaged icon by reading the generated CSS.
+  addEventListener("DOMContentLoaded", () => {
+    const names = new Set();
+    for (const sheet of document.styleSheets) {
+      try { for (const r of sheet.cssRules) { const m = r.selectorText && r.selectorText.match(/data-icon="([\w-]+)"/); if (m) names.add(m[1]); } } catch {}
+    }
+    document.getElementById("icon-grid").innerHTML = [...names].sort().map((n) => `<figure><span class="ppt-icon" data-icon="${n}" aria-hidden="true"></span><figcaption>${n}</figcaption></figure>`).join("");
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en" data-surface="audience">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quiz · PPTaken</title>
+<link rel="icon" href="../logo/favicon.svg" type="image/svg+xml">
+<!-- Audience pages load only Inter (Latin subset). No Bricolage, no JetBrains Mono. -->
+<link rel="stylesheet" href="../../../packages/ui/fonts/fonts-audience.css">
+<link rel="stylesheet" href="../../../packages/ui/dist/tokens.css">
+<link rel="stylesheet" href="../../../packages/ui/dist/icons.css">
+<link rel="stylesheet" href="../../../packages/ui/components.css">
+<link rel="stylesheet" href="preview.css">
+<script src="logo-data.js" defer></script>
+<script src="preview.js" defer></script>
+</head>
+<body data-states="answering,answered,revealed">
+<main class="quiz">
+  <div class="quiz__top">
+    <span class="ppt-eyebrow" style="font-family: var(--ppt-font-text); letter-spacing: 0.06em"><span data-es="Pregunta">Question</span> <span class="ppt-num">3</span> <span data-es="de">of</span> <span class="ppt-num">8</span></span>
+    <span class="quiz__timer" role="timer" aria-label="14 seconds left" data-show-state="answering answered"><span class="ppt-icon" data-icon="timer" aria-hidden="true"></span>0:14</span>
+    <span class="ppt-badge ppt-badge--connected" data-show-state="revealed"><span class="ppt-icon" data-icon="check" aria-hidden="true"></span><span data-es="Cerrada">Closed</span></span>
+  </div>
+  <div class="quiz__bar" aria-hidden="true" data-show-state="answering answered"><i></i></div>
+
+  <h1 class="quiz__q" id="q" data-es="¿Qué porcentaje de las ventas del Q3 vino de clientes que ya teníamos?">What share of Q3 sales came from existing customers?</h1>
+
+  <!-- answering -->
+  <ul class="options" aria-labelledby="q" data-show-state="answering">
+    <li><button type="button" class="option option--a" aria-pressed="false"><span class="option__key" aria-hidden="true"><span class="ppt-icon" data-icon="triangle-fill"></span><b>A</b></span><span><span class="ppt-sr-only">A, triangle: </span><span data-es="Cerca del 25 %">About 25%</span></span><span class="option__mark option__mark--chosen"><span class="ppt-icon" data-icon="check-circle" aria-hidden="true"></span></span></button></li>
+    <li><button type="button" class="option option--b" aria-pressed="false"><span class="option__key" aria-hidden="true"><span class="ppt-icon" data-icon="diamond-fill"></span><b>B</b></span><span><span class="ppt-sr-only">B, diamond: </span><span data-es="Cerca del 40 %">About 40%</span></span><span class="option__mark option__mark--chosen"><span class="ppt-icon" data-icon="check-circle" aria-hidden="true"></span></span></button></li>
+    <li><button type="button" class="option option--c" aria-pressed="false"><span class="option__key" aria-hidden="true"><span class="ppt-icon" data-icon="circle-fill"></span><b>C</b></span><span><span class="ppt-sr-only">C, circle: </span><span data-es="Cerca del 60 %">About 60%</span></span><span class="option__mark option__mark--chosen"><span class="ppt-icon" data-icon="check-circle" aria-hidden="true"></span></span></button></li>
+    <li><button type="button" class="option option--d" aria-pressed="false"><span class="option__key" aria-hidden="true"><span class="ppt-icon" data-icon="square-fill"></span><b>D</b></span><span><span class="ppt-sr-only">D, square: </span><span data-es="Más del 75 %">More than 75%</span></span><span class="option__mark option__mark--chosen"><span class="ppt-icon" data-icon="check-circle" aria-hidden="true"></span></span></button></li>
+  </ul>
+
+  <!-- answered: locked, waiting for the reveal -->
+  <ul class="options options--locked" aria-labelledby="q" data-show-state="answered">
+    <li><button type="button" class="option option--a" aria-pressed="false" aria-disabled="true"><span class="option__key" aria-hidden="true"><span class="ppt-icon" data-icon="triangle-fill"></span><b>A</b></span><span data-es="Cerca del 25 %">About 25%</span><span></span></button></li>
+    <li><button type="button" class="option option--b" aria-pressed="false" aria-disabled="true"><span class="option__key" aria-hidden="true"><span class="ppt-icon" data-icon="diamond-fill"></span><b>B</b></span><span data-es="Cerca del 40 %">About 40%</span><span></span></button></li>
+    <li><button type="button" class="option option--c" aria-pressed="true" aria-disabled="true"><span class="option__key" aria-hidden="true"><span class="ppt-icon" data-icon="circle-fill"></span><b>C</b></span><span data-es="Cerca del 60 %">About 60%</span><span class="option__mark option__mark--chosen"><span class="ppt-icon" data-icon="check-circle" aria-hidden="true"></span><span data-es="Tu respuesta">Your answer</span></span></button></li>
+    <li><button type="button" class="option option--d" aria-pressed="false" aria-disabled="true"><span class="option__key" aria-hidden="true"><span class="ppt-icon" data-icon="square-fill"></span><b>D</b></span><span data-es="Más del 75 %">More than 75%</span><span></span></button></li>
+  </ul>
+  <div class="ppt-notice" role="status" data-show-state="answered">
+    <span class="ppt-icon" data-icon="check-circle" aria-hidden="true"></span>
+    <div class="ppt-notice__body">
+      <span class="ppt-notice__title" data-es="Respuesta enviada.">Answer sent.</span>
+      <span class="ppt-notice__text" data-es="Mira la pantalla: la respuesta correcta aparece al cerrar el tiempo.">Watch the screen. The right answer shows when time is up.</span>
+    </div>
+  </div>
+
+  <!-- revealed -->
+  <ul class="options options--revealed" aria-labelledby="q" data-show-state="revealed">
+    <li><div class="option option--a"><span class="option__key" aria-hidden="true"><span class="ppt-icon" data-icon="triangle-fill"></span><b>A</b></span><span data-es="Cerca del 25 %">About 25%</span><span></span></div></li>
+    <li><div class="option option--b"><span class="option__key" aria-hidden="true"><span class="ppt-icon" data-icon="diamond-fill"></span><b>B</b></span><span data-es="Cerca del 40 %">About 40%</span><span></span></div></li>
+    <li><div class="option option--c is-correct" aria-pressed="true"><span class="option__key" aria-hidden="true"><span class="ppt-icon" data-icon="circle-fill"></span><b>C</b></span><span data-es="Cerca del 60 %">About 60%</span><span class="option__mark option__mark--correct"><span class="ppt-icon" data-icon="check-circle" aria-hidden="true"></span><span data-es="Correcta">Correct</span></span></div></li>
+    <li><div class="option option--d"><span class="option__key" aria-hidden="true"><span class="ppt-icon" data-icon="square-fill"></span><b>D</b></span><span data-es="Más del 75 %">More than 75%</span><span></span></div></li>
+  </ul>
+  <div class="ppt-card ppt-curtain-in" data-show-state="revealed" role="status" style="display:grid;gap:4px;text-align:center;padding:var(--ppt-space-6)">
+    <span class="ppt-small ppt-muted" data-es="Acertaste. Rápido, además.">You got it. Fast, too.</span>
+    <span class="score-pop">+840</span>
+    <span class="ppt-small ppt-muted"><span data-es="Vas">You are</span> <b class="ppt-num" style="color:var(--ppt-text)" data-es="4.º">4th</b> <span data-es="de 37">of 37</span></span>
+  </div>
+
+  <div class="quiz__foot">
+    <span><span data-es="Juegas como">Playing as</span> <b>Luna</b></span>
+    <span><b class="ppt-num" data-es="2310">2,310</b> <span data-es="puntos">points</span></span>
+  </div>
+</main>
+<script>
+  // Preview: tapping an option in the answering state selects it.
+  document.querySelector('[data-show-state="answering"]').addEventListener("click", (e) => {
+    const b = e.target.closest(".option"); if (!b) return;
+    for (const o of b.closest("ul").querySelectorAll(".option")) o.setAttribute("aria-pressed", String(o === b));
+  });
+</script>
+</body>
+</html>

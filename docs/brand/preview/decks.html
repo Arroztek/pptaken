@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Presentations · PPTaken</title>
+<link rel="icon" href="../logo/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../../packages/ui/fonts/fonts.css">
+<link rel="stylesheet" href="../../../packages/ui/dist/tokens.css">
+<link rel="stylesheet" href="../../../packages/ui/dist/icons.css">
+<link rel="stylesheet" href="../../../packages/ui/components.css">
+<link rel="stylesheet" href="preview.css">
+<script src="logo-data.js" defer></script>
+<script src="preview.js" defer></script>
+</head>
+<body data-states="populated,empty">
+<header class="app-header">
+  <a href="index.html" data-logo="lockup" aria-label="PPTaken"></a>
+  <nav class="app-nav" aria-label="Panel">
+    <a href="#" aria-current="page" data-es="Presentaciones">Presentations</a>
+    <a href="#" data-es="Quizzes">Quizzes</a>
+    <a href="#" data-es="Links">Share links</a>
+    <a href="#" data-es="Tokens">Agent tokens</a>
+    <a href="#" data-es="Ajustes">Settings</a>
+  </nav>
+  <span class="app-header__spacer"></span>
+  <div class="ppt-segmented" role="radiogroup" aria-label="Theme" data-es-label="Tema">
+    <button type="button" class="ppt-segmented__opt" role="radio" data-theme-opt="system" aria-label="System" title="System"><span class="ppt-icon" data-icon="desktop" aria-hidden="true"></span></button>
+    <button type="button" class="ppt-segmented__opt" role="radio" data-theme-opt="light" aria-label="Light" title="Light"><span class="ppt-icon" data-icon="sun" aria-hidden="true"></span></button>
+    <button type="button" class="ppt-segmented__opt" role="radio" data-theme-opt="dark" aria-label="Dark" title="Dark"><span class="ppt-icon" data-icon="moon" aria-hidden="true"></span></button>
+  </div>
+  <button type="button" class="ppt-icon-btn" aria-label="Sign out" data-es-label="Cerrar sesión" title="Sign out"><span class="ppt-icon" data-icon="sign-out" aria-hidden="true"></span></button>
+</header>
+<nav class="app-subnav" aria-label="Panel">
+  <a href="#" aria-current="page" data-es="Presentaciones">Presentations</a>
+  <a href="#">Quizzes</a>
+  <a href="#" data-es="Links">Share links</a>
+  <a href="#" data-es="Tokens">Agent tokens</a>
+  <a href="#" data-es="Ajustes">Settings</a>
+</nav>
+
+<main class="page">
+  <div class="page-head">
+    <div class="page-head__text">
+      <h1 class="ppt-h1" data-es="Presentaciones">Presentations</h1>
+      <p class="ppt-muted" data-es="Las hace tu agente. Tú las presentas.">Your agent makes them. You present them.</p>
+    </div>
+    <div class="page-head__actions" data-show-state="populated">
+      <span class="ppt-sr-only" id="example-prompt">Create a 6-slide presentation about our Q3 results for the sales team. Use PPTaken.</span>
+      <button type="button" class="ppt-btn ppt-btn--secondary" data-copy="example-prompt"><span class="ppt-icon" data-icon="copy" aria-hidden="true"></span><span data-label data-es="Copiar prompt de ejemplo">Copy example prompt</span></button>
+    </div>
+  </div>
+
+  <!-- ===== Populated ===== -->
+  <div data-show-state="populated">
+    <div class="toolbar">
+      <label class="search">
+        <span class="ppt-sr-only" data-es="Buscar presentaciones">Search presentations</span>
+        <span class="ppt-icon" data-icon="magnifying-glass" aria-hidden="true"></span>
+        <input class="ppt-input" type="search" placeholder="Search presentations" data-es-label="Buscar">
+      </label>
+      <span class="count"><span class="ppt-num">6</span> <span data-es="presentaciones">presentations</span></span>
+    </div>
+
+    <div class="deck-grid">
+      <article class="ppt-deck">
+        <div class="ppt-deck__thumb">
+          <div class="slide slide--navy" aria-hidden="true"><span class="rule"></span><h4>Q3 results</h4><p>Sales team · October</p></div>
+          <span class="ppt-badge ppt-badge--live ppt-deck__badge"><span class="ppt-badge__dot" aria-hidden="true"></span><span data-es="En escena">Live</span></span>
+        </div>
+        <div class="ppt-deck__body">
+          <h3 class="ppt-deck__title"><a href="player.html">Q3 results for the sales team</a></h3>
+          <p class="ppt-deck__meta"><span>14</span> <span data-es="slides · editada hace 2 h">slides · edited 2 h ago</span></p>
+          <div class="ppt-deck__actions">
+            <a class="ppt-btn ppt-btn--secondary ppt-btn--sm" href="player.html"><span class="ppt-icon" data-icon="play" aria-hidden="true"></span><span data-es="Volver a escena">Back on stage</span></a>
+            <button type="button" class="ppt-icon-btn ppt-icon-btn--sm" aria-label="More actions for Q3 results for the sales team"><span class="ppt-icon" data-icon="dots-three" aria-hidden="true"></span></button>
+          </div>
+        </div>
+      </article>
+
+      <article class="ppt-deck">
+        <div class="ppt-deck__thumb">
+          <div class="slide slide--white" aria-hidden="true"><h4>First week, in numbers</h4><div class="bars"><i style="height:38%"></i><i style="height:55%"></i><i style="height:47%"></i><i style="height:72%"></i><i style="height:90%"></i></div></div>
+          <span class="ppt-badge ppt-badge--draft ppt-deck__badge"><span class="ppt-icon" data-icon="pencil-simple" aria-hidden="true"></span><span data-es="Quiz en borrador">Quiz draft</span></span>
+        </div>
+        <div class="ppt-deck__body">
+          <h3 class="ppt-deck__title"><a href="#">Onboarding: your first week</a></h3>
+          <p class="ppt-deck__meta"><span>22</span> <span data-es="slides · editada hace 3 h">slides · edited 3 h ago</span></p>
+          <div class="ppt-deck__actions">
+            <a class="ppt-btn ppt-btn--secondary ppt-btn--sm" href="player.html"><span class="ppt-icon" data-icon="play" aria-hidden="true"></span><span data-es="Presentar">Present</span></a>
+            <button type="button" class="ppt-icon-btn ppt-icon-btn--sm" aria-label="More actions for Onboarding: your first week"><span class="ppt-icon" data-icon="dots-three" aria-hidden="true"></span></button>
+          </div>
+        </div>
+      </article>
+
+      <article class="ppt-deck">
+        <div class="ppt-deck__thumb">
+          <div class="slide slide--cream" aria-hidden="true"><h4>The printing press</h4><p>Mainz, 1450</p></div>
+        </div>
+        <div class="ppt-deck__body">
+          <h3 class="ppt-deck__title"><a href="#">A short history of the printing press</a></h3>
+          <p class="ppt-deck__meta"><span>9</span> <span data-es="slides · editada ayer">slides · edited yesterday</span></p>
+          <div class="ppt-deck__actions">
+            <a class="ppt-btn ppt-btn--secondary ppt-btn--sm" href="player.html"><span class="ppt-icon" data-icon="play" aria-hidden="true"></span><span data-es="Presentar">Present</span></a>
+            <button type="button" class="ppt-icon-btn ppt-icon-btn--sm" aria-label="More actions for A short history of the printing press"><span class="ppt-icon" data-icon="dots-three" aria-hidden="true"></span></button>
+          </div>
+        </div>
+      </article>
+
+      <article class="ppt-deck">
+        <div class="ppt-deck__thumb">
+          <div class="slide slide--forest" aria-hidden="true"><div><h4>Spring plan</h4><p>Garden club, 2027</p></div><div class="disc"></div></div>
+        </div>
+        <div class="ppt-deck__body">
+          <h3 class="ppt-deck__title"><a href="#">Garden club: spring plan</a></h3>
+          <p class="ppt-deck__meta"><span>11</span> <span data-es="slides · editada el 2 nov">slides · edited Nov 2</span></p>
+          <div class="ppt-deck__actions">
+            <a class="ppt-btn ppt-btn--secondary ppt-btn--sm" href="player.html"><span class="ppt-icon" data-icon="play" aria-hidden="true"></span><span data-es="Presentar">Present</span></a>
+            <button type="button" class="ppt-icon-btn ppt-icon-btn--sm" aria-label="More actions for Garden club: spring plan"><span class="ppt-icon" data-icon="dots-three" aria-hidden="true"></span></button>
+          </div>
+        </div>
+      </article>
+
+      <article class="ppt-deck">
+        <div class="ppt-deck__thumb">
+          <div class="slide slide--black" aria-hidden="true"><h4>Checkout <span>v4</span></h4></div>
+        </div>
+        <div class="ppt-deck__body">
+          <h3 class="ppt-deck__title"><a href="#">Design review: checkout v4</a></h3>
+          <p class="ppt-deck__meta"><span>18</span> <span data-es="slides · editada el 28 oct">slides · edited Oct 28</span></p>
+          <div class="ppt-deck__actions">
+            <a class="ppt-btn ppt-btn--secondary ppt-btn--sm" href="player.html"><span class="ppt-icon" data-icon="play" aria-hidden="true"></span><span data-es="Presentar">Present</span></a>
+            <button type="button" class="ppt-icon-btn ppt-icon-btn--sm" aria-label="More actions for Design review: checkout v4"><span class="ppt-icon" data-icon="dots-three" aria-hidden="true"></span></button>
+          </div>
+        </div>
+      </article>
+
+      <article class="ppt-deck">
+        <div class="ppt-deck__thumb">
+          <div class="slide slide--grid" aria-hidden="true"><div>1</div><div>2</div><div>3</div></div>
+        </div>
+        <div class="ppt-deck__body">
+          <h3 class="ppt-deck__title"><a href="#">Workshop: prompts that work</a></h3>
+          <p class="ppt-deck__meta"><span>26</span> <span data-es="slides · editada el 20 oct">slides · edited Oct 20</span></p>
+          <div class="ppt-deck__actions">
+            <a class="ppt-btn ppt-btn--secondary ppt-btn--sm" href="player.html"><span class="ppt-icon" data-icon="play" aria-hidden="true"></span><span data-es="Presentar">Present</span></a>
+            <button type="button" class="ppt-icon-btn ppt-icon-btn--sm" aria-label="More actions for Workshop: prompts that work"><span class="ppt-icon" data-icon="dots-three" aria-hidden="true"></span></button>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <div class="section-title">
+      <h2 class="ppt-h2" data-es="Actividad del agente">Agent activity</h2>
+      <a class="ppt-link ppt-small" href="#" data-es="Ver todo">See all</a>
+    </div>
+    <div class="ppt-table-wrap">
+      <table class="ppt-table">
+        <thead><tr>
+          <th scope="col" data-es="Cuándo">When</th><th scope="col" data-es="Agente">Agent</th><th scope="col" data-es="Qué hizo">What it did</th><th scope="col" data-es="Presentación">Presentation</th><th scope="col" class="is-num" data-es="Revisión">Revision</th>
+        </tr></thead>
+        <tbody>
+          <tr><td class="ppt-num">10:42</td><td>Claude Code</td><td data-es="Actualizó 3 slides">Updated 3 slides</td><td>Q3 results for the sales team</td><td class="is-num is-mono">r14</td></tr>
+          <tr><td class="ppt-num">10:31</td><td>Claude Code</td><td data-es="Creó un quiz en borrador (8 preguntas)">Drafted a quiz (8 questions)</td><td>Onboarding: your first week</td><td class="is-num is-mono">r6</td></tr>
+          <tr><td class="ppt-num" data-es="Ayer 18:05">Yesterday 18:05</td><td>claude.ai</td><td data-es="Creó la presentación">Created the presentation</td><td>A short history of the printing press</td><td class="is-num is-mono">r1</td></tr>
+          <tr><td class="ppt-num" data-es="Ayer 17:58">Yesterday 17:58</td><td>claude.ai</td><td data-es="Subió 4 imágenes">Uploaded 4 images</td><td>A short history of the printing press</td><td class="is-num is-mono">r1</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== Empty ===== -->
+  <div class="ppt-empty" data-show-state="empty">
+    <svg class="ppt-empty__art" viewBox="0 0 240 160" fill="none" aria-hidden="true"><path d="M111 15H129L178 131H62Z" fill="#FFB224" fill-opacity=".22"/><ellipse cx="120" cy="131.5" rx="58" ry="7.5" fill="#FFB224"/><path d="M107 4.5C107 3.67 107.67 3 108.5 3H131.5C132.33 3 133 3.67 133 4.5V9L129 15H111L107 9Z" fill="currentColor"/><path d="M14 131.5H226" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="89" y="58" width="72" height="40.5" rx="3" stroke="currentColor" stroke-width="2.5"/><path d="M90.25 98.5V131" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M34 141H44M39 136V146M196 141H206M201 136V146" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    <h2 class="ppt-empty__title" data-es="Aún no hay presentaciones.">No presentations yet.</h2>
+    <p class="ppt-empty__text" data-es="Pídele una a tu agente. Aparece aquí en cuanto la crea; el escenario ya está listo.">Ask your agent for one. It shows up here the moment it is created; the stage is already set.</p>
+    <div class="ppt-empty__actions">
+      <span class="ppt-sr-only" id="example-prompt-2">Create a 6-slide presentation about our Q3 results for the sales team. Use PPTaken.</span>
+      <button type="button" class="ppt-btn ppt-btn--primary" data-copy="example-prompt-2"><span class="ppt-icon" data-icon="copy" aria-hidden="true"></span><span data-label data-es="Copiar prompt de ejemplo">Copy example prompt</span></button>
+      <a class="ppt-btn ppt-btn--ghost" href="welcome.html"><span data-es="Conectar otro agente">Connect another agent</span></a>
+    </div>
+  </div>
+</main>
+</body>
+</html>

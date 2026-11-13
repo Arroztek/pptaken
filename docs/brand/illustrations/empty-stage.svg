@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" viewBox="0 0 240 160" fill="none" role="img" aria-label="An empty screen standing in a pool of light on a stage">
+  <title>Empty stage</title>
+  <!-- Two inks only: Ink (currentColor, becomes Chalk in dark mode) and Spotlight #FFB224. -->
+  <!-- Light wedge from the follow spot (Spotlight tint) -->
+  <path d="M111 15H129L178 131H62Z" fill="#FFB224" fill-opacity=".22"/>
+  <!-- Pool of light on the floor -->
+  <ellipse cx="120" cy="131.5" rx="58" ry="7.5" fill="#FFB224"/>
+  <!-- The follow spot -->
+  <path d="M107 4.5C107 3.67 107.67 3 108.5 3H131.5C132.33 3 133 3.67 133 4.5V9L129 15H111L107 9Z" fill="currentColor"/>
+  <!-- Floor -->
+  <path d="M14 131.5H226" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Screen on its stand: stand on the left, like the stem of the P -->
+  <rect x="89" y="58" width="72" height="40.5" rx="3" stroke="currentColor" stroke-width="2.5"/>
+  <path d="M90.25 98.5V131" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+  <!-- Spike marks: taped crosses on the floor -->
+  <path d="M34 141H44M39 136V146" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M196 141H206M201 136V146" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+</svg>

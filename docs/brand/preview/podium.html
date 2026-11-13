@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en" data-default-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quiz podium · PPTaken</title>
+<link rel="icon" href="../logo/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../../packages/ui/fonts/fonts.css">
+<link rel="stylesheet" href="../../../packages/ui/dist/tokens.css">
+<link rel="stylesheet" href="../../../packages/ui/dist/icons.css">
+<link rel="stylesheet" href="../../../packages/ui/components.css">
+<link rel="stylesheet" href="preview.css">
+<script src="logo-data.js" defer></script>
+<script src="preview.js" defer></script>
+</head>
+<body>
+<!-- Projector view of the quiz module. Audience modules on the projector use the PPTaken system, dark variant (05 §11.7).
+     This is the only celebration in the product. -->
+<main class="projector" aria-labelledby="podium-title">
+  <header class="projector__head">
+    <div>
+      <p class="ppt-eyebrow" data-es="Ranking final">Final ranking</p>
+      <h1 class="projector__title" id="podium-title" data-es="Quiz: resultados del Q3">Quiz: Q3 results</h1>
+    </div>
+    <p class="projector__meta"><span class="ppt-num">37</span> <span data-es="jugadores">players</span> · <span class="ppt-num">8</span> <span data-es="preguntas">questions</span></p>
+  </header>
+
+  <section class="podium" aria-label="Podium">
+    <div class="podium__beams" aria-hidden="true">
+      <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+        <defs><radialGradient id="halo" cx="50%" cy="78%" r="36%"><stop offset="0" stop-color="#FFB224" stop-opacity=".08"/><stop offset="1" stop-color="#FFB224" stop-opacity="0"/></radialGradient></defs>
+        <rect width="100" height="100" fill="url(#halo)"/>
+        <!-- One follow spot from above, widening onto the winner -->
+        <path d="M46.5 0H53.5L68 100H32Z" fill="#FFB224" fill-opacity=".07"/>
+        <path d="M48.5 0H51.5L60 100H40Z" fill="#FFB224" fill-opacity=".05"/>
+      </svg>
+    </div>
+    <ol style="display:contents">
+      <li class="place place--2" style="order:1">
+        <span class="place__name">Marco P.</span>
+        <span class="place__pts"><span class="ppt-num">6,410</span> pts</span>
+        <span class="place__block" aria-label="Second place">2</span>
+      </li>
+      <li class="place place--1" style="order:2">
+        <span class="place__name">Luna</span>
+        <span class="place__pts"><span class="ppt-num">6,920</span> pts</span>
+        <span class="place__block" aria-label="First place">1</span>
+      </li>
+      <li class="place place--3" style="order:3">
+        <span class="place__name">tiburon_azul</span>
+        <span class="place__pts"><span class="ppt-num">6,050</span> pts</span>
+        <span class="place__block" aria-label="Third place">3</span>
+      </li>
+    </ol>
+  </section>
+
+  <ol class="ranks" start="4" aria-label="Places 4 to 9">
+    <li><span>4</span><span>Ana</span><span>5,880</span></li>
+    <li><span>5</span><span>Diego</span><span>5,310</span></li>
+    <li><span>6</span><span>Grace H.</span><span>5,120</span></li>
+    <li><span>7</span><span>Wen</span><span>4,870</span></li>
+    <li><span>8</span><span>Pato</span><span>4,640</span></li>
+    <li><span>9</span><span>Sam</span><span>4,410</span></li>
+  </ol>
+</main>
+</body>
+</html>

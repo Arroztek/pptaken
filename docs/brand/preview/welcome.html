@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Connect your agent · PPTaken</title>
+<link rel="icon" href="../logo/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../../../packages/ui/fonts/fonts.css">
+<link rel="stylesheet" href="../../../packages/ui/dist/tokens.css">
+<link rel="stylesheet" href="../../../packages/ui/dist/icons.css">
+<link rel="stylesheet" href="../../../packages/ui/components.css">
+<link rel="stylesheet" href="preview.css">
+<script src="logo-data.js" defer></script>
+<script src="preview.js" defer></script>
+</head>
+<body data-states="waiting,connected">
+<header class="app-header">
+  <a href="index.html" data-logo="lockup" aria-label="PPTaken"></a>
+  <span class="app-header__spacer"></span>
+  <div class="ppt-segmented" role="radiogroup" aria-label="Theme" data-es-label="Tema">
+    <button type="button" class="ppt-segmented__opt" role="radio" data-theme-opt="system" aria-label="System" title="System"><span class="ppt-icon" data-icon="desktop" aria-hidden="true"></span></button>
+    <button type="button" class="ppt-segmented__opt" role="radio" data-theme-opt="light" aria-label="Light" title="Light"><span class="ppt-icon" data-icon="sun" aria-hidden="true"></span></button>
+    <button type="button" class="ppt-segmented__opt" role="radio" data-theme-opt="dark" aria-label="Dark" title="Dark"><span class="ppt-icon" data-icon="moon" aria-hidden="true"></span></button>
+  </div>
+</header>
+
+<main class="welcome">
+  <section class="hero ppt-curtain-in">
+    <p class="ppt-eyebrow" data-es="Paso 2 de 2">Step 2 of 2</p>
+    <h1 class="ppt-display" data-es="Conecta tu agente.">Connect your agent.</h1>
+    <p class="ppt-lead" data-es="Tu agente diseña. Tú presentas. Elige dónde usas Claude y sigue los pasos; toma menos de un minuto.">Your agent designs. You present. Pick where you use Claude and follow the steps; it takes less than a minute.</p>
+  </section>
+
+  <div class="ppt-tabs" role="tablist" aria-label="Where you use Claude">
+    <button class="ppt-tab" role="tab" id="tab-code" aria-controls="panel-code" aria-selected="true" tabindex="0"><span class="ppt-icon" data-icon="terminal-window" aria-hidden="true"></span>Claude Code</button>
+    <button class="ppt-tab" role="tab" id="tab-web" aria-controls="panel-web" aria-selected="false" tabindex="-1"><span class="ppt-icon" data-icon="globe" aria-hidden="true"></span><span data-es="claude.ai y Desktop">claude.ai and Desktop</span></button>
+  </div>
+
+  <!-- Claude Code -->
+  <section class="ppt-tabpanel" role="tabpanel" id="panel-code" aria-labelledby="tab-code" tabindex="0">
+    <ol class="steps">
+      <li class="step">
+        <h2 class="step__title" data-es="Copia el prompt de configuración.">Copy the setup prompt.</h2>
+        <p class="step__text" data-es="Incluye un token nuevo con permisos mínimos. Se muestra una sola vez.">It includes a new token with minimal permissions. It is shown only once.</p>
+        <div class="ppt-copyblock">
+<pre class="ppt-copyblock__value" id="setup-prompt">Connect PPTaken to Claude Code so you can create presentations for me.
+
+1. Save this token as an environment variable in my shell profile, never in a project file:
+   export PPTAKEN_TOKEN=ppt_k7m2qx9d4h8w3n5rt6
+2. Run:
+   claude mcp add --transport http --scope user pptaken https://slides.example.com/mcp --header "Authorization: Bearer ${PPTAKEN_TOKEN}"
+3. Call the PPTaken whoami tool and tell me in one line that it works.</pre>
+          <div class="ppt-copyblock__bar">
+            <span class="ppt-small ppt-muted"><span data-es="Permisos:">Permissions:</span> <span class="ppt-mono">decks:read decks:write quiz:draft</span></span>
+            <button type="button" class="ppt-btn ppt-btn--primary" data-copy="setup-prompt"><span class="ppt-icon" data-icon="copy" aria-hidden="true"></span><span data-label data-es="Copiar prompt">Copy prompt</span></button>
+          </div>
+        </div>
+      </li>
+      <li class="step">
+        <h2 class="step__title" data-es="Pégalo en Claude Code.">Paste it into Claude Code.</h2>
+        <p class="step__text" data-es="Claude ejecuta el comando por ti y te pide confirmación antes de cada paso.">Claude runs the command for you and asks before each step.</p>
+      </li>
+      <li class="step">
+        <h2 class="step__title" data-es="Espera la señal.">Wait for the cue.</h2>
+        <p class="step__text" data-es="Esta página cambia sola cuando tu agente haga su primera llamada.">This page updates on its own when your agent makes its first call.</p>
+        <div class="waiting" data-show-state="waiting" role="status">
+          <div class="waiting__text">
+            <span class="waiting__title"><span class="ppt-dot" aria-hidden="true"></span><span data-es="Esperando la primera llamada de tu agente…">Waiting for your agent's first call…</span></span>
+            <span class="waiting__hint" data-es="Puedes dejar esta pestaña abierta.">You can leave this tab open.</span>
+          </div>
+          <button type="button" class="ppt-btn ppt-btn--secondary ppt-btn--sm"><span data-es="Probar conexión">Test connection</span></button>
+        </div>
+        <div class="stack" data-show-state="connected">
+          <div class="ppt-notice ppt-notice--success ppt-curtain-in" role="status">
+            <span class="ppt-icon" data-icon="check-circle" aria-hidden="true"></span>
+            <div class="ppt-notice__body">
+              <span class="ppt-notice__title" data-es="Claude se conectó.">Claude connected.</span>
+              <span class="ppt-notice__text" data-es="Claude Code llamó a whoami hace 2 segundos.">Claude Code called whoami 2 seconds ago.</span>
+            </div>
+          </div>
+        </div>
+      </li>
+    </ol>
+  </section>
+
+  <!-- claude.ai and Desktop -->
+  <section class="ppt-tabpanel" role="tabpanel" id="panel-web" aria-labelledby="tab-web" tabindex="0" hidden>
+    <div class="stack">
+      <div class="ppt-notice">
+        <span class="ppt-icon" data-icon="info" aria-hidden="true"></span>
+        <div class="ppt-notice__body">
+          <span class="ppt-notice__title" data-es="Tu servidor es público y usa HTTPS. Bien.">Your server is public and uses HTTPS. Good.</span>
+          <span class="ppt-notice__text" data-es="claude.ai se conecta desde la nube de Anthropic, así que necesita llegar a esta dirección.">claude.ai connects from Anthropic's cloud, so it needs to reach this address.</span>
+        </div>
+      </div>
+      <ol class="steps" style="margin-top: var(--ppt-space-4)">
+        <li class="step">
+          <h2 class="step__title" data-es="Copia la URL del conector.">Copy the connector URL.</h2>
+          <div class="ppt-copyfield">
+            <span class="ppt-copyfield__value" id="connector-url">https://slides.example.com/mcp</span>
+            <button type="button" class="ppt-btn ppt-btn--primary ppt-btn--sm" data-copy="connector-url"><span class="ppt-icon" data-icon="copy" aria-hidden="true"></span><span data-label data-es="Copiar">Copy</span></button>
+          </div>
+        </li>
+        <li class="step">
+          <h2 class="step__title" data-es="Agrega un conector en Claude.">Add a connector in Claude.</h2>
+          <p class="step__text"><span data-es="Abre">Open</span> <span class="path">Customize → Connectors → Add custom connector</span>.</p>
+        </li>
+        <li class="step">
+          <h2 class="step__title" data-es="Pega la URL y pulsa Conectar.">Paste the URL and select Connect.</h2>
+          <p class="step__text" data-es="Deja lo que aparece marcado como Detectado. No hace falta tocar nada más.">Keep everything marked Detected. Nothing else to change.</p>
+        </li>
+        <li class="step">
+          <h2 class="step__title" data-es="Autoriza a Claude.">Authorize Claude.</h2>
+          <p class="step__text" data-es="Se abrirá esta instancia para que apruebes el acceso. Después vuelve aquí.">This instance opens so you can approve access. Then come back here.</p>
+          <div class="waiting" data-show-state="waiting" role="status">
+            <div class="waiting__text">
+              <span class="waiting__title"><span class="ppt-dot" aria-hidden="true"></span><span data-es="Esperando la primera llamada de tu agente…">Waiting for your agent's first call…</span></span>
+              <span class="waiting__hint" data-es="Puedes dejar esta pestaña abierta.">You can leave this tab open.</span>
+            </div>
+          </div>
+          <div class="ppt-notice ppt-notice--success" data-show-state="connected" role="status">
+            <span class="ppt-icon" data-icon="check-circle" aria-hidden="true"></span>
+            <div class="ppt-notice__body">
+              <span class="ppt-notice__title" data-es="Claude se conectó.">Claude connected.</span>
+              <span class="ppt-notice__text" data-es="claude.ai llamó a whoami hace 2 segundos.">claude.ai called whoami 2 seconds ago.</span>
+            </div>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="ppt-card next-card" data-show-state="connected" style="margin-top: var(--ppt-space-12)" aria-labelledby="next-title">
+    <svg viewBox="0 0 240 160" fill="none" aria-hidden="true"><path d="M20 148V52C20 28 64 12 120 12C176 12 220 28 220 52V148" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><path d="M28 40C40 52 52 52 64 42C76 52 88 52 100 42C112 52 128 52 140 42C152 52 164 52 176 42C188 52 200 52 212 40" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M30 56C38 90 36 120 30 148M44 56C50 92 48 122 42 148M210 56C202 90 204 120 210 148M196 56C190 92 192 122 198 148" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><ellipse cx="120" cy="96" rx="56" ry="34" fill="#FFB224" fill-opacity=".16"/><rect x="84" y="76" width="72" height="40.5" rx="3" fill="#FFB224"/><path d="M116 87.5L124.5 96.25L116 105" stroke="#16181D" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 148H220" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    <div class="stack" style="gap: var(--ppt-space-3)">
+      <h2 class="ppt-h2" id="next-title" data-es="Pide tu primera presentación.">Ask for your first deck.</h2>
+      <p class="ppt-muted ppt-small" data-es="Copia un ejemplo, pégalo en Claude y mira cómo aparece en tu lista.">Copy an example, paste it into Claude, and watch it appear in your list.</p>
+      <span class="ppt-sr-only" id="example-prompt">Create a 6-slide presentation about our Q3 results for the sales team. Use PPTaken.</span>
+      <div class="row">
+        <button type="button" class="ppt-btn ppt-btn--secondary" data-copy="example-prompt"><span class="ppt-icon" data-icon="copy" aria-hidden="true"></span><span data-label data-es="Copiar prompt de ejemplo">Copy example prompt</span></button>
+        <a class="ppt-btn ppt-btn--ghost" href="decks.html"><span data-es="Ir a presentaciones">Go to presentations</span><span class="ppt-icon" data-icon="arrow-right" aria-hidden="true"></span></a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="welcome-foot">
+    <span><span data-es="¿Usas otro cliente MCP?">Using another MCP client?</span> <a href="#" data-es="Configuración manual">Manual setup</a></span>
+    <a href="decks.html" data-es="Hacerlo más tarde">Do this later</a>
+  </footer>
+</main>
+</body>
+</html>

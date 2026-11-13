@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="160" viewBox="0 0 240 160" fill="none" role="img" aria-label="A lit slide framed by the arc of a stage curtain">
+  <title>Curtain call</title>
+  <!-- Two inks: Ink (currentColor) and Spotlight #FFB224. -->
+  <!-- Proscenium arc -->
+  <path d="M20 148V52C20 28 64 12 120 12C176 12 220 28 220 52V148" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Valance: the curtain's scalloped edge -->
+  <path d="M28 40C40 52 52 52 64 42C76 52 88 52 100 42C112 52 128 52 140 42C152 52 164 52 176 42C188 52 200 52 212 40" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Side curtains, drawn open -->
+  <path d="M30 56C38 90 36 120 30 148M44 56C50 92 48 122 42 148" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <path d="M210 56C202 90 204 120 210 148M196 56C190 92 192 122 198 148" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <!-- Halo of the follow spot -->
+  <ellipse cx="120" cy="96" rx="56" ry="34" fill="#FFB224" fill-opacity=".16"/>
+  <!-- The lit slide, 16:9 -->
+  <rect x="84" y="76" width="72" height="40.5" rx="3" fill="#FFB224"/>
+  <path d="M116 87.5L124.5 96.25L116 105" stroke="#16181D" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Stage floor -->
+  <path d="M20 148H220" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+</svg>
