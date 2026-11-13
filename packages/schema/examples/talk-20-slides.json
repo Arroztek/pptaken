@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "title": "How a talk gets taken care of",
+  "lang": "en",
+  "aspectRatio": "16:9",
+  "theme": {
+    "css": ".talk-canvas{position:absolute;left:0;top:0;width:1920px;height:1080px;box-sizing:border-box;padding:120px;background:#FAF7F2;color:#16181D;font-family:'Inter',sans-serif;font-size:40px;line-height:1.4;overflow:hidden}\n.talk-kicker{font-family:'Inter',sans-serif;font-size:32px;color:#5746AF;letter-spacing:0.08em;text-transform:uppercase;margin:0 0 24px}\n.talk-title{font-family:'Bricolage Grotesque',sans-serif;font-size:96px;line-height:1.05;font-weight:700;margin:0 0 48px}\n.talk-list{margin:0;padding-left:56px}\n.talk-list li{margin:0 0 28px}\n.talk-card{flex:1;background:#FFFFFF;border-radius:24px;padding:40px;border-top:12px solid #FFB224}\n.talk-card h3{font-family:'Bricolage Grotesque',sans-serif;font-size:56px;margin:0 0 24px}\n.talk-chip{display:inline-block;background:#FFB224;color:#16181D;padding:12px 32px;border-radius:999px;font-weight:600;margin-right:24px}\n.talk-code{font-family:'JetBrains Mono',monospace;font-size:34px;line-height:1.5;background:#16181D;color:#FAF7F2;padding:48px;border-radius:24px;margin:0;white-space:pre}\n.talk-table{border-collapse:collapse;width:100%;font-size:36px}\n.talk-table th,.talk-table td{border-bottom:2px solid #16181D;text-align:left;padding:18px 24px}\n.talk-table th{color:#5746AF;font-family:'Bricolage Grotesque',sans-serif}",
+    "fonts": ["Bricolage Grotesque", "Inter", "JetBrains Mono"]
+  },
+  "targetMinutes": 20,
+  "slides": [
+    {
+      "id": "cover",
+      "title": "How a talk gets taken care of",
+      "section": "Intro",
+      "html": "<div class='talk-canvas' style='padding-top:300px'><p class='talk-kicker'>A talk in three parts</p><h1 class='talk-title cover-title'>How a talk gets taken care of</h1><p>An AI agent drafts the deck. A human carries it on stage.</p></div>",
+      "css": ".cover-title{font-size:140px;color:#5746AF;max-width:1600px}",
+      "notes": "Welcome the room. This talk follows one presentation from a rough brief to the moment it is shared after the stage. Set the frame: an AI agent drafts, a person presents.",
+      "durationHintSec": 30
+    },
+    {
+      "id": "agenda",
+      "title": "Agenda",
+      "section": "Intro",
+      "html": "<div class='talk-canvas'><p class='talk-kicker'>Agenda</p><h2 class='talk-title'>Four questions, one talk</h2><ol class='talk-list'><li data-step='1'>Why the pipeline exists</li><li data-step='2'>How the agent builds the deck</li><li data-step='3'>How the person rehearses and presents</li><li data-step='4'>How the talk is shared afterwards</li></ol></div>",
+      "notes": "Walk through the four questions quickly. Reveal each item with a click so the room follows the order of the talk.",
+      "durationHintSec": 45
+    },
+    {
+      "id": "pipeline",
+      "title": "The pipeline at a glance",
+      "section": "Intro",
+      "html": "<div class='talk-canvas'><p class='talk-kicker'>Overview</p><h2 class='talk-title'>The pipeline at a glance</h2><div style='margin-top:40px'><svg viewBox='0 0 1680 440' width='1680' height='440'><rect x='0' y='180' width='260' height='160' rx='20' fill='#FFFFFF' stroke='#16181D' stroke-width='4'/><text x='130' y='252' text-anchor='middle' font-family='Inter' font-size='38' fill='#16181D'>Brief</text><text x='130' y='300' text-anchor='middle' font-family='Inter' font-size='28' fill='#16181D'>human writes it</text><rect x='340' y='180' width='260' height='160' rx='20' fill='#FFB224' stroke='#16181D' stroke-width='4'/><text x='470' y='252' text-anchor='middle' font-family='Inter' font-size='38' fill='#16181D'>Agent</text><text x='470' y='300' text-anchor='middle' font-family='Inter' font-size='28' fill='#16181D'>drafts slides</text><rect x='680' y='180' width='260' height='160' rx='20' fill='#FFB224' stroke='#16181D' stroke-width='4'/><text x='810' y='252' text-anchor='middle' font-family='Inter' font-size='38' fill='#16181D'>Deck</text><text x='810' y='300' text-anchor='middle' font-family='Inter' font-size='28' fill='#16181D'>validated JSON</text><rect x='1020' y='180' width='260' height='160' rx='20' fill='#5746AF' stroke='#16181D' stroke-width='4'/><text x='1150' y='252' text-anchor='middle' font-family='Inter' font-size='38' fill='#FAF7F2'>Human</text><text x='1150' y='300' text-anchor='middle' font-family='Inter' font-size='28' fill='#FAF7F2'>rehearses it</text><rect x='1360' y='180' width='260' height='160' rx='20' fill='#16181D' stroke='#16181D' stroke-width='4'/><text x='1490' y='252' text-anchor='middle' font-family='Inter' font-size='38' fill='#FAF7F2'>Audience</text><text x='1490' y='300' text-anchor='middle' font-family='Inter' font-size='28' fill='#FAF7F2'>sees the slides</text><line x1='270' y1='260' x2='318' y2='260' stroke='#16181D' stroke-width='6'/><polygon points='318,250 334,260 318,270' fill='#16181D'/><line x1='610' y1='260' x2='658' y2='260' stroke='#16181D' stroke-width='6'/><polygon points='658,250 674,260 658,270' fill='#16181D'/><line x1='950' y1='260' x2='998' y2='260' stroke='#16181D' stroke-width='6'/><polygon points='998,250 1014,260 998,270' fill='#16181D'/><line x1='1290' y1='260' x2='1338' y2='260' stroke='#16181D' stroke-width='6'/><polygon points='1338,250 1354,260 1338,270' fill='#16181D'/></svg></div><p style='margin-top:40px'>Every stage has one owner. Nothing moves forward without a check.</p></div>",
+      "notes": "Point at each box from left to right. Stress that the agent never presents and the person never starts from a blank page.",
+      "durationHintSec": 60
+    },
+    {
+      "id": "why-it-matters",
+      "title": "Why it matters",
+      "section": "Intro",
+      "html": "<div class='talk-canvas'><p class='talk-kicker'>Context</p><h2 class='talk-title'>Why it matters</h2><ul class='talk-list'><li data-step='1'>Preparing a talk can take days of slide work.</li><li data-step='2'>An agent can draft the structure in minutes.</li><li data-step='3'>A person keeps the judgment, the voice and the stage.</li></ul></div>",
+      "notes": "Name the pain: days of slide work for a talk that lasts twenty minutes. Then state the goal: speed without losing the speaker's voice.",
+      "durationHintSec": 60
+    },
+    {
+      "id": "brief",
+      "title": "From brief to outline",
+      "section": "Making the deck",
+      "html": "<div class='talk-canvas'><p class='talk-kicker'>Stage 1</p><h2 class='talk-title'>From brief to outline</h2><ol class='talk-list'><li data-step='1'>Write a one-paragraph brief: audience, goal and length.</li><li data-step='2'>The agent proposes a storyline with one idea per slide.</li><li data-step='3'>The person cuts, reorders and approves the outline.</li></ol></div>",
+      "notes": "A good brief is short. Ask for the audience, the goal and the length before anything else. The agent works best when the brief is specific.",
+      "durationHintSec": 70
+    },
+    {
+      "id": "outline",
+      "title": "Structure that holds attention",
+      "section": "Making the deck",
+      "html": "<div class='talk-canvas'><p class='talk-kicker'>Stage 1, continued</p><h2 class='talk-title'>Structure that holds attention</h2><div style='display:flex;gap:60px'><div class='talk-card' data-step='1'><h3>Open</h3><p>Start with a question the room already cares about.</p></div><div class='talk-card' data-step='2'><h3>Develop</h3><p>Give three ideas, each with one concrete example.</p></div><div class='talk-card' data-step='3'><h3>Close</h3><p>End with one action the audience can take.</p></div></div></div>",
+      "notes": "Three ideas is a good default for twenty minutes. Each card reveals on its own step so the structure stays visible.",
+      "durationHintSec": 60
+    },
+    {
+      "id": "effort-chart",
+      "title": "Where the hours go",
+      "section": "Making the deck",
+      "html": "<div class='talk-canvas'><p class='talk-kicker'>Effort</p><h2 class='talk-title'>Where the hours go</h2><svg viewBox='0 0 1680 560' width='1680' height='560'><line x1='60' y1='480' x2='1620' y2='480' stroke='#16181D' stroke-width='4'/><rect x='100' y='240' width='200' height='240' fill='#5746AF'/><text x='200' y='220' text-anchor='middle' font-family='Inter' font-size='36' fill='#16181D'>6 h</text><text x='200' y='520' text-anchor='middle' font-family='Inter' font-size='32' fill='#16181D'>Research</text><rect x='380' y='160' width='200' height='320' fill='#FFB224'/><text x='480' y='140' text-anchor='middle' font-family='Inter' font-size='36' fill='#16181D'>8 h</text><text x='480' y='520' text-anchor='middle' font-family='Inter' font-size='32' fill='#16181D'>Drafting</text><rect x='660' y='240' width='200' height='240' fill='#5746AF'/><text x='760' y='220' text-anchor='middle' font-family='Inter' font-size='36' fill='#16181D'>6 h</text><text x='760' y='520' text-anchor='middle' font-family='Inter' font-size='32' fill='#16181D'>Layout</text><rect x='940' y='320' width='200' height='160' fill='#FFB224'/><text x='1040' y='300' text-anchor='middle' font-family='Inter' font-size='36' fill='#16181D'>4 h</text><text x='1040' y='520' text-anchor='middle' font-family='Inter' font-size='32' fill='#16181D'>Rehearsal</text></svg><p style='font-size:32px;color:#5746AF;margin-top:24px'>Illustrative numbers for a manual workflow.</p></div>",
+      "notes": "These numbers are illustrative, not measured. The point is that drafting and layout take most of the time, which is where the agent helps most.",
+      "durationHintSec": 60
+    },
+    {
+      "id": "deck-json",
+      "title": "The deck is just JSON",
+      "section": "Making the deck",
+      "html": "<div class='talk-canvas'><p class='talk-kicker'>Format</p><h2 class='talk-title'>The deck is just JSON</h2><pre class='talk-code'><code>{\n  \"schemaVersion\": 1,\n  \"title\": \"My talk\",\n  \"aspectRatio\": \"16:9\",\n  \"slides\": [\n    { \"id\": \"cover\", \"title\": \"Cover\", \"html\": \"&lt;h1&gt;Hello&lt;/h1&gt;\" }\n  ]\n}</code></pre></div>",
+      "notes": "Show the shape, not the details. Each slide is an object with an id, a title and HTML. The format is strict on purpose so the agent and the player agree.",
+      "durationHintSec": 60
+    },
+    {
+      "id": "roles-table",
+      "title": "Who owns what",
+      "section": "Roles",
+      "html": "<div class='talk-canvas'><p class='talk-kicker'>Roles</p><h2 class='talk-title'>Who owns what</h2><table class='talk-table'><thead><tr><th>Stage</th><th>Agent</th><th>Person</th></tr></thead><tbody><tr><td>Outline</td><td>Proposes the storyline</td><td>Approves it</td></tr><tr><td>Slides</td><td>Drafts the HTML</td><td>Checks every fact</td></tr><tr><td>Notes</td><td>Writes a first pass</td><td>Rewrites them in their own voice</td></tr><tr><td>Rehearsal</td><td>Estimates timing</td><td>Presents</td></tr></tbody></table></div>",
+      "notes": "Read the table row by row. The key message is that every stage has one clear owner.",
+      "durationHintSec": 60
+    },
+    {
+      "id": "agent-does",
+      "title": "What the agent does",
+      "section": "Roles",
+      "html": "<div class='talk-canvas'><p class='talk-kicker'>Agent</p><h2 class='talk-title'>What the agent does</h2><ul class='talk-list'><li data-step='1'>Turns the brief into an outline with one idea per slide.</li><li data-step='2'>Writes slide HTML inside the safe subset of the format.</li><li data-step='3'>Drafts speaker notes that the person will rewrite.</li></ul></div>",
+      "notes": "The agent is fast at structure and first drafts. Be clear that its output is a starting point, not the final talk.",
+      "durationHintSec": 60
+    },
+    {
+      "id": "human-does",
+      "title": "What the person does",
+      "section": "Roles",
+      "html": "<div class='talk-canvas'><p class='talk-kicker'>Person</p><h2 class='talk-title'>What the person does</h2><ul class='talk-list'><li data-step='1'>Checks every fact and every number on every slide.</li><li data-step='2'>Rewrites the notes in their own voice.</li><li data-step='3'>Rehearses, times and presents the talk on stage.</li></ul></div>",
+      "notes": "The person owns accuracy, judgment and delivery. Every number and quote needs a human check before the talk.",
+      "durationHintSec": 60
+    },
+    {
+      "id": "review-loop",
+      "title": "The review loop",
+      "section": "Roles",
+      "html": "<div class='talk-canvas'><p class='talk-kicker'>Process</p><h2 class='talk-title'>The review loop</h2><svg viewBox='0 0 1680 480' width='1680' height='480'><rect x='60' y='160' width='360' height='140' rx='20' fill='#FFB224' stroke='#16181D' stroke-width='4'/><text x='240' y='245' text-anchor='middle' font-family='Inter' font-size='40' fill='#16181D'>Draft</text><rect x='660' y='160' width='360' height='140' rx='20' fill='#5746AF'/><text x='840' y='245' text-anchor='middle' font-family='Inter' font-size='40' fill='#FAF7F2'>Review</text><rect x='1260' y='160' width='360' height='140' rx='20' fill='#FFFFFF' stroke='#16181D' stroke-width='4'/><text x='1440' y='245' text-anchor='middle' font-family='Inter' font-size='40' fill='#16181D'>Revise</text><line x1='420' y1='230' x2='652' y2='230' stroke='#16181D' stroke-width='6'/><polygon points='652,222 668,230 652,238' fill='#16181D'/><line x1='1020' y1='230' x2='1252' y2='230' stroke='#16181D' stroke-width='6'/><polygon points='1252,222 1268,230 1252,238' fill='#16181D'/><path d='M1440 300 L1440 400 L240 400 L240 316' fill='none' stroke='#16181D' stroke-width='6'/><polygon points='240,300 232,316 248,316' fill='#16181D'/><text x='840' y='455' text-anchor='middle' font-family='Inter' font-size='32' fill='#5746AF'>repeat until approved</text></svg></div>",
+      "notes": "Explain the loop: draft, review, revise, and repeat. Each pass is short, and the loop ends only when the presenter approves the slide.",
+      "durationHintSec": 60
+    },
+    {
+      "id": "run-of-show",
+      "title": "Run of show",
+      "section": "Presenting",
+      "html": "<div class='talk-canvas'><p class='talk-kicker'>Stage</p><h2 class='talk-title'>Run of show</h2><svg viewBox='0 0 1680 400' width='1680' height='400'><line x1='60' y1='200' x2='1620' y2='200' stroke='#16181D' stroke-width='6'/><circle cx='60' cy='200' r='18' fill='#FFB224' stroke='#16181D' stroke-width='4'/><circle cx='450' cy='200' r='18' fill='#FFB224' stroke='#16181D' stroke-width='4'/><circle cx='840' cy='200' r='18' fill='#FFB224' stroke='#16181D' stroke-width='4'/><circle cx='1230' cy='200' r='18' fill='#FFB224' stroke='#16181D' stroke-width='4'/><circle cx='1620' cy='200' r='18' fill='#FFB224' stroke='#16181D' stroke-width='4'/><text x='60' y='130' text-anchor='middle' font-family='Inter' font-size='36' font-weight='700' fill='#16181D'>0:00</text><text x='450' y='130' text-anchor='middle' font-family='Inter' font-size='36' font-weight='700' fill='#16181D'>5:00</text><text x='840' y='130' text-anchor='middle' font-family='Inter' font-size='36' font-weight='700' fill='#16181D'>10:00</text><text x='1230' y='130' text-anchor='middle' font-family='Inter' font-size='36' font-weight='700' fill='#16181D'>15:00</text><text x='1620' y='130' text-anchor='middle' font-family='Inter' font-size='36' font-weight='700' fill='#16181D'>20:00</text><text x='60' y='280' text-anchor='middle' font-family='Inter' font-size='34' fill='#16181D'>Open</text><text x='450' y='280' text-anchor='middle' font-family='Inter' font-size='34' fill='#16181D'>Pipeline</text><text x='840' y='280' text-anchor='middle' font-family='Inter' font-size='34' fill='#16181D'>Live demo</text><text x='1230' y='280' text-anchor='middle' font-family='Inter' font-size='34' fill='#16181D'>Q and A</text><text x='1620' y='280' text-anchor='middle' font-family='Inter' font-size='34' fill='#16181D'>Close</text></svg></div>",
+      "notes": "Use the timeline as a plan for the stage. Five marks for twenty minutes keep the pace honest. Adjust the marks to match your own rhythm.",
+      "durationHintSec": 60
+    },
+    {
+      "id": "speaker-view",
+      "title": "Speaker view",
+      "section": "Presenting",
+      "html": "<div class='talk-canvas'><p class='talk-kicker'>Presenter</p><h2 class='talk-title'>Speaker view</h2><ul class='talk-list'><li data-step='1'>The current slide and the next one appear side by side.</li><li data-step='2'>The clock shows progress against each section's planned time.</li><li data-step='3'>Notes stay on the presenter screen and never reach the audience.</li></ul></div>",
+      "notes": "Explain what the presenter sees: the current slide, the next one, the notes and the clock. Notes stay private and never reach the audience.",
+      "durationHintSec": 60
+    },
+    {
+      "id": "live-controls",
+      "title": "Live controls",
+      "section": "Presenting",
+      "html": "<div class='talk-canvas'><p class='talk-kicker'>On stage</p><h2 class='talk-title'>Live controls</h2><p data-step='1'><span class='talk-chip'>Next</span>Reveal the next step or slide</p><p data-step='2'><span class='talk-chip'>Back</span>Step back when a point needs repeating</p><p data-step='3'><span class='talk-chip'>Notes</span>Open the speaker view for a reminder</p></div>",
+      "notes": "Keep the controls simple. Practise next and back until they feel automatic. Use notes only when a detail needs a reminder.",
+      "durationHintSec": 60
+    },
+    {
+      "id": "q-and-a",
+      "title": "Questions from the room",
+      "section": "Presenting",
+      "html": "<div class='talk-canvas'><p class='talk-kicker'>Q and A</p><h2 class='talk-title'>Questions from the room</h2><div data-step='1' style='margin-bottom:48px'><p><strong>Repeat the question before answering.</strong></p></div><div data-step='2' style='margin-bottom:48px'><p>Answer in one or two sentences.</p></div><div data-step='3'><p>Park out-of-scope questions for after the talk.</p></div></div>",
+      "notes": "Repeat each question before answering so the room hears it. Answer briefly and park out-of-scope questions for later.",
+      "durationHintSec": 60
+    },
+    {
+      "id": "sharing",
+      "title": "Sharing after the talk",
+      "section": "Wrap-up",
+      "html": "<div class='talk-canvas'><p class='talk-kicker'>Afterwards</p><h2 class='talk-title'>Sharing after the talk</h2><ul class='talk-list'><li data-step='1'>Publish a link that hides the speaker notes.</li><li data-step='2'>Export a PDF for attendees who asked for slides.</li><li data-step='3'>Keep the JSON file so the next talk starts from this one.</li></ul></div>",
+      "notes": "Speaker notes never appear on public links. Share the deck with attendees in a form that matches what they need.",
+      "durationHintSec": 60
+    },
+    {
+      "id": "lessons",
+      "title": "Lessons learned",
+      "section": "Wrap-up",
+      "html": "<div class='talk-canvas'><p class='talk-kicker'>Reflection</p><h2 class='talk-title'>Lessons learned</h2><ol class='talk-list'><li>Write the brief before the outline.</li><li>Limit each slide to one idea.</li><li>Rehearse with the notes the audience never sees.</li><li>Keep a person in every review step.</li></ol></div>",
+      "notes": "Ask the room which of these lessons matches their experience. Keep the list short and memorable.",
+      "durationHintSec": 60
+    },
+    {
+      "id": "risks",
+      "title": "What can go wrong",
+      "section": "Wrap-up",
+      "html": "<div class='talk-canvas'><p class='talk-kicker'>Risks</p><h2 class='talk-title'>What can go wrong</h2><div style='display:flex;gap:60px'><div class='talk-card'><h3>Invented facts</h3><p>Check every number and quote before the talk.</p></div><div class='talk-card'><h3>Generic voice</h3><p>Rewrite the notes so they sound like you.</p></div><div class='talk-card'><h3>Overflowing text</h3><p>Keep titles short and check the canvas.</p></div></div></div>",
+      "notes": "Be honest about the limits. Invented facts, a generic voice and overflowing text are real risks, and each one has a simple check.",
+      "durationHintSec": 60
+    },
+    {
+      "id": "thanks",
+      "title": "Thank you",
+      "section": "Wrap-up",
+      "html": "<div class='talk-canvas' style='padding-top:320px'><p class='talk-kicker'>Questions</p><h1 class='talk-title' style='font-size:140px;color:#5746AF'>Thank you</h1><p>Questions are welcome. The deck and the notes stay in your hands.</p></div>",
+      "notes": "Close with thanks and open the floor for questions. Remind the room that the deck and the notes stay in the presenter's hands.",
+      "durationHintSec": 75
+    }
+  ]
+}

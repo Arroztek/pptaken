@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "title": "Hello, PPTaken",
+  "lang": "en",
+  "aspectRatio": "16:9",
+  "slides": [
+    {
+      "id": "title",
+      "title": "Hello, PPTaken",
+      "html": "<div style='position:absolute;left:0;top:0;width:1920px;height:1080px;box-sizing:border-box;padding:300px 120px 120px;background:#FAF7F2;color:#16181D;font-family:Inter,sans-serif'><h1 style='font-size:120px;line-height:1.05;margin:0'>Hello, PPTaken</h1><p style='font-size:48px;color:#5746AF;margin:40px 0 0'>Your first deck, written as data.</p></div>",
+      "notes": "Welcome the room. This deck is the smallest complete example of the pptaken.deck format.",
+      "durationHintSec": 20
+    },
+    {
+      "id": "three-steps",
+      "title": "Three steps",
+      "html": "<div style='position:absolute;left:0;top:0;width:1920px;height:1080px;box-sizing:border-box;padding:120px;background:#FAF7F2;color:#16181D;font-family:Inter,sans-serif'><h2 style='font-size:96px;line-height:1.05;margin:0 0 56px'>Three steps</h2><ol style='font-size:44px;line-height:1.5;margin:0;padding-left:64px'><li data-step='1' style='margin-bottom:28px'>Write slides as JSON</li><li data-step='2' style='margin-bottom:28px'>Mark revealable steps with data-step</li><li data-step='3'>Present the deck or share it</li></ol></div>",
+      "notes": "Reveal each step with a click. Explain that the slide HTML is sanitized before it is shown.",
+      "durationHintSec": 60
+    },
+    {
+      "id": "closing",
+      "title": "Thank you",
+      "html": "<div style='position:absolute;left:0;top:0;width:1920px;height:1080px;box-sizing:border-box;padding:300px 120px 120px;background:#16181D;color:#FAF7F2;font-family:Inter,sans-serif'><h1 style='font-size:120px;line-height:1.05;margin:0;color:#FFB224'>Thank you</h1><p style='font-size:48px;margin:40px 0 0'>Questions are welcome.</p></div>",
+      "notes": "Close the talk and open the floor for questions.",
+      "durationHintSec": 30
+    }
+  ]
+}

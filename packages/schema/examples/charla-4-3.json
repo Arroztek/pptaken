@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "title": "Una charla en cuatro tercios",
+  "lang": "es",
+  "aspectRatio": "4:3",
+  "theme": {
+    "css": ".charla-canvas{position:absolute;left:0;top:0;width:1440px;height:1080px;box-sizing:border-box;padding:110px;background:#FAF7F2;color:#16181D;font-family:'Inter',sans-serif;font-size:40px;line-height:1.4;overflow:hidden}\n.charla-title{font-family:'Bricolage Grotesque',sans-serif;font-size:96px;line-height:1.05;font-weight:700;margin:0 0 48px}",
+    "fonts": ["Bricolage Grotesque", "Inter"]
+  },
+  "targetMinutes": 5,
+  "slides": [
+    {
+      "id": "portada",
+      "title": "Una charla en cuatro tercios",
+      "html": "<div class='charla-canvas' style='padding-top:300px'><p>Formato 4:3</p><h1 class='charla-title' style='font-size:120px;color:#5746AF'>Una charla en cuatro tercios</h1><p>Cómo se prepara una presentación en un lienzo más cuadrado.</p></div>",
+      "notes": "Saludo breve. Esta charla muestra cómo se ve una presentación en formato 4:3, con un lienzo de 1440 por 1080 píxeles.",
+      "durationHintSec": 30
+    },
+    {
+      "id": "idea",
+      "title": "La idea central",
+      "html": "<div class='charla-canvas'><h2 class='charla-title'>La idea central</h2><p>Una presentación es un conjunto de diapositivas, y cada una debe tener un solo mensaje.</p><p style='margin-top:40px'>El formato 4:3 da más espacio vertical para textos y gráficos.</p></div>",
+      "notes": "Explica que cada diapositiva tiene una sola idea. El formato 4:3 es más cuadrado y funciona bien para textos y gráficos grandes.",
+      "durationHintSec": 60
+    },
+    {
+      "id": "pasos",
+      "title": "Tres pasos",
+      "html": "<div class='charla-canvas'><h2 class='charla-title'>Tres pasos</h2><ol style='margin:0;padding-left:64px'><li data-step='1' style='margin-bottom:36px'>Define el público y el tiempo.</li><li data-step='2' style='margin-bottom:36px'>Escribe una frase clave por diapositiva.</li><li data-step='3'>Revisa el texto en voz alta antes de presentar.</li></ol></div>",
+      "notes": "Muestra cada paso con un clic. Insiste en que el ensayo en voz alta detecta frases demasiado largas.",
+      "durationHintSec": 60
+    },
+    {
+      "id": "diagrama",
+      "title": "Del borrador al escenario",
+      "html": "<div class='charla-canvas'><h2 class='charla-title'>Del borrador al escenario</h2><svg viewBox='0 0 1200 300' width='1200' height='300'><rect x='0' y='80' width='300' height='180' rx='20' fill='#FFFFFF' stroke='#16181D' stroke-width='4'/><text x='150' y='170' text-anchor='middle' font-family='Inter' font-size='40' fill='#16181D'>Idea</text><text x='150' y='215' text-anchor='middle' font-family='Inter' font-size='28' fill='#16181D'>tú la defines</text><rect x='450' y='80' width='300' height='180' rx='20' fill='#FFB224' stroke='#16181D' stroke-width='4'/><text x='600' y='170' text-anchor='middle' font-family='Inter' font-size='40' fill='#16181D'>Borrador</text><text x='600' y='215' text-anchor='middle' font-family='Inter' font-size='28' fill='#16181D'>lo propone el agente</text><rect x='900' y='80' width='300' height='180' rx='20' fill='#5746AF' stroke='#16181D' stroke-width='4'/><text x='1050' y='170' text-anchor='middle' font-family='Inter' font-size='40' fill='#FAF7F2'>Escenario</text><text x='1050' y='215' text-anchor='middle' font-family='Inter' font-size='28' fill='#FAF7F2'>lo presenta una persona</text><line x1='312' y1='170' x2='436' y2='170' stroke='#16181D' stroke-width='6'/><polygon points='436,162 452,170 436,178' fill='#16181D'/><line x1='762' y1='170' x2='886' y2='170' stroke='#16181D' stroke-width='6'/><polygon points='886,162 902,170 886,178' fill='#16181D'/></svg></div>",
+      "notes": "Recorre el flujo de izquierda a derecha. Aclara que el agente propone el borrador y que una persona siempre presenta.",
+      "durationHintSec": 60
+    },
+    {
+      "id": "cierre",
+      "title": "Gracias",
+      "html": "<div class='charla-canvas' style='padding-top:300px'><h1 class='charla-title' style='font-size:140px;color:#5746AF'>Gracias</h1><p>Preguntas y comentarios son bienvenidos.</p></div>",
+      "notes": "Cierra la charla agradeciendo al público y abre el espacio para preguntas.",
+      "durationHintSec": 45
+    }
+  ]
+}
