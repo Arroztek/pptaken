@@ -1,10 +1,10 @@
 # Spike S1 — Content isolation (sandboxed iframe + CSP)
 
-**Date:** 2026-11-13 · **Status:** partially done (Chromium, header-driven isolation only)
+**Date:** 2026-11-13 · **Status:** done for desktop engines (Chromium, Firefox, WebKit); real iPhone and printing still untested
 
 ## What was tested
-A throwaway harness ([`s1-harness/server.mjs`](s1-harness/server.mjs), run with `node server.mjs`, open
-`http://localhost:5391/parent`) serves a parent page and a "deck" document at `/c/deck` with this header:
+A throwaway harness ([`s1-harness/`](s1-harness/)) serves a parent page and a "deck" document at `/c/deck` with
+this header:
 
 ```
 Content-Security-Policy: sandbox allow-scripts; default-src 'none'; img-src 'self'; font-src 'self';
@@ -12,42 +12,44 @@ Content-Security-Policy: sandbox allow-scripts; default-src 'none'; img-src 'sel
   base-uri 'none'; frame-src 'none'
 ```
 
-The deck runs a script that tries to break out and reports the results to the parent with `postMessage`.
-Tested in the built-in browser pane of the Claude desktop app (Chromium-based).
+The deck runs a script that tries to break out and reports to the parent with `postMessage`. It was run with
+**Playwright against Chromium, Firefox and WebKit** (`node docs/spikes/s1-harness/run.mjs`; raw output in
+`s1-harness/last-run.json`) in four configurations: A) iframe `sandbox="allow-scripts"` attribute **plus** the
+header (the planned production setup), B) header only, C) attribute only (no CSP), D) A with an explicit origin
+in `img-src`/`font-src` instead of `'self'`.
 
-## Results that hold
+An earlier run in the Claude desktop app's built-in browser pane was inconclusive: that pane never forwarded
+requests from opaque-origin contexts, which looked like a design problem and was not. Playwright settled it.
+
+## Results (identical in Chromium, Firefox and WebKit unless noted)
 | Attempt from inside the content | Result |
 |---|---|
 | `postMessage` origin seen by the parent | `"null"` (opaque origin) |
-| `document.cookie` | `SecurityError` |
-| `localStorage` | `SecurityError` |
-| `parent.document` | `SecurityError` |
-| `fetch("/api/secret")` | blocked (`TypeError`, `connect-src 'none'`) |
-| `eval(...)` | blocked (`EvalError`) |
-| `top.location = "http://example.com"` | `SecurityError` (blocked) |
-| `window.open(...)` | returns `null` (blocked) |
-| External image | blocked |
-| Parent reading the iframe's DOM | blocked |
+| `document.cookie`, `localStorage`, `parent.document` | `SecurityError` |
+| `fetch("/api/secret")` | blocked (`TypeError`) |
+| `eval(...)` with the CSP | blocked (`EvalError`); **allowed** in config C (no CSP) |
+| `top.location = …` | `SecurityError` |
+| `window.open(...)` | blocked (`null`; Firefox throws `InvalidAccessError`) |
+| Slide's own image under the opaque origin (`img-src 'self'`) | **loads** in all three engines (also with the explicit origin) |
+| Slide's font **with** `Access-Control-Allow-Origin` | loads |
+| Slide's font **without** CORS header | **fails** in Chromium and Firefox; loads in WebKit (more lenient) |
+| Key pressed while the iframe has focus | forwarded to the parent via `postMessage` in all three |
+| Parent reading the iframe DOM | blocked |
 
-**Control experiment:** the same document served *without* `sandbox` navigated the top page to
-`example.com`. That shows the sandbox is what stops top navigation, so barrier 2 of ADR-001 is doing real work.
-A CSP `sandbox` response header alone is enough to get the opaque origin, even without the iframe attribute.
+Control experiment (built-in pane): the same document served *without* `sandbox` redirected the top page.
 
-## What could NOT be verified (the pane is the limit, not the design)
-- **Assets under an opaque origin.** With `sandbox` active, requests for the slide's own image and fonts never
-  reached the server (not even with explicit origins in `img-src`/`font-src`), while the same document without
-  `sandbox` did request them. The built-in pane may drop requests coming from an opaque (`null`) origin; this
-  must be re-checked in a real browser. If it is real Chromium behavior it is a **design-level risk**: the
-  fallback is to inline assets as `data:` URLs or to serve them with CORS headers.
-- **Fonts under an opaque origin** need CORS (`Access-Control-Allow-Origin`) in any case: they are cross-origin
-  requests. The harness has one font route with the header and one without to compare.
-- **The `<iframe sandbox="allow-scripts">` attribute together with the header.** In the pane, such an iframe
-  never requested its `src` from the server, but the pane's sandboxed `srcdoc` iframes worked. Again a
-  pane limitation until proven otherwise.
-- Keyboard focus across the iframe boundary, forwarding keys, printing/PDF, offline preload, and
-  **Firefox and Safari (including iOS)**.
+## Conclusions that change the design
+1. **ADR-001 barriers 2 and 3 hold** in all three desktop engines, in the attribute+header combination.
+2. **Assets work under the opaque origin.** `img-src 'self'` is enough. No need to inline assets as `data:` URLs.
+3. **Fonts and any other CORS-fetched resource need `Access-Control-Allow-Origin` on `/c/…` asset routes** (the
+   opaque origin makes them cross-origin). Set it only on the content/asset routes.
+4. **Never send permissive CORS (`Access-Control-Allow-Origin: *`) on API routes.** The opaque origin cannot read
+   the API today (`fetch` fails), and a wildcard there would change that.
+5. **The CSP is what stops `eval`.** The iframe attribute alone does not; keep both layers.
+6. **Keyboard forwarding works** (iframe → `postMessage` → shell), so clicker keys keep working when the
+   content holds focus.
 
-## Next step
-Repeat the harness with **Playwright against Chromium, Firefox and WebKit** (it is already planned for the repo),
-and on a real iPhone. If asset loading under the opaque origin fails in a real browser, escalate it as an
-architecture question (it affects ADR-001 and the asset pipeline).
+## Still open
+- Real iPhone Safari (WebKit on Windows is not the same as iOS Safari), printing/PDF of the iframe content and
+  the offline preload. Track them in phase F1.
+- Playwright is now a root dev dependency; the planned E2E suite can reuse this harness.

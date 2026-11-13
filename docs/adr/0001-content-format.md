@@ -38,3 +38,11 @@
 - (−) No JS in v1.0: data-driven animated charts are limited to CSS/SVG. Acceptable for an MVP.
 
 **What we learned from `ppt` that supports this.** There, slides are code with *hooks* (`init/enter/leave/onStep`) and a sanitizer only protects the phone. It works because the author is the owner. In PPTaken the author is an agent: content becomes data and trust is inverted.
+
+## Verification (phase-0 spike S1, 2026-11-13)
+
+Barriers 2 and 3 were verified with Playwright in Chromium, Firefox and WebKit, using both the iframe
+`sandbox="allow-scripts"` attribute and the `Content-Security-Policy: sandbox` header. Findings: assets under the
+opaque origin load with `img-src 'self'`; fonts need `Access-Control-Allow-Origin` on the content routes; API routes
+must never send permissive CORS; the CSP (not the attribute) is what blocks `eval`. Details in
+[`docs/spikes/S1-isolation.md`](../spikes/S1-isolation.md).
