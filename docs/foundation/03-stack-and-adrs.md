@@ -351,3 +351,5 @@ Detail: `02-architecture.md` §8.
 | `npx` channel / single binary | After 1.0, according to demand |
 | `interactive` mode (scripts) | After a security review of the isolation and real demand |
 | Documentation site (Starlight vs VitePress) | When preparing the public beta |
+
+> Each ADR now also lives as its own file in [`docs/adr/`](../adr/README.md).
