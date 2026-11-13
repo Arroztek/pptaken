@@ -1,0 +1,25 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.6.7/schema.json",
+  "files": {
+    "includes": [
+      "**",
+      "!**/dist",
+      "!**/node_modules",
+      "!docs/foundation",
+      "!docs/brand",
+      "!packages/ui/fonts",
+      "!LICENSE",
+      "!**/*.md",
+      "!**/*.svelte",
+      "!**/*.css",
+      "!**/*.html",
+      "!packages/ui/src/tokens.ts",
+      "!packages/ui/src/icons.ts",
+      "!packages/ui/src/logo.ts",
+      "!**/LICENSE"
+    ]
+  },
+  "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
+  "linter": { "enabled": true, "rules": { "preset": "none" } },
+  "javascript": { "formatter": { "quoteStyle": "double", "semicolons": "always" } }
+}
