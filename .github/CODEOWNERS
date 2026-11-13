@@ -1,0 +1,8 @@
+# Default owner for everything in the repository
+* @hallzyx
+
+# Sensitive areas: explicitly owned, reviewed with extra care
+/packages/sanitizer/ @hallzyx
+/packages/auth-local/ @hallzyx
+/.github/workflows/ @hallzyx
+/docker/ @hallzyx

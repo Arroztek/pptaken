@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/hallzyx/pptaken/discussions
+    about: Ask a question or start a conversation. Please use Discussions instead of Issues for help.
+  - name: Report a security vulnerability
+    url: https://github.com/hallzyx/pptaken/security/advisories/new
+    about: Report security problems privately. Please do not open a public issue for them.
