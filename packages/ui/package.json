@@ -1,0 +1,49 @@
+{
+  "name": "@pptaken/ui",
+  "version": "0.0.0",
+  "description": "PPTaken design tokens, fonts, icons and Svelte 5 components.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "svelte": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "svelte": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./tokens.css": "./dist/tokens.css",
+    "./icons.css": "./dist/icons.css",
+    "./components.css": "./components.css",
+    "./fonts.css": "./fonts/fonts.css",
+    "./fonts-audience.css": "./fonts/fonts-audience.css",
+    "./tokens.json": "./tokens.json",
+    "./fonts/*": "./fonts/*"
+  },
+  "files": [
+    "src",
+    "dist",
+    "fonts",
+    "icons",
+    "scripts",
+    "components.css",
+    "tokens.json"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "scripts": {
+    "build": "node scripts/build-tokens.mjs && node scripts/build-icons.mjs",
+    "check:contrast": "node scripts/check-contrast.mjs",
+    "test": "node scripts/check-contrast.mjs",
+    "typecheck": "svelte-check --tsconfig ./tsconfig.json --threshold error"
+  },
+  "peerDependencies": {
+    "svelte": "^5.20.0"
+  },
+  "devDependencies": {
+    "svelte": "^5.57.0",
+    "svelte-check": "^4.3.0",
+    "typescript": "5.9.3"
+  }
+}

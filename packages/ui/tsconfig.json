@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Svelte components are consumed as source by Vite; this config only type-checks.
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "noEmit": true,
+    "declaration": false,
+    "sourceMap": false,
+    // Svelte props pass `undefined` for omitted optional attributes; exact optional types fight that.
+    "exactOptionalPropertyTypes": false,
+    "types": []
+  },
+  "include": ["src/**/*.ts", "src/**/*.svelte"]
+}
