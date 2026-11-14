@@ -10,6 +10,7 @@
       "!packages/ui/fonts",
       "!LICENSE",
       "!**/*.md",
+      "!**/last-run.json",
       "!**/*.svelte",
       "!**/*.css",
       "!**/*.html",
