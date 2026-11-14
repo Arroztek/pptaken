@@ -1,0 +1,28 @@
+{
+  "name": "@pptaken/core",
+  "version": "0.0.0",
+  "description": "PPTaken domain core: entities, use cases and ports (interfaces). Zero I/O.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@pptaken/sanitizer": "workspace:*",
+    "@pptaken/schema": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "@pptaken/blob-fs",
+  "version": "0.0.0",
+  "description": "PPTaken blob adapter: the core's BlobStore port on the local file system, content-addressed by SHA-256.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@pptaken/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@pptaken/testing": "workspace:*",
+    "@types/node": "22.20.5",
+    "vitest": "5.1.0"
+  }
+}

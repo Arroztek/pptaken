@@ -1,0 +1,34 @@
+{
+  "name": "@pptaken/storage-sqlite",
+  "version": "0.0.0",
+  "description": "PPTaken storage adapter: the core's repository ports on SQLite (better-sqlite3 + Kysely), with numbered SQL migrations.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "migrations"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "vitest run --testTimeout=30000"
+  },
+  "dependencies": {
+    "@pptaken/core": "workspace:*",
+    "better-sqlite3": "13.1.1",
+    "kysely": "0.29.8"
+  },
+  "devDependencies": {
+    "@pptaken/schema": "workspace:*",
+    "@pptaken/testing": "workspace:*",
+    "@types/better-sqlite3": "9.6.0",
+    "@types/node": "22.20.5",
+    "vitest": "5.1.0"
+  }
+}
