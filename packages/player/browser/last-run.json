@@ -1,0 +1,91 @@
+{
+  "date": "2026-11-14T13:07:36.024Z",
+  "origins": {
+    "shell": "http://localhost:45047",
+    "content": "http://127.0.0.1:45048"
+  },
+  "engines": {
+    "chromium": {
+      "passed": 357,
+      "failed": 0,
+      "failures": [],
+      "notes": [],
+      "frameTimes": [
+        {
+          "label": "burst",
+          "presses": 140,
+          "elapsedMs": 137,
+          "frames": 28,
+          "p50": 16.7,
+          "p95": 16.7,
+          "max": 16.8
+        },
+        {
+          "label": "paced",
+          "presses": 120,
+          "elapsedMs": 3380,
+          "frames": 222,
+          "p50": 16.7,
+          "p95": 16.7,
+          "max": 16.8
+        }
+      ]
+    },
+    "firefox": {
+      "passed": 355,
+      "failed": 0,
+      "failures": [],
+      "notes": [
+        "frame times recorded, not asserted"
+      ],
+      "frameTimes": [
+        {
+          "label": "burst",
+          "presses": 140,
+          "elapsedMs": 216,
+          "frames": 32,
+          "p50": 16.66,
+          "p95": 16.68,
+          "max": 16.68
+        },
+        {
+          "label": "paced",
+          "presses": 120,
+          "elapsedMs": 711,
+          "frames": 63,
+          "p50": 16.66,
+          "p95": 16.68,
+          "max": 16.68
+        }
+      ]
+    },
+    "webkit": {
+      "passed": 355,
+      "failed": 0,
+      "failures": [],
+      "notes": [
+        "frame times recorded, not asserted"
+      ],
+      "frameTimes": [
+        {
+          "label": "burst",
+          "presses": 140,
+          "elapsedMs": 254,
+          "frames": 38,
+          "p50": 15,
+          "p95": 17,
+          "max": 17
+        },
+        {
+          "label": "paced",
+          "presses": 120,
+          "elapsedMs": 3065,
+          "frames": 219,
+          "p50": 15,
+          "p95": 17,
+          "max": 30
+        }
+      ]
+    }
+  }
+}

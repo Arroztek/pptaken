@@ -1,0 +1,45 @@
+{
+  "name": "@pptaken/player",
+  "version": "0.0.0",
+  "description": "PPTaken presentation player engine: deck document builder, in-iframe runtime, postMessage protocol and shell.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./shell": {
+      "types": "./dist/shell.d.ts",
+      "default": "./dist/shell.js"
+    },
+    "./protocol": {
+      "types": "./dist/protocol.d.ts",
+      "default": "./dist/protocol.js"
+    },
+    "./navigation": {
+      "types": "./dist/navigation.d.ts",
+      "default": "./dist/navigation.js"
+    },
+    "./builder": {
+      "types": "./dist/builder.d.ts",
+      "default": "./dist/builder.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.runtime.json && node scripts/build-runtime.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.runtime.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "vitest run",
+    "test:browser": "pnpm run build && node browser/run.mjs"
+  },
+  "dependencies": {
+    "@pptaken/schema": "workspace:*"
+  },
+  "devDependencies": {
+    "@pptaken/sanitizer": "workspace:*",
+    "@types/node": "22.20.5"
+  }
+}
