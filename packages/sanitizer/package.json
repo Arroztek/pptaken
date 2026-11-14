@@ -1,0 +1,31 @@
+{
+  "name": "@pptaken/sanitizer",
+  "version": "0.0.0",
+  "description": "PPTaken content sanitizer: allowlist-based HTML, SVG and CSS sanitizing for untrusted slide content (barrier 1 of ADR-001).",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "vitest run --testTimeout=20000",
+    "test:browser": "pnpm run build && node browser/run.mjs"
+  },
+  "dependencies": {
+    "@pptaken/schema": "workspace:*",
+    "css-tree": "3.2.1",
+    "parse5": "8.0.1"
+  },
+  "devDependencies": {
+    "@types/css-tree": "3.2.0",
+    "@types/node": "22.20.5"
+  }
+}

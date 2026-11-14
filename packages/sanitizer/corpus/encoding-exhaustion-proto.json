@@ -1,0 +1,234 @@
+[
+  {
+    "id": "enc-utf7-script",
+    "category": "encoding",
+    "source": "OWASP (own variation)",
+    "html": "+ADw-script+AD4-alert(1)+ADw-/script+AD4-",
+    "notes": "UTF-7: the deck document is served as UTF-8, so this is plain text."
+  },
+  {
+    "id": "enc-utf7-charset-meta",
+    "category": "encoding",
+    "source": "own",
+    "html": "<meta charset=\"UTF-7\">+ADw-script+AD4-alert(1)+ADw-/script+AD4-",
+    "notes": "Charset switch attempt."
+  },
+  {
+    "id": "enc-overlong-utf8",
+    "category": "encoding",
+    "source": "own",
+    "html": "À¼scriptÀ¾alert(1)À¼/scriptÀ¾",
+    "notes": "Overlong UTF-8 for < and > (already decoded to other characters in a JS string)."
+  },
+  {
+    "id": "enc-fullwidth",
+    "category": "encoding",
+    "source": "own",
+    "html": "＜script＞alert(1)＜/script＞",
+    "notes": "Full-width angle brackets are just text."
+  },
+  {
+    "id": "enc-entity-lt",
+    "category": "encoding",
+    "source": "own",
+    "html": "&lt;script&gt;alert(1)&lt;/script&gt;",
+    "notes": "Entities stay text; must remain escaped on output."
+  },
+  {
+    "id": "enc-entity-no-semicolon-lt",
+    "category": "encoding",
+    "source": "own",
+    "html": "&ltscript&gtalert(1)&lt/script&gt",
+    "notes": "Legacy entities without semicolons."
+  },
+  {
+    "id": "enc-double-encoded",
+    "category": "encoding",
+    "source": "own",
+    "html": "&amp;lt;script&amp;gt;alert(1)&amp;lt;/script&amp;gt;",
+    "notes": "Double-encoded markup must not be decoded twice."
+  },
+  {
+    "id": "enc-nul-in-tag",
+    "category": "encoding",
+    "source": "own",
+    "html": "<scr\u0000ipt>alert(1)</scr\u0000ipt><img src=x\u0000 onerror=alert(1)>",
+    "notes": "NUL bytes inside tag names."
+  },
+  {
+    "id": "enc-nul-before-tag",
+    "category": "encoding",
+    "source": "own",
+    "html": "\u0000<script>alert(1)</script>",
+    "notes": "Leading NUL."
+  },
+  {
+    "id": "enc-control-chars-text",
+    "category": "encoding",
+    "source": "own",
+    "html": "<p>a\u0001b\u0008c\u001bd\u007fe</p>",
+    "notes": "Control characters removed from text."
+  },
+  {
+    "id": "enc-bidi-override",
+    "category": "encoding",
+    "source": "own",
+    "html": "<p title=\"‮gnp.exe\">x‮y</p>",
+    "notes": "Bidi overrides: allowed in text (legit RTL), never echoed raw in warnings."
+  },
+  {
+    "id": "enc-surrogate-halves",
+    "category": "encoding",
+    "source": "own",
+    "html": "<p>\ud800x\udc00</p><img src=\"asset:0123456789abcdef\" alt=\"\ud83d\">",
+    "notes": "Lone surrogates."
+  },
+  {
+    "id": "enc-bom-zero-width",
+    "category": "encoding",
+    "source": "own",
+    "html": "﻿<scr​ipt>alert(1)</scr​ipt>",
+    "notes": "BOM and zero-width space."
+  },
+  {
+    "id": "exhaust-deep-divs",
+    "category": "exhaustion",
+    "source": "own",
+    "htmlGenerator": { "prefix": "", "unit": "<div>", "times": 20000, "suffix": "x" },
+    "notes": "Depth bomb: fail closed."
+  },
+  {
+    "id": "exhaust-deep-svg",
+    "category": "exhaustion",
+    "source": "own",
+    "htmlGenerator": { "prefix": "<svg>", "unit": "<g>", "times": 20000, "suffix": "" },
+    "notes": "Depth bomb in SVG."
+  },
+  {
+    "id": "exhaust-formatting-elements",
+    "category": "exhaustion",
+    "source": "own",
+    "htmlGenerator": { "prefix": "", "unit": "<b><i><u>", "times": 8000, "suffix": "</p>x" },
+    "notes": "Adoption-agency stress."
+  },
+  {
+    "id": "exhaust-many-nodes",
+    "category": "exhaustion",
+    "source": "own",
+    "htmlGenerator": { "prefix": "", "unit": "<br>", "times": 60000, "suffix": "" },
+    "notes": "Node-count bomb (within 256 KB)."
+  },
+  {
+    "id": "exhaust-many-attributes",
+    "category": "exhaustion",
+    "source": "own",
+    "htmlGenerator": { "prefix": "<div ", "unit": "a=1 ", "times": 30000, "suffix": ">x</div>" },
+    "notes": "Huge attribute list (duplicates collapse in the parser)."
+  },
+  {
+    "id": "exhaust-many-distinct-attributes",
+    "category": "exhaustion",
+    "source": "own",
+    "htmlGenerator": {
+      "prefix": "<div ",
+      "unit": "aria-x",
+      "times": 1,
+      "suffix": "=1 title=t lang=en dir=ltr class=a id=a1 role=img data-step=1 hidden translate=no aria-label=a aria-hidden=true aria-level=1 aria-describedby=x>x</div>"
+    },
+    "notes": "Many allowed attributes on one element."
+  },
+  {
+    "id": "exhaust-entity-flood",
+    "category": "exhaustion",
+    "source": "own",
+    "htmlGenerator": {
+      "prefix": "<p>",
+      "unit": "&amp;&lt;&#x41;&nbsp;",
+      "times": 10000,
+      "suffix": "</p>"
+    },
+    "notes": "Entity flood (HTML has no entity expansion, so no billion laughs)."
+  },
+  {
+    "id": "exhaust-huge-input",
+    "category": "exhaustion",
+    "source": "own",
+    "htmlGenerator": { "prefix": "<p>", "unit": "x", "times": 300000, "suffix": "</p>" },
+    "notes": "Above the 256 KB limit: fail closed."
+  },
+  {
+    "id": "exhaust-huge-style-attr",
+    "category": "exhaustion",
+    "source": "own",
+    "htmlGenerator": {
+      "prefix": "<p style=\"",
+      "unit": "color:red;",
+      "times": 2000,
+      "suffix": "\">x</p>"
+    },
+    "notes": "Style attribute above its length limit."
+  },
+  {
+    "id": "exhaust-many-css-rules",
+    "category": "exhaustion",
+    "source": "own",
+    "cssGenerator": { "prefix": "", "unit": "a{color:red}", "times": 5000, "suffix": "" },
+    "notes": "Rule-count limit: fail closed."
+  },
+  {
+    "id": "exhaust-css-selectors",
+    "category": "exhaustion",
+    "source": "own",
+    "cssGenerator": { "prefix": "", "unit": "a,", "times": 3000, "suffix": "b{color:red}" },
+    "notes": "Selector-list size limit."
+  },
+  {
+    "id": "exhaust-deep-tables",
+    "category": "exhaustion",
+    "source": "own",
+    "htmlGenerator": { "prefix": "", "unit": "<table><tr><td>", "times": 3000, "suffix": "x" },
+    "notes": "Nested tables."
+  },
+  {
+    "id": "proto-id-proto",
+    "category": "prototype-pollution",
+    "source": "own",
+    "html": "<div id=\"__proto__\" class=\"__proto__ constructor\">x</div>",
+    "notes": "__proto__ as id is refused; as a class it is harmless."
+  },
+  {
+    "id": "proto-attr-names",
+    "category": "prototype-pollution",
+    "source": "own",
+    "html": "<div __proto__=\"x\" constructor=\"y\" prototype=\"z\" hasOwnProperty=\"w\" toString=\"v\">x</div>",
+    "notes": "Attribute names that look like prototype keys must not hit table prototypes."
+  },
+  {
+    "id": "proto-svg-attr-names",
+    "category": "prototype-pollution",
+    "source": "own",
+    "html": "<svg constructor=\"x\" __proto__=\"y\"><rect valueOf=\"z\" width=\"1\" height=\"1\"/></svg>",
+    "notes": "Same for SVG."
+  },
+  {
+    "id": "proto-tag-names",
+    "category": "prototype-pollution",
+    "source": "own",
+    "html": "<constructor>a</constructor><__proto__>b</__proto__><tostring>c</tostring>",
+    "notes": "Tag names that look like prototype keys."
+  },
+  {
+    "id": "proto-css-properties",
+    "category": "prototype-pollution",
+    "source": "own",
+    "css": "a{__proto__:x;constructor:red;--__proto__:1px}",
+    "notes": "CSS property names that look like prototype keys."
+  },
+  {
+    "id": "proto-css-functions",
+    "category": "prototype-pollution",
+    "source": "own",
+    "css": "a{color:constructor(1);width:__proto__(2)}",
+    "notes": "Function names that look like prototype keys."
+  }
+]

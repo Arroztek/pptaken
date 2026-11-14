@@ -1,0 +1,240 @@
+[
+  {
+    "id": "html5-template-content",
+    "category": "html5",
+    "source": "own",
+    "html": "<template><img src=x onerror=alert(1)></template><p>x</p>",
+    "notes": "Template content is inert but removed."
+  },
+  {
+    "id": "html5-plaintext",
+    "category": "html5",
+    "source": "own",
+    "html": "<plaintext><img src=x onerror=alert(1)>",
+    "notes": "plaintext swallows everything."
+  },
+  {
+    "id": "html5-noframes",
+    "category": "html5",
+    "source": "own",
+    "html": "<noframes><img title=\"</noframes><img src=x onerror=alert(1)>\"></noframes>",
+    "notes": "noframes raw text."
+  },
+  {
+    "id": "html5-comment-bogus",
+    "category": "html5",
+    "source": "own",
+    "html": "<!--><img src=x onerror=alert(1)>-->",
+    "notes": "Abruptly closed empty comment."
+  },
+  {
+    "id": "html5-comment-dash-bang",
+    "category": "html5",
+    "source": "own",
+    "html": "<!-- --!><img src=x onerror=alert(1)>-->",
+    "notes": "--!> closes a comment."
+  },
+  {
+    "id": "html5-bogus-comment-pi",
+    "category": "html5",
+    "source": "own",
+    "html": "<?xml version=\"1.0\"?><?php echo 1 ?><p>x</p>",
+    "notes": "Processing instructions become bogus comments."
+  },
+  {
+    "id": "html5-conditional-comment",
+    "category": "html5",
+    "source": "OWASP (own variation)",
+    "html": "<!--[if gte IE 4]><script>alert(1)</script><![endif]--><p>x</p>",
+    "notes": "IE conditional comment."
+  },
+  {
+    "id": "html5-downlevel-revealed",
+    "category": "html5",
+    "source": "own",
+    "html": "<![if !IE]><img src=x onerror=alert(1)><![endif]>",
+    "notes": "Downlevel-revealed conditional comment."
+  },
+  {
+    "id": "html5-cdata-html",
+    "category": "html5",
+    "source": "own",
+    "html": "<![CDATA[<img src=x onerror=alert(1)>]]>",
+    "notes": "CDATA in HTML content is a bogus comment."
+  },
+  {
+    "id": "html5-doctype-html-body",
+    "category": "html5",
+    "source": "own",
+    "html": "<!doctype html><html><head><title>x</title></head><body onload=alert(1)><p>x</p></body></html>",
+    "notes": "Whole document pasted as a slide."
+  },
+  {
+    "id": "html5-frameset",
+    "category": "html5",
+    "source": "own",
+    "html": "<frameset onload=alert(1)><frame src=\"javascript:alert(1)\"></frameset>",
+    "notes": "Frameset."
+  },
+  {
+    "id": "html5-object-embed",
+    "category": "html5",
+    "source": "OWASP (own variation)",
+    "html": "<object data=\"javascript:alert(1)\"></object><embed src=\"data:image/svg+xml,<svg onload=alert(1)>\"><applet code=\"x\"></applet>",
+    "notes": "Plugins."
+  },
+  {
+    "id": "html5-iframe-srcdoc",
+    "category": "html5",
+    "source": "own",
+    "html": "<iframe srcdoc=\"&lt;script&gt;alert(1)&lt;/script&gt;\"></iframe>",
+    "notes": "srcdoc."
+  },
+  {
+    "id": "html5-dialog-portal",
+    "category": "html5",
+    "source": "own",
+    "html": "<dialog open><p>Fake sign-in</p></dialog><portal src=\"http://evil.test\"></portal>",
+    "notes": "Dialogs and portals."
+  },
+  {
+    "id": "html5-button-formaction",
+    "category": "html5",
+    "source": "OWASP (own variation)",
+    "html": "<form><button formaction=\"javascript:alert(1)\">x</button></form><button form=\"f\" formaction=\"http://evil.test\">y</button>",
+    "notes": "formaction."
+  },
+  {
+    "id": "html5-input-autofocus",
+    "category": "html5",
+    "source": "own",
+    "html": "<input autofocus onfocus=alert(1)><textarea autofocus onfocus=alert(2)></textarea><select autofocus onfocus=alert(3)></select>",
+    "notes": "Form controls."
+  },
+  {
+    "id": "html5-canvas-audio",
+    "category": "html5",
+    "source": "own",
+    "html": "<canvas id=c></canvas><audio src=\"http://evil.test/a.mp3\" autoplay></audio>",
+    "notes": "Canvas and audio."
+  },
+  {
+    "id": "html5-slot-shadowroot",
+    "category": "html5",
+    "source": "own",
+    "html": "<div><template shadowrootmode=\"open\"><slot></slot><img src=x onerror=alert(1)></template>x</div>",
+    "notes": "Declarative shadow DOM."
+  },
+  {
+    "id": "html5-isindex-keygen",
+    "category": "html5",
+    "source": "own",
+    "html": "<isindex action=\"javascript:alert(1)\" type=image><keygen autofocus onfocus=alert(1)>",
+    "notes": "Obsolete elements."
+  },
+  {
+    "id": "attr-srcdoc-on-div",
+    "category": "attributes",
+    "source": "own",
+    "html": "<div srcdoc=\"<script>alert(1)</script>\">x</div>",
+    "notes": "srcdoc on an allowed element."
+  },
+  {
+    "id": "attr-formaction-on-div",
+    "category": "attributes",
+    "source": "own",
+    "html": "<div formaction=\"javascript:alert(1)\" action=\"x\">x</div>",
+    "notes": "Form attributes on a div."
+  },
+  {
+    "id": "attr-ping-target-rel",
+    "category": "attributes",
+    "source": "own",
+    "html": "<span ping=\"http://evil.test\" target=\"_top\" rel=\"opener\" download=\"x\">x</span>",
+    "notes": "Navigation attributes."
+  },
+  {
+    "id": "attr-is",
+    "category": "attributes",
+    "source": "own",
+    "html": "<p is=\"evil-p\">x</p>",
+    "notes": "Customized built-in elements."
+  },
+  {
+    "id": "attr-href-on-div",
+    "category": "attributes",
+    "source": "own",
+    "html": "<div href=\"javascript:alert(1)\" src=\"http://evil.test\" data=\"x\" background=\"http://evil.test/bg\">x</div>",
+    "notes": "URL attributes on allowed elements."
+  },
+  {
+    "id": "attr-tabindex-accesskey",
+    "category": "attributes",
+    "source": "own",
+    "html": "<div tabindex=\"0\" accesskey=\"x\" autofocus contenteditable draggable=\"true\" inert popover>x</div>",
+    "notes": "Focus and interaction attributes are removed."
+  },
+  {
+    "id": "attr-clobber-id",
+    "category": "attributes",
+    "source": "own",
+    "html": "<img id=\"location\" src=\"asset:0123456789abcdef\"><div id=\"parent\">x</div><div id=\"__proto__\">y</div><div id=\"pptaken-runtime\">z</div>",
+    "notes": "DOM clobbering ids."
+  },
+  {
+    "id": "attr-clobber-name",
+    "category": "attributes",
+    "source": "PortSwigger DOM clobbering (own variation)",
+    "html": "<img name=\"cookie\" src=\"asset:0123456789abcdef\"><form name=\"body\"></form>",
+    "notes": "name attributes clobber document."
+  },
+  {
+    "id": "attr-clobber-case",
+    "category": "attributes",
+    "source": "own",
+    "html": "<div id=\"DOCUMENT\">x</div><div id=\"Top\">y</div>",
+    "notes": "Case variants of clobbering ids."
+  },
+  {
+    "id": "attr-id-weird-chars",
+    "category": "attributes",
+    "source": "own",
+    "html": "<div id=\"x onclick=alert(1)\">a</div><div id=\"1abc\">b</div><div id=\"a'b\">c</div>",
+    "notes": "ids outside the safe pattern."
+  },
+  {
+    "id": "attr-class-reserved-and-weird",
+    "category": "attributes",
+    "source": "own",
+    "html": "<div class=\"ok pptaken-step x<y md:flex\">x</div>",
+    "notes": "Reserved and invalid class tokens are dropped individually."
+  },
+  {
+    "id": "attr-data-step-invalid",
+    "category": "attributes",
+    "source": "own",
+    "html": "<p data-step=\"0\">a</p><p data-step=\"100\">b</p><p data-step=\"1;alert(1)\">c</p><p data-slide=\"intro\" data-x=\"1\">d</p>",
+    "notes": "data-step must be 1..99 or empty; other data-* removed."
+  },
+  {
+    "id": "attr-role-interactive",
+    "category": "attributes",
+    "source": "own",
+    "html": "<div role=\"button\">x</div><div role=\"dialog\">y</div><div role=\"alert\">z</div>",
+    "notes": "Interactive roles removed."
+  },
+  {
+    "id": "attr-xlink-on-html",
+    "category": "attributes",
+    "source": "own",
+    "html": "<div xlink:href=\"javascript:alert(1)\" xmlns:xlink=\"http://www.w3.org/1999/xlink\">x</div>",
+    "notes": "xlink:href on an HTML element is just an odd attribute name."
+  },
+  {
+    "id": "attr-very-long-title",
+    "category": "attributes",
+    "source": "own",
+    "htmlGenerator": { "prefix": "<p title=\"", "unit": "A", "times": 5000, "suffix": "\">x</p>" },
+    "notes": "Attribute value above the length limit."
+  }
+]

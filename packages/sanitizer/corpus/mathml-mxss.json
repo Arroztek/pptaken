@@ -1,0 +1,184 @@
+[
+  {
+    "id": "math-basic-href",
+    "category": "mathml",
+    "source": "own",
+    "html": "<math href=\"javascript:alert(1)\"><mi>x</mi></math>",
+    "notes": "MathML href (Firefox historically)."
+  },
+  {
+    "id": "math-maction",
+    "category": "mathml",
+    "source": "own",
+    "html": "<math><maction actiontype=\"statusline\" xlink:href=\"javascript:alert(1)\"><mtext>x</mtext></maction></math>",
+    "notes": "maction with xlink:href."
+  },
+  {
+    "id": "math-annotation-xml",
+    "category": "mathml",
+    "source": "own",
+    "html": "<math><annotation-xml encoding=\"text/html\"><img src=x onerror=alert(1)></annotation-xml></math>",
+    "notes": "annotation-xml with text/html is an HTML integration point."
+  },
+  {
+    "id": "math-mtext-table-mglyph-style",
+    "category": "mxss",
+    "source": "mXSS research, Securitum/DOMPurify 2.0.0 bypass (own variation)",
+    "html": "<math><mtext><table><mglyph><style><img src=x onerror=alert(1)>",
+    "notes": "Namespace confusion: mglyph under mtext stays MathML, style becomes raw text or not depending on the namespace."
+  },
+  {
+    "id": "math-mtext-form-nesting",
+    "category": "mxss",
+    "source": "mXSS research, DOMPurify 2.0.17 bypass (own variation)",
+    "html": "<form><math><mtext></form><form><mglyph><style></math><img src onerror=alert(1)>",
+    "notes": "Nested-form namespace confusion."
+  },
+  {
+    "id": "math-mi-style-comment",
+    "category": "mxss",
+    "source": "own",
+    "html": "<math><mi><style><!--</style><img src=x onerror=alert(1)>--></style></mi></math>",
+    "notes": "Comment inside style in MathML text integration point."
+  },
+  {
+    "id": "math-svg-mixed",
+    "category": "mxss",
+    "source": "own",
+    "html": "<math><mtext><svg><style><img src=x onerror=alert(1)></style></svg></mtext></math>",
+    "notes": "SVG inside MathML text integration point."
+  },
+  {
+    "id": "mxss-svg-style-img",
+    "category": "mxss",
+    "source": "mXSS research (own variation)",
+    "html": "<svg><style><img src=x onerror=alert(1)></style></svg>",
+    "notes": "In SVG, style content is markup: img breaks out of foreign content."
+  },
+  {
+    "id": "mxss-svg-p-breakout",
+    "category": "mxss",
+    "source": "own",
+    "html": "<svg><p><style><img src=x onerror=alert(1)></style></p></svg>",
+    "notes": "p breaks out of SVG; style becomes HTML raw text."
+  },
+  {
+    "id": "mxss-noscript-title",
+    "category": "mxss",
+    "source": "mXSS research, DOMPurify noscript bypass (own variation)",
+    "html": "<noscript><p title=\"</noscript><img src=x onerror=alert(1)>\"></noscript>",
+    "notes": "Scripting-flag dependent parsing of noscript."
+  },
+  {
+    "id": "mxss-noembed",
+    "category": "mxss",
+    "source": "own",
+    "html": "<noembed><img title=\"</noembed><img src=x onerror=alert(1)>\"></noembed>",
+    "notes": "noembed raw text."
+  },
+  {
+    "id": "mxss-iframe-rawtext",
+    "category": "mxss",
+    "source": "own",
+    "html": "<iframe><img title=\"</iframe><img src=x onerror=alert(1)>\"></iframe>",
+    "notes": "iframe content is raw text."
+  },
+  {
+    "id": "mxss-xmp",
+    "category": "mxss",
+    "source": "own",
+    "html": "<xmp><img title=\"</xmp><img src=x onerror=alert(1)>\"></xmp>",
+    "notes": "xmp raw text."
+  },
+  {
+    "id": "mxss-textarea",
+    "category": "mxss",
+    "source": "own",
+    "html": "<textarea><img title=\"</textarea><img src=x onerror=alert(1)>\"></textarea>",
+    "notes": "Escapable raw text."
+  },
+  {
+    "id": "mxss-title-element",
+    "category": "mxss",
+    "source": "own",
+    "html": "<title><img title=\"</title><img src=x onerror=alert(1)>\"></title>",
+    "notes": "title RCDATA."
+  },
+  {
+    "id": "mxss-style-attr-quote",
+    "category": "mxss",
+    "source": "own",
+    "html": "<div title=\"&lt;/div&gt;&lt;img src=x onerror=alert(1)&gt;\">x</div>",
+    "notes": "Escaped markup in an attribute must stay escaped after serialization."
+  },
+  {
+    "id": "mxss-backtick-attr",
+    "category": "mxss",
+    "source": "mXSS research, IE backtick (own variation)",
+    "html": "<img src=\"asset:0123456789abcdef\" alt=\"``onerror=alert(1)\">",
+    "notes": "Backticks in attribute values must stay inside quotes."
+  },
+  {
+    "id": "mxss-table-foster",
+    "category": "mxss",
+    "source": "own",
+    "html": "<table><caption></caption><x-y><style><img src=x onerror=alert(1)></style></x-y></table>",
+    "notes": "Foster parenting and unwrapping interplay."
+  },
+  {
+    "id": "mxss-unwrap-into-table",
+    "category": "mxss",
+    "source": "own",
+    "html": "<table><tr><td>a</td></tr><a>text<svg><desc><img src=x onerror=alert(1)></desc></svg></a></table>",
+    "notes": "Unwrapping a foster-parented element; re-parse must be stable."
+  },
+  {
+    "id": "mxss-p-in-p",
+    "category": "mxss",
+    "source": "own",
+    "html": "<p><x-a><p>nested</p></x-a></p>",
+    "notes": "Unwrapping can create structures the parser would reshape: the fixed-point check handles it."
+  },
+  {
+    "id": "mxss-svg-text-breakout",
+    "category": "mxss",
+    "source": "own",
+    "html": "<svg><text><b>bold</b><font color=red>x</font></text></svg>",
+    "notes": "b and font break out of SVG during parsing."
+  },
+  {
+    "id": "mxss-select-template",
+    "category": "mxss",
+    "source": "own",
+    "html": "<select><template><style><img src=x onerror=alert(1)></style></template></select>",
+    "notes": "Template inside select."
+  },
+  {
+    "id": "mxss-comment-in-attr",
+    "category": "mxss",
+    "source": "own",
+    "html": "<div title=\"--><img src=x onerror=alert(1)>\">x</div><!-- <div title=\"--><img src=x onerror=alert(2)>\"> -->",
+    "notes": "Comment terminators inside attributes and comments."
+  },
+  {
+    "id": "mxss-svg-cdata-breakout",
+    "category": "mxss",
+    "source": "own",
+    "html": "<svg><![CDATA[</svg><img src=x onerror=alert(1)>]]></svg>",
+    "notes": "CDATA in foreign content."
+  },
+  {
+    "id": "mxss-math-cdata",
+    "category": "mxss",
+    "source": "own",
+    "html": "<math><![CDATA[</math><img src=x onerror=alert(1)>]]></math>",
+    "notes": "CDATA in MathML."
+  },
+  {
+    "id": "mxss-nbsp-attr",
+    "category": "mxss",
+    "source": "own",
+    "html": "<img src=\"asset:0123456789abcdef\" alt=\"&nbsp; \">",
+    "notes": "Serializer converts nbsp to &nbsp; in attributes; must stay stable."
+  }
+]

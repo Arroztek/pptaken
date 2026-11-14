@@ -1,0 +1,199 @@
+[
+  {
+    "id": "on-img-onerror",
+    "category": "event-handlers",
+    "source": "OWASP (own variation)",
+    "html": "<img src=x onerror=alert(1)>",
+    "notes": "Classic broken image."
+  },
+  {
+    "id": "on-img-onerror-asset",
+    "category": "event-handlers",
+    "source": "own",
+    "html": "<img src=\"asset:0123456789abcdef\" onerror=\"parent.postMessage('PWNED','*')\">",
+    "notes": "Valid asset ref plus handler: element kept, handler removed."
+  },
+  {
+    "id": "on-uppercase",
+    "category": "event-handlers",
+    "source": "own",
+    "html": "<IMG SRC=x ONERROR=alert(1)>",
+    "notes": "Upper case attribute name."
+  },
+  {
+    "id": "on-mixed-case",
+    "category": "event-handlers",
+    "source": "own",
+    "html": "<img src=x oNeRrOr=alert(1)>",
+    "notes": "Mixed case."
+  },
+  {
+    "id": "on-backticks",
+    "category": "event-handlers",
+    "source": "OWASP (own variation)",
+    "html": "<img src=x onerror=`alert(1)`>",
+    "notes": "Backtick-delimited value (unquoted in HTML)."
+  },
+  {
+    "id": "on-slash-separators",
+    "category": "event-handlers",
+    "source": "own",
+    "html": "<img/src=x/onerror=alert(1)>",
+    "notes": "Slashes as attribute separators."
+  },
+  {
+    "id": "on-newline-separators",
+    "category": "event-handlers",
+    "source": "own",
+    "html": "<img\nsrc=x\nonerror\n=\nalert(1)>",
+    "notes": "Newlines around name and value."
+  },
+  {
+    "id": "on-tab-in-name",
+    "category": "event-handlers",
+    "source": "own",
+    "html": "<img src=x on\terror=alert(1)>",
+    "notes": "Tab splits the name into two attributes."
+  },
+  {
+    "id": "on-null-in-name",
+    "category": "event-handlers",
+    "source": "own",
+    "html": "<img src=x on\u0000error=alert(1)>",
+    "notes": "NUL inside the attribute name (replaced with U+FFFD by the parser)."
+  },
+  {
+    "id": "on-duplicate-attr",
+    "category": "event-handlers",
+    "source": "own",
+    "html": "<img src=\"asset:0123456789abcdef\" src=x onerror=alert(1) onerror=alert(2)>",
+    "notes": "Duplicate attributes: the first wins."
+  },
+  {
+    "id": "on-body-onload",
+    "category": "event-handlers",
+    "source": "OWASP (own variation)",
+    "html": "<body onload=alert(1)>",
+    "notes": "Body in fragment context: attributes would merge into the real body."
+  },
+  {
+    "id": "on-svg-onload",
+    "category": "event-handlers",
+    "source": "PortSwigger (own variation)",
+    "html": "<svg onload=alert(1)></svg>",
+    "notes": "SVG load event."
+  },
+  {
+    "id": "on-svg-child-onload",
+    "category": "event-handlers",
+    "source": "own",
+    "html": "<svg><g onload=\"alert(1)\"><rect width=\"1\" height=\"1\" onclick=\"alert(2)\"/></g></svg>",
+    "notes": "Handlers on SVG children."
+  },
+  {
+    "id": "on-div-onmouseover",
+    "category": "event-handlers",
+    "source": "own",
+    "html": "<div onmouseover=\"alert(1)\" style=\"position:absolute;inset:0\">hover</div>",
+    "notes": "Full-canvas hover trap."
+  },
+  {
+    "id": "on-animationstart",
+    "category": "event-handlers",
+    "source": "PortSwigger (own variation)",
+    "html": "<style>@keyframes x{}</style><div style=\"animation-name:x\" onanimationstart=\"alert(1)\"></div>",
+    "notes": "Fires without user interaction."
+  },
+  {
+    "id": "on-animationend-inline",
+    "category": "event-handlers",
+    "source": "own",
+    "css": "@keyframes spin{to{transform:rotate(1turn)}} .a{animation:spin 1ms}",
+    "html": "<div class=\"a\" onanimationend=\"parent.postMessage('PWNED','*')\">x</div>",
+    "notes": "Allowed CSS animation, handler must still be removed."
+  },
+  {
+    "id": "on-transitionend",
+    "category": "event-handlers",
+    "source": "own",
+    "html": "<div style=\"transition:opacity 1ms\" ontransitionend=\"alert(1)\">x</div>",
+    "notes": "Transition events."
+  },
+  {
+    "id": "on-focus-autofocus",
+    "category": "event-handlers",
+    "source": "OWASP (own variation)",
+    "html": "<div tabindex=1 autofocus onfocus=alert(1)>x</div>",
+    "notes": "Autofocus plus focus handler; tabindex not allowed."
+  },
+  {
+    "id": "on-details-ontoggle",
+    "category": "event-handlers",
+    "source": "PortSwigger (own variation)",
+    "html": "<details open ontoggle=alert(1)><summary>x</summary></details>",
+    "notes": "Fires on open without interaction."
+  },
+  {
+    "id": "on-video-onerror",
+    "category": "event-handlers",
+    "source": "own",
+    "html": "<video><source onerror=\"alert(1)\"></video>",
+    "notes": "Media source error."
+  },
+  {
+    "id": "on-marquee-onstart",
+    "category": "event-handlers",
+    "source": "own",
+    "html": "<marquee onstart=alert(1)>x</marquee>",
+    "notes": "Legacy marquee."
+  },
+  {
+    "id": "on-quoted-entity",
+    "category": "event-handlers",
+    "source": "own",
+    "html": "<img src=x onerror=\"&#97;lert(1)\">",
+    "notes": "Entity-encoded payload inside the handler."
+  },
+  {
+    "id": "on-unknown-event",
+    "category": "event-handlers",
+    "source": "own",
+    "html": "<p onbeforescriptexecute=alert(1) onpointerrawupdate=alert(2) oncontentvisibilityautostatechange=alert(3)>x</p>",
+    "notes": "Rare and future events: any on* is removed because only allowlisted names survive."
+  },
+  {
+    "id": "on-custom-element",
+    "category": "event-handlers",
+    "source": "own",
+    "html": "<x-foo onclick=alert(1)>x</x-foo>",
+    "notes": "Custom element is unwrapped; handler gone."
+  },
+  {
+    "id": "on-svg-set-onbegin",
+    "category": "event-handlers",
+    "source": "PortSwigger (own variation)",
+    "html": "<svg><set attributeName=\"x\" onbegin=\"alert(1)\"/></svg>",
+    "notes": "SMIL begin event."
+  },
+  {
+    "id": "on-image-onload-svg",
+    "category": "event-handlers",
+    "source": "own",
+    "html": "<svg><image href=\"asset:0123456789abcdef\" onload=\"alert(1)\"/></svg>",
+    "notes": "Valid SVG image with handler."
+  },
+  {
+    "id": "on-form-oninput",
+    "category": "event-handlers",
+    "source": "own",
+    "html": "<form oninput=alert(1)><input autofocus></form>",
+    "notes": "Form events."
+  },
+  {
+    "id": "on-style-onload",
+    "category": "event-handlers",
+    "source": "own",
+    "html": "<style onload=alert(1)>p{}</style>",
+    "notes": "Style element load event."
+  }
+]

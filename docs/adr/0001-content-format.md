@@ -46,3 +46,22 @@ Barriers 2 and 3 were verified with Playwright in Chromium, Firefox and WebKit, 
 opaque origin load with `img-src 'self'`; fonts need `Access-Control-Allow-Origin` on the content routes; API routes
 must never send permissive CORS; the CSP (not the attribute) is what blocks `eval`. Details in
 [`docs/spikes/S1-isolation.md`](../spikes/S1-isolation.md).
+
+## Verification (sanitizer browser test, 2026-11-14)
+
+The sanitizer (`packages/sanitizer`) passed 265 sanitized documents in Chromium, Firefox and WebKit with no script
+canary and no network request. Running the **raw, unsanitized** corpus in the sandbox also exposed three gaps in
+barriers 2-3 that the sanitizer cannot close. They change the serving design:
+
+1. **Limit `img-src` and `font-src` to the content asset path** (for example `<origin>/c/asset/`), not `'self'`.
+   `'self'` covers the whole origin, so a raw `<img src="/api/...">` sent a GET to the API, and WebKit attached the
+   `SameSite=Lax` session cookie to it.
+2. **Serve content from a separate, cookie-less origin**, also for self-hosted instances. A raw
+   `<meta http-equiv="refresh">` can navigate the content iframe to any URL and no CSP rule stops it; in WebKit a
+   navigation to `/api` carried the session cookie. API GET requests must also stay free of side effects.
+3. **Resource exhaustion can crash the renderer** (raw depth bombs crashed Chromium's renderer and the player
+   tab). The sanitizer fails closed on such input; keep it mandatory on ingest.
+
+Open question: slide `id`s must be unique deck-wide (they are) and the sanitizer's `<use>` check is per slide, so
+colliding element ids across slides could rebuild `<use>` chains. Decide between deck-wide unique element ids or a
+per-slide id prefix. Details: [`packages/sanitizer/README.md`](../../packages/sanitizer/README.md).

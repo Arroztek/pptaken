@@ -1,0 +1,219 @@
+[
+  {
+    "id": "svg-use-external",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><use href=\"http://evil.test/sprite.svg#x\"/></svg>",
+    "notes": "External use reference."
+  },
+  {
+    "id": "svg-use-data-url",
+    "category": "svg",
+    "source": "PortSwigger (own variation)",
+    "html": "<svg><use href=\"data:image/svg+xml;base64,PHN2ZyBpZD0neCcgeG1sbnM9J2h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnJz48aW1hZ2UgaHJlZj0neCcgb25lcnJvcj0nYWxlcnQoMSknLz48L3N2Zz4=#x\"/></svg>",
+    "notes": "data: URL use (historic Chrome XSS)."
+  },
+  {
+    "id": "svg-use-xlink-javascript",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><use xlink:href=\"javascript:alert(1)\"/></svg>",
+    "notes": "xlink:href with javascript:."
+  },
+  {
+    "id": "svg-use-dangling",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><use href=\"#nothing\"/></svg>",
+    "notes": "Fragment that does not exist in the slide: removed."
+  },
+  {
+    "id": "svg-use-billion-laughs",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><defs><g id=\"a0\"><circle r=\"1\"/></g><g id=\"a1\"><use href=\"#a0\"/><use href=\"#a0\"/><use href=\"#a0\"/><use href=\"#a0\"/></g><g id=\"a2\"><use href=\"#a1\"/><use href=\"#a1\"/><use href=\"#a1\"/><use href=\"#a1\"/></g><g id=\"a3\"><use href=\"#a2\"/><use href=\"#a2\"/><use href=\"#a2\"/><use href=\"#a2\"/></g></defs><use href=\"#a3\"/></svg>",
+    "notes": "Exponential use expansion: only use elements whose target contains no use survive."
+  },
+  {
+    "id": "svg-use-self-cycle",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><g id=\"loop\"><use href=\"#loop\"/></g></svg>",
+    "notes": "Use referencing its own ancestor."
+  },
+  {
+    "id": "svg-a-javascript",
+    "category": "svg",
+    "source": "PortSwigger (own variation)",
+    "html": "<svg><a href=\"javascript:alert(1)\"><text x=\"20\" y=\"20\">click</text></a></svg>",
+    "notes": "SVG link: unwrapped."
+  },
+  {
+    "id": "svg-a-xlink",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><a xlink:href=\"javascript:alert(1)\"><rect width=\"100\" height=\"100\"/></a></svg>",
+    "notes": "SVG link with xlink."
+  },
+  {
+    "id": "svg-animate-href",
+    "category": "svg",
+    "source": "PortSwigger (own variation)",
+    "html": "<svg><a><animate attributeName=\"href\" values=\"javascript:alert(1)\"/><text x=\"20\" y=\"20\">click</text></a></svg>",
+    "notes": "SMIL retargeting href: SMIL is dropped entirely."
+  },
+  {
+    "id": "svg-set-href",
+    "category": "svg",
+    "source": "PortSwigger (own variation)",
+    "html": "<svg><a><set attributeName=\"xlink:href\" to=\"javascript:alert(1)\"/><rect width=\"9\" height=\"9\"/></a></svg>",
+    "notes": "SMIL set on xlink:href."
+  },
+  {
+    "id": "svg-animate-onbegin",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><animate onbegin=\"alert(1)\" attributeName=\"x\" dur=\"1s\"/></svg>",
+    "notes": "SMIL event handler."
+  },
+  {
+    "id": "svg-animatetransform",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><rect width=\"9\" height=\"9\"><animateTransform attributeName=\"transform\" type=\"rotate\" from=\"0\" to=\"360\" dur=\"1s\"/></rect></svg>",
+    "notes": "Benign SMIL, still removed (policy: no SMIL)."
+  },
+  {
+    "id": "svg-foreignobject",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><foreignObject><img src=x onerror=alert(1)><iframe srcdoc=\"<script>alert(1)</script>\"></iframe></foreignObject></svg>",
+    "notes": "foreignObject is an HTML integration point."
+  },
+  {
+    "id": "svg-desc-html",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><desc><img src=x onerror=alert(1)></desc></svg>",
+    "notes": "desc is an HTML integration point: HTML parsed inside it."
+  },
+  {
+    "id": "svg-title-html",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><title><style><img src=x onerror=alert(1)></style></title></svg>",
+    "notes": "title integration point plus HTML style raw text."
+  },
+  {
+    "id": "svg-image-external",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><image href=\"http://evil.test/x.png\" width=\"10\" height=\"10\"/></svg>",
+    "notes": "External SVG image."
+  },
+  {
+    "id": "svg-image-xlink-data",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><image xlink:href=\"data:image/svg+xml,<svg onload=alert(1)>\"/></svg>",
+    "notes": "data: SVG image."
+  },
+  {
+    "id": "svg-feimage",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><filter id=\"f\"><feImage href=\"http://evil.test/x.png\"/></filter><rect filter=\"url(#f)\" width=\"9\" height=\"9\"/></svg>",
+    "notes": "feImage loads external resources: not allowed."
+  },
+  {
+    "id": "svg-filter-external",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><rect filter=\"url(http://evil.test/f.svg#f)\" fill=\"url(http://evil.test/p.svg#p)\" width=\"9\" height=\"9\"/></svg>",
+    "notes": "External paint servers and filters."
+  },
+  {
+    "id": "svg-fill-javascript",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><rect fill=\"url(javascript:alert(1))\" width=\"9\" height=\"9\"/></svg>",
+    "notes": "url() with javascript: in a presentation attribute."
+  },
+  {
+    "id": "svg-style-element",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><style>@import url(http://evil.test/x.css); rect{fill:url(http://evil.test/p)}</style><rect width=\"9\" height=\"9\"/></svg>",
+    "notes": "SVG style element."
+  },
+  {
+    "id": "svg-script-cdata",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><script><![CDATA[alert(1)]]></script></svg>",
+    "notes": "CDATA in SVG script."
+  },
+  {
+    "id": "svg-handler-entity",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><rect width=\"9\" height=\"9\" o&#110;click=\"alert(1)\"/></svg>",
+    "notes": "Entities are not decoded in attribute names: the name stays odd and is dropped."
+  },
+  {
+    "id": "svg-switch",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><switch><foreignObject requiredExtensions=\"http://www.w3.org/1999/xhtml\"><img src=x onerror=alert(1)></foreignObject><text>fallback</text></switch></svg>",
+    "notes": "switch with foreignObject."
+  },
+  {
+    "id": "svg-textpath-external",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><text><textPath href=\"http://evil.test/p.svg#p\">x</textPath></text></svg>",
+    "notes": "textPath may only reference #id."
+  },
+  {
+    "id": "svg-xmlns-html",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><g xmlns=\"http://www.w3.org/1999/xhtml\"><script>alert(1)</script></g></svg>",
+    "notes": "xmlns attributes do not change namespaces in HTML parsing."
+  },
+  {
+    "id": "svg-iframe-inside",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><iframe src=\"javascript:alert(1)\"></iframe></svg>",
+    "notes": "Unknown element in the SVG namespace."
+  },
+  {
+    "id": "svg-handler-attribute",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><handler type=\"application/ecmascript\" ev:event=\"load\">alert(1)</handler></svg>",
+    "notes": "SVG Tiny handler element."
+  },
+  {
+    "id": "svg-mpath-href",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><path id=\"p\" d=\"M0 0L9 9\"/><circle r=\"2\"><animateMotion dur=\"1s\"><mpath href=\"#p\"/></animateMotion></circle></svg>",
+    "notes": "animateMotion/mpath: SMIL dropped."
+  },
+  {
+    "id": "svg-transform-injection",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><g transform=\"rotate(1) url(http://evil.test)\"><rect width=\"9\" height=\"9\"/></g></svg>",
+    "notes": "transform attribute with unexpected words."
+  },
+  {
+    "id": "svg-style-attr-url",
+    "category": "svg",
+    "source": "own",
+    "html": "<svg><rect style=\"fill:url(http://evil.test/p#x);stroke:red\" width=\"9\" height=\"9\"/></svg>",
+    "notes": "Inline style on an SVG element."
+  }
+]
