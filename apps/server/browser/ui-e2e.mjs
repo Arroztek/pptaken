@@ -63,6 +63,8 @@ try {
 
   await page.getByRole("button", { name: "Copy setup prompt" }).click();
   await page.getByText(/Waiting for your agent/i).waitFor({ timeout: 10_000 });
+  // The page confirms once the clipboard write has finished; reading earlier races with it.
+  await page.getByText("Copied to clipboard.").waitFor({ timeout: 10_000 });
   const prompt = await page.evaluate(() => navigator.clipboard.readText());
   const token = /ppt_[A-Za-z0-9_-]{43}/.exec(prompt)?.[0];
   check("copied prompt contains a ppt_ token", token);
@@ -126,6 +128,36 @@ try {
   check("Present opens the player and it reaches the ready state", true);
   const url = new URL(player.url());
   check("player URL is the /p/ page", url.pathname.startsWith("/p/"));
+
+  // Fonts: the bundled fonts must really load inside the sandboxed content frame (CSP font-src + CORS).
+  const content = player.frames().find((f) => f.url().includes("/c/"));
+  const loaded = content
+    ? await content.evaluate(async () => {
+        await Promise.all(
+          ["Inter", "Bricolage Grotesque", "JetBrains Mono"].map((f) =>
+            document.fonts.load(`16px "${f}"`),
+          ),
+        );
+        return [...document.fonts].filter((f) => f.status === "loaded").map((f) => f.family);
+      })
+    : [];
+  check(
+    "bundled fonts load inside the content frame",
+    ["Inter", "Bricolage Grotesque"].every((f) => loaded.includes(f)),
+  );
+
+  // Slow or impossible content load: the page must say so instead of staying black forever.
+  const slow = await context.newPage();
+  await slow.route("**/c/**", (route) =>
+    route.request().url().includes("/c/fonts/") ? route.continue() : route.abort(),
+  );
+  await slow.goto(player.url());
+  await slow.waitForSelector('body[data-state="slow"]', { timeout: 20_000 });
+  check(
+    "a content frame that never loads shows a message",
+    /taking too long/i.test(await slow.locator("#status").innerText()),
+  );
+  await slow.close();
 
   check("no console errors, page errors or external requests", problems.length === 0);
   if (problems.length) console.log(problems.join("\n"));

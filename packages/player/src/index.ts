@@ -7,7 +7,13 @@
 // - protocol and navigation: shared, pure, testable without a browser.
 // Browser code should import `@pptaken/player/shell`, which does not pull the builder or `@pptaken/schema`.
 
-export { type BuildOptions, buildDeckDocument, type DeckDocument, escapeHtml } from "./builder.js";
+export {
+  type BuildOptions,
+  buildDeckDocument,
+  type DeckDocument,
+  escapeHtml,
+  type FontFaceSpec,
+} from "./builder.js";
 export {
   assetHeaders,
   type CspOptions,

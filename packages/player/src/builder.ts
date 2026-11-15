@@ -5,16 +5,40 @@
 // Trust: slide HTML and CSS must come from `sanitizeDeck` (barrier 1). They are inserted as they are; everything
 // the builder adds itself (title, lang, ids, nonce, URLs) is validated and escaped.
 
-import { type AspectRatio, canvasSize, type Deck } from "@pptaken/schema";
+import {
+  type AspectRatio,
+  canvasSize,
+  type Deck,
+  FONT_CATALOG,
+  type FontName,
+} from "@pptaken/schema";
 import { assertAssetBaseUrl, assertNonce, type CspOptions, contentSecurityPolicy } from "./csp.js";
 import { SLIDE_ID_PATTERN } from "./protocol.js";
 import { RUNTIME_SOURCE } from "./runtime-source.js";
+
+/** One `@font-face` rule of a bundled font (a variable WOFF2 subset). All fields are validated. */
+export interface FontFaceSpec {
+  /** A family of the font catalog, used by name in slide CSS. */
+  family: FontName;
+  /** Path of the WOFF2 file below `fontBaseUrl`, for example `inter/inter-latin-wght.woff2`. */
+  file: string;
+  /** CSS weight range, for example `100 900` or `400`. */
+  weight: string;
+  /** Defaults to `normal`. */
+  style?: "normal" | "italic" | undefined;
+  /** CSS `unicode-range` of the subset, for example `U+0000-00FF, U+0131`. */
+  unicodeRange?: string | undefined;
+}
 
 export interface BuildOptions {
   /** Per-response nonce (at least 128 random bits, base64), also used in the CSP header. Required. */
   nonce: string;
   /** Absolute URL of the content asset path; `asset:<hex>` references are rewritten to `<assetBaseUrl><hex>`. */
   assetBaseUrl?: string | undefined;
+  /** Absolute URL of the bundled-font path (ending in `/`); required to use `fontFaces`. */
+  fontBaseUrl?: string | undefined;
+  /** `@font-face` rules for the bundled fonts. Declared faces are only downloaded when a slide uses the family. */
+  fontFaces?: readonly FontFaceSpec[] | undefined;
   /** Document language; defaults to the deck's `lang`. */
   lang?: string | undefined;
   /** Origins allowed to frame the document (CSP `frame-ancestors`). */
@@ -40,6 +64,32 @@ function stageCss(width: number, height: number): string {
     ":where(#pptaken-stage>section[data-slide]){display:block;box-sizing:border-box;background:#fff;color:#000}",
     "#pptaken-stage [data-step]:not(.pptaken-revealed){visibility:hidden!important}",
   ].join("\n");
+}
+
+const FONT_FILE = /^(?:[a-z0-9-]{1,40}\/)?[a-z0-9-]{1,80}\.woff2$/;
+const FONT_WEIGHT = /^[1-9][0-9]{2}(?: [1-9][0-9]{2})?$/;
+const UNICODE_RANGE =
+  /^U\+[0-9A-Fa-f?]{1,6}(?:-[0-9A-Fa-f]{1,6})?(?:, ?U\+[0-9A-Fa-f?]{1,6}(?:-[0-9A-Fa-f]{1,6})?)*$/;
+
+/** Builds the `@font-face` rules for the bundled fonts; every interpolated value is validated first. */
+function fontFaceCss(base: string, faces: readonly FontFaceSpec[]): string {
+  return faces
+    .map((face, index) => {
+      if (!(FONT_CATALOG as readonly string[]).includes(face.family))
+        throw new TypeError(`fontFaces[${index}].family is not in the font catalog`);
+      if (typeof face.file !== "string" || !FONT_FILE.test(face.file))
+        throw new TypeError(`fontFaces[${index}].file is not a valid WOFF2 path`);
+      if (typeof face.weight !== "string" || !FONT_WEIGHT.test(face.weight))
+        throw new TypeError(`fontFaces[${index}].weight is not a valid weight or range`);
+      const style = face.style ?? "normal";
+      if (style !== "normal" && style !== "italic")
+        throw new TypeError(`fontFaces[${index}].style must be normal or italic`);
+      if (face.unicodeRange !== undefined && !UNICODE_RANGE.test(face.unicodeRange))
+        throw new TypeError(`fontFaces[${index}].unicodeRange is not valid`);
+      const range = face.unicodeRange === undefined ? "" : `unicode-range:${face.unicodeRange};`;
+      return `@font-face{font-family:"${face.family}";font-style:${style};font-weight:${face.weight};font-display:swap;src:url(${base}${face.file}) format("woff2");${range}}`;
+    })
+    .join(String.fromCharCode(10));
 }
 
 /** Escapes text for HTML text content and double-quoted attribute values. */
@@ -94,6 +144,13 @@ export function buildDeckDocument(deck: Deck, options: BuildOptions): DeckDocume
   if (!Array.isArray(deck.slides) || deck.slides.length === 0) {
     throw new TypeError("deck must have at least one slide");
   }
+  const fontBase = options.fontBaseUrl;
+  if (fontBase !== undefined) assertAssetBaseUrl(fontBase);
+  if (options.fontFaces !== undefined && options.fontFaces.length > 0 && fontBase === undefined) {
+    throw new TypeError("fontFaces requires fontBaseUrl");
+  }
+  const fontCss =
+    fontBase !== undefined && options.fontFaces ? fontFaceCss(fontBase, options.fontFaces) : "";
   const ratio: AspectRatio = deck.aspectRatio === "4:3" ? "4:3" : "16:9";
   const { width, height } = canvasSize(ratio);
 
@@ -123,6 +180,7 @@ export function buildDeckDocument(deck: Deck, options: BuildOptions): DeckDocume
     "<head>",
     '<meta charset="utf-8">',
     `<title>${escapeHtml(deck.title)}</title>`,
+    `<style>${fontCss}</style>`,
     `<style>${themeCss}</style>`,
     `<style>${slideCss.join("\n")}</style>`,
     `<style>${stageCss(width, height)}</style>`,
@@ -137,7 +195,7 @@ export function buildDeckDocument(deck: Deck, options: BuildOptions): DeckDocume
     "",
   ].join("\n");
 
-  const csp: CspOptions = { nonce: options.nonce, assetBaseUrl: base };
+  const csp: CspOptions = { nonce: options.nonce, assetBaseUrl: base, fontBaseUrl: fontBase };
   if (options.frameAncestors !== undefined) csp.frameAncestors = options.frameAncestors;
   return { html, csp: contentSecurityPolicy(csp) };
 }

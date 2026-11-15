@@ -255,3 +255,55 @@ describe("content security policy and headers", () => {
     expect(a["X-Content-Type-Options"]).toBe("nosniff");
   });
 });
+
+describe("bundled fonts", () => {
+  const FONT_BASE = "https://content.example/c/fonts/";
+  const face = {
+    family: "Inter",
+    file: "inter/inter-latin-wght.woff2",
+    weight: "100 900",
+  } as const;
+
+  it("emits @font-face rules before the theme CSS and allows the font path in font-src", () => {
+    const built = buildDeckDocument(tiny(), {
+      nonce: NONCE,
+      assetBaseUrl: BASE,
+      fontBaseUrl: FONT_BASE,
+      fontFaces: [{ ...face, unicodeRange: "U+0000-00FF, U+0131" }],
+    });
+    expect(built.html).toContain(
+      `@font-face{font-family:"Inter";font-style:normal;font-weight:100 900;font-display:swap;src:url(${FONT_BASE}inter/inter-latin-wght.woff2) format("woff2");unicode-range:U+0000-00FF, U+0131;}`,
+    );
+    expect(built.csp).toContain(`font-src ${BASE} ${FONT_BASE}`);
+    expect(built.csp).toContain(`img-src ${BASE};`);
+  });
+
+  it("works without an asset path: fonts only", () => {
+    const csp = contentSecurityPolicy({ nonce: NONCE, fontBaseUrl: FONT_BASE });
+    expect(csp).toContain(`font-src ${FONT_BASE}`);
+    expect(csp).toContain("img-src 'none'");
+  });
+
+  it("validates every interpolated value", () => {
+    const build = (fontFaces: unknown[], fontBaseUrl: string | null = FONT_BASE) =>
+      buildDeckDocument(tiny(), {
+        nonce: NONCE,
+        fontBaseUrl: fontBaseUrl ?? undefined,
+        fontFaces: fontFaces as never,
+      });
+    expect(() => build([{ ...face, family: "Comic Sans" }])).toThrow(/catalog/);
+    expect(() => build([{ ...face, file: "../secret.woff2" }])).toThrow(/WOFF2 path/);
+    expect(() => build([{ ...face, file: "a/b.woff2);}body{x:1}" }])).toThrow(/WOFF2 path/);
+    expect(() => build([{ ...face, weight: "bold" }])).toThrow(/weight/);
+    expect(() => build([{ ...face, style: "oblique" }])).toThrow(/style/);
+    expect(() => build([{ ...face, unicodeRange: "U+0-FF;} x{y:z" }])).toThrow(/unicodeRange/);
+    expect(() => build([face], null)).toThrow(/fontBaseUrl/);
+    expect(() => build([face], "https://content.example/c/fonts")).toThrow(/ending in/);
+  });
+
+  it("adds nothing when no faces are given", () => {
+    const built = buildDeckDocument(tiny(), { nonce: NONCE, assetBaseUrl: BASE });
+    expect(built.html).not.toContain("@font-face");
+    expect(built.csp).toContain(`font-src ${BASE};`);
+  });
+});

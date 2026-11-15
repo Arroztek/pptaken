@@ -41,6 +41,14 @@ export interface PlayerOptions {
   showHud?: boolean;
   /** Accessible name of the iframe. Default `"Presentation"`. */
   title?: string;
+  /**
+   * Called once if the content has not reported ready after `loadTimeoutMs`. Nothing is blanked and a later `ready`
+   * still works; use it to tell the user the presentation is slow or cannot load (for example in a preview pane
+   * that does not run sandboxed iframes).
+   */
+  onLoadTimeout?(): void;
+  /** Milliseconds to wait for the content before `onLoadTimeout`. Default 10000; `0` disables it. */
+  loadTimeoutMs?: number;
   onReady?(slides: readonly SlideInfo[]): void;
   /** Called after every change of position or black screen. */
   onChange?(state: PlayerState): void;
@@ -310,6 +318,16 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
   host.append(iframe, curtain);
   if (hud) host.append(hud);
 
+  // The content should report ready quickly. If it does not, tell the page once; nothing is blanked.
+  const loadTimeoutMs = options.loadTimeoutMs ?? 10_000;
+  let loadTimer: ReturnType<typeof setTimeout> | undefined;
+  if (loadTimeoutMs > 0) {
+    loadTimer = setTimeout(() => {
+      if (slides === null && !faulted) options.onLoadTimeout?.();
+    }, loadTimeoutMs);
+  }
+  void ready.then(() => clearTimeout(loadTimer));
+
   return {
     goto: (slide, step = 0) => apply({ slide, step }),
     next: () => move(nav.next),
@@ -329,6 +347,7 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
       win.removeEventListener("pagehide", writeHash);
       iframe.removeEventListener("load", onLoad);
       clearTimeout(hudTimer);
+      clearTimeout(loadTimer);
       if (doc.fullscreenElement === host) void doc.exitFullscreen().catch(() => {});
       iframe.remove();
       curtain.remove();

@@ -10,6 +10,7 @@ import { DEFAULT_WORKSPACE_ID, isDomainError, type Principal } from "@pptaken/co
 import { assetHeaders, buildDeckDocument, contentHeaders } from "@pptaken/player";
 import { Hono } from "hono";
 import type { AppEnv, Services } from "./context.js";
+import { loadFontFaces } from "./fonts.js";
 import { appCsp, contentOrigin, ownOrigin, publicOrigin } from "./http.js";
 import { ownerSession } from "./session.js";
 
@@ -45,12 +46,12 @@ async function start() {
   if (res.status === 401) { location.href = "/login"; return; }
   if (!res.ok) throw new Error("content-url " + res.status);
   const { url } = await res.json();
-  status.hidden = true;
   const player = createPlayer(document.getElementById("stage"), {
     contentUrl: url,
     showHud: true,
     title: document.title,
-    onReady: (slides) => { body.dataset.slides = String(slides.length); body.dataset.state = "ready"; },
+    onReady: (slides) => { status.hidden = true; body.dataset.slides = String(slides.length); body.dataset.state = "ready"; },
+    onLoadTimeout: () => { body.dataset.state = "slow"; status.hidden = false; status.textContent = "This presentation is taking too long to load. If you are in an embedded preview, open this page in your regular browser."; },
     onChange: (s) => { body.dataset.slide = String(s.slide); body.dataset.step = String(s.step); },
     onFault: (f) => { body.dataset.state = "fault"; status.hidden = false; status.textContent = "The presentation stopped: " + f; },
   });
@@ -139,6 +140,18 @@ export function playerRoutes(s: Services): Hono<AppEnv> {
   return app;
 }
 
+const fontFaceCache = new WeakMap<Services, ReturnType<typeof loadFontFaces>>();
+
+/** The bundled font faces, read from disk once per server instance. */
+function fontFacesOf(s: Services): ReturnType<typeof loadFontFaces> {
+  let faces = fontFaceCache.get(s);
+  if (!faces) {
+    faces = loadFontFaces(s.config.fontsDir);
+    fontFaceCache.set(s, faces);
+  }
+  return faces;
+}
+
 /** Routes served on the content origin (or on the app origin when no separate content origin is configured). */
 export function contentRoutes(s: Services): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
@@ -224,8 +237,14 @@ export function contentRoutes(s: Services): Hono<AppEnv> {
         ...(s.config.contentUrl === null ? [ownOrigin(c, s.config)] : []),
       ]),
     ];
-    const built = buildDeckDocument(deck, { nonce, assetBaseUrl });
-    return c.body(built.html, 200, contentHeaders({ nonce, assetBaseUrl, frameAncestors }));
+    const fontBaseUrl = `${origin}/c/fonts/`;
+    const fontFaces = fontFacesOf(s);
+    const built = buildDeckDocument(deck, { nonce, assetBaseUrl, fontBaseUrl, fontFaces });
+    return c.body(
+      built.html,
+      200,
+      contentHeaders({ nonce, assetBaseUrl, fontBaseUrl, frameAncestors }),
+    );
   });
 
   app.all("*", () => notFoundText());

@@ -42,6 +42,11 @@ export interface CspOptions {
    * only under it, never `'self'`. Without it, images and fonts are blocked (`'none'`).
    */
   assetBaseUrl?: string | undefined;
+  /**
+   * Absolute URL of the bundled-font path (`https://content.example/c/fonts/`). Allowed in `font-src` in addition to
+   * the asset path; fonts are never allowed from anywhere else.
+   */
+  fontBaseUrl?: string | undefined;
   /** Origins allowed to frame the deck document (`frame-ancestors`), for example the app origin. */
   frameAncestors?: readonly string[] | undefined;
 }
@@ -54,13 +59,18 @@ export function contentSecurityPolicy(options: CspOptions): string {
     assertAssetBaseUrl(options.assetBaseUrl);
     assets = options.assetBaseUrl;
   }
+  let fonts = assets;
+  if (options.fontBaseUrl !== undefined) {
+    assertAssetBaseUrl(options.fontBaseUrl);
+    fonts = assets === "'none'" ? options.fontBaseUrl : `${assets} ${options.fontBaseUrl}`;
+  }
   const directives = [
     "sandbox allow-scripts",
     "default-src 'none'",
     `script-src 'nonce-${options.nonce}'`,
     "style-src 'unsafe-inline'",
     `img-src ${assets}`,
-    `font-src ${assets}`,
+    `font-src ${fonts}`,
     "connect-src 'none'",
     "form-action 'none'",
     "base-uri 'none'",
