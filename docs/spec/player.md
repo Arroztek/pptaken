@@ -1,4 +1,4 @@
-# Player engine (`@pptaken/player`), phases F1 and F3
+# Player engine (`@pptaken/player`), phases F1, F3 and F4
 
 The player shows a sanitized `pptaken.deck` in the browser: one slide at a time, revealable steps, scaling with a
 black letterbox, keyboard navigation and the position in the URL (F1); an overview grid, printing to PDF (one page
@@ -133,6 +133,8 @@ messages, so keys work whichever side has focus. Clicking the player gives the i
 | `?` | key help on/off |
 | `Escape` | close the overview or the help |
 | `t`, `Shift+R` | presenter view only: start/pause the clock, reset it |
+| `r` | remote control: open/close the pairing panel (F4; handled by the page through `onKey`) |
+| `k` | remote control: disconnect every paired phone (F4; handled by the page through `onKey`) |
 
 In the overview: arrows move the highlight (left/right one slide, up/down one row), Home/End go to the ends,
 Enter (or a click) goes to the highlighted slide, `Escape` or `o` close it where the talk was; `b`, `.` and `f`
@@ -142,7 +144,7 @@ Keys are matched on `KeyboardEvent.key` (layout aware). Keys with Ctrl, Alt or M
 Shift+Space, Shift+R and `?` (which needs Shift on most layouts), as are keys typed in inputs, text areas, selects
 and `contenteditable` elements of the parent page.
 
-**Gated keys.** `o`, `s`, `p` and `?` change the mode or open windows. When they arrive from the iframe (a `key`
+**Gated keys.** `o`, `s`, `p`, `?`, `r` and `k` change the mode, open windows or act on remotes. When they arrive from the iframe (a `key`
 message), the shell acts only if `navigator.userActivation.isActive` is true in its own page: a real key press in
 the iframe propagates the user gesture to its ancestors, a message posted by a script does not. Without the API
 the shell fails closed (the keys then work only with focus on the parent page).
@@ -177,7 +179,7 @@ numbers are dropped.
 | shell → iframe | `goto` | `slide` 0..199, `step` 0..255 (in the overview: the highlighted slide) |
 | shell → iframe | `mode` | `mode`: `"present"`, `"overview"` or `"print"` |
 | iframe → shell | `ready` | `slides: [{ id, steps }]`, 1..200 entries, ids in the schema alphabet and unique; `width`, `height`: the canvas, integers 1..4096 |
-| iframe → shell | `key` | `code`, one of the closed set of key codes (`KEY_CODES`, 22 codes) |
+| iframe → shell | `key` | `code`, one of the closed set of key codes (`KEY_CODES`, 24 codes since F4) |
 | iframe → shell | `state` | `slide`, `step`: what the iframe shows after a `goto`; also sent as the acknowledgement of a `mode` |
 | iframe → shell | `select` | `slide` 0..199: a thumbnail clicked in the overview |
 | iframe → shell | `preload` | once, after `ready`: `ok` boolean, `images` and `fonts` 0..10000 (resources now in memory), `failed`: at most 16 of `"image-error"`, `"image-timeout"`, `"font-error"`, `"font-timeout"`; `ok` must equal `failed.length === 0` |
@@ -282,7 +284,9 @@ window's position. Only positions travel on the channel: never notes or other pr
 Notes are Markdown in the deck (`slides[].notes`, at most 16 KB). They reach the browser **only** through
 `GET /api/v1/decks/:id/presenter` (owner session) and are shown **only** in the presenter view. They are stripped
 before building the content document (`/c/*`), are not in the content iframe, not on the sync channel, and the
-public link (F5) and the remote (F4) must not get them (threat T7).
+public link (F5) must not get them (threat T7). **Amended by ADR-017 (F4):** an **approved** remote phone gets them
+over HTTP (`GET /api/v1/remote/deck`, device credential), never on the real-time socket; a pending device gets
+nothing.
 
 `renderNotes(markdown)` is a small hand-written renderer (no dependency): paragraphs (every line break kept as
 `<br>`), `**bold**`, `*italic*`, `` `code` ``, fenced code blocks, `-`/`*`/`+` and `1.`/`1)` lists nested one
@@ -410,6 +414,43 @@ that nothing is served offline. A shared computer should not be used to present 
 `/api/v1/decks/:id/offline`, which the worker answers from the copy. `401` is never answered from a copy. The
 presenter page does the same, so a presenter window can be opened, and reloaded, offline (layer 2).
 
+## Remote control (F4)
+
+A phone drives the talk through the server ([ADR-017](../adr/0017-remote-control.md), protocol in
+[realtime.md](realtime.md)). The player engine itself only gained three small things; the socket client, the pairing
+panel and the phone page are `@pptaken/realtime` modules loaded by the player page.
+
+- **The shell stays the single source of truth.** The player page applies remote commands as local input
+  (`next()`, `prev()`, `first()`, `last()`, `goto()`, `black()`), so the presenter window follows over
+  `BroadcastChannel` exactly as with a key, and forwards every `onChange` to the socket as `state`. Navigation code
+  in `shell.ts` is unchanged; a socket failure never reaches the shell.
+- **Keys `r` and `k`** joined the closed key set (`KEY_CODES`, 24 codes; actions `remote` and `kick`). The shell
+  does nothing with them: the page takes them in `onKey`. From the iframe they count only during a real user gesture
+  (`navigator.userActivation`), like the other gated keys; so do Enter and Escape when they answer the approval
+  prompt. Option `remoteKeys: true` lists them in the key help.
+- **Laser layer.** `player.pointer({ x, y })` shows a dot at canvas coordinates 0..10000 (`null` hides it). It is a
+  trusted element of the shell above the iframe and above the black layer, `pointer-events: none`, no change to the
+  iframe protocol. Position: `s = min(w/W, h/H)`, offset `((w − W·s)/2, (h − H·s)/2)`, centre at
+  `offset + (x/10000·W·s, y/10000·H·s)`, moved with `translate3d`; diameter `1.2 % × H × s` (at least 2 px), colour
+  `#FF3B30` with a soft glow. Hidden after 1.5 s without a new point, when the black screen turns on, in the
+  overview and in print (it is not an `iframe` child, so the print layout hides it), and when the socket drops.
+- **QR code.** Never on the canvas by default: only while the presenter opens the panel (`r`), drawn in the
+  player host (so it stays visible in full screen), or in the presenter window behind a button. The approval prompt
+  ("Allow Android · Chrome · 42?") is shown in the host when a phone pairs.
+- **Offline.** The remote modules are loaded with a dynamic `import()` after the deck is mounted and only when the
+  deck came from the network; with a stored copy or no network nothing is loaded and nothing fails. The service
+  worker does not store `/_rt/*`.
+
+Tests: `apps/server/browser/remote.mjs` (Chromium, Firefox and WebKit, a laptop context and a phone context): QR not
+shown by default and encoding `<origin>/r#<secret>`, the fragment stripped, the same two digits on both sides,
+pending phone without data, Enter approves without navigating, every slide and step (51 positions of the 20-slide
+example) from the phone, prev/first/last/black, a burst of 12 taps converging, latency click → slide (p50 2 ms in
+Chromium and Firefox, 28 ms in WebKit, loopback), laser position within 1 px of the formula on 16:9 (1280×720,
+1000×800, 700×900) and 4:3 (1280×720, 800×900) decks and pad mapping within 1 %, hidden under black, in the
+overview and after 1.5 s, the server stopped while the screen keeps navigating and both reconnecting afterwards, the
+phone offline and back, kick, notes on the phone and absent from every socket frame and every content document, the
+presenter-window panel, no console errors. Last run: 65 checks per engine, all passing. Unit: `laser.test.ts`.
+
 ## API
 
 ```ts
@@ -428,9 +469,12 @@ RUNTIME_SHA256                                     // CSP hash source of the run
 // browser (import "@pptaken/player/shell": no builder, no schema, no zod)
 createPlayer(host, { contentUrl | contentHtml, initial?, hash?, keyboard?, showHud?, indicator?, title?, help?,
   locale?, presenterUrl?, sync?, onKey?, onReady?, onChange?, onRender?, onFault?, onOffline?, onLoadTimeout?,
-  loadTimeoutMs? })
+  loadTimeoutMs?, remoteKeys? })
   -> { goto(slide, step?), next, prev, first, last, black(on?), toggleFullscreen, overview(on?), print(),
-       openPresenter(), help(on?), getState, getCanvas, getOffline, setOfflineCopy(on), iframe, ready, destroy }
+       openPresenter(), help(on?), pointer({x, y} | null), getState, getCanvas, getOffline, setOfflineCopy(on),
+       iframe, ready, destroy }
+// laser ("@pptaken/player/laser", pure): laserGeometry(view, canvas, x, y), LASER_COORD_MAX, LASER_SIZE,
+//   LASER_TIMEOUT_MS
 // offline ("@pptaken/player/offline", "/offline-client", "/offline-cache"): offlineStateOf, offlineStatus,
 //   isOfflineDocument; loadContent, keepOfflineCopy, offlineCopyStatus, SignedOutError; routeOf, cacheKeyOf,
 //   isCacheable, signsOut, pickEvictions, bytesToFree, parseClientMessage, parseWorkerReply

@@ -93,7 +93,7 @@ Reason: an agent can fall victim to **prompt injection** (a PDF it is handed say
 | Actor | Credential | Reach |
 |---|---|---|
 | Public link | 192-bit random token in the `/v/…` path; the hash is stored | One presentation (optionally a pinned revision), read-only, **no notes**. Optional expiry (default 7 days, configurable; "no expiry" must be chosen), revocable, with a use counter and last access. Page with `noindex` and `Referrer-Policy: no-referrer` |
-| Remote | Pairing secret → device credential | One live session; expires when the session ends or after 12 h |
+| Remote | Pairing secret → device credential (256 bits, SHA-256 at rest), approved by the owner | One live session; expires when the session ends or after 12 h; notes over HTTP once approved (ADR-017) |
 | Audience | Ephemeral identity signed (HMAC) per session | Module actions of that session |
 | Content iframe | Short-lived signed content token in the path | Read the document and assets of one revision |
 
@@ -113,11 +113,16 @@ Speaker notes (Markdown) are converted to HTML with a minimal subset and sanitiz
 
 ## 5. Pairing and live-session control
 
+> Amended by [ADR-017](../adr/0017-remote-control.md) (phase F4): **every** device needs approval, not only the
+> second one; the screen (player page) is authoritative for navigation; notes reach an approved phone over HTTP.
+
 - Only an **owner session** can create a live session and a pairing.
-- The QR contains a **one-time secret** (128 bits) in the URL fragment, valid for 2 minutes. When redeemed it is invalidated and the phone receives a **device credential**.
-- The laptop shows which device connected. **A second device requires explicit approval** on the laptop.
-- The presenter can "kick remotes" with a key; doing so invalidates all the session's device credentials.
-- The remote can only issue a closed set of commands (`next`, `prev`, `first`, `last`, `goto`, `pointer`, `timer`), validated and rate-limited.
+- The QR contains a **one-time secret** (128 bits) in the URL fragment, valid for 2 minutes and stored only as a hash. The phone strips the fragment at once and redeems it over HTTP (rate limited per IP and globally); it is then invalidated and the phone receives a **pending device credential** (256 bits, stored only as a hash).
+- **Every device requires explicit approval** on the laptop: the phone and the laptop show the same two digits; a pending device can send and receive nothing and gets no deck data. At most 2 remotes per live session.
+- The QR is never shown by default: only while the presenter opens the pairing panel (key `R`, or the presenter window's button).
+- The presenter can "kick remotes" with a key (`K`); doing so invalidates all the session's device credentials and closes their sockets.
+- Sockets authenticate with their first frame (`auth`), never with cookies; the upgrade checks `Host` and `Origin` by hand (it bypasses the HTTP middleware).
+- The remote can only issue a closed set of commands (`next`, `prev`, `first`, `last`, `black`, `goto`, `pointer`), validated and rate-limited. The presenter clock is local to each device (no `timer` on the wire).
 - The audience code (short, to type by hand) gives **no** power over the presentation: it is a different permission space.
 
 Improvement over `ppt`: there the room code was permanent (stored in `localStorage`), served as both identifier and secret, and anyone who saw it in a photo of the QR controlled the talk.
@@ -132,9 +137,9 @@ Improvement over `ppt`: there the room code was permanent (stored in `localStora
 | T2 | Prompt injection into the agent → deletes or publishes presentations | T, I | High | Minimal scopes; `share:write` off by default; trash and revisions; human-only actions; audit |
 | T3 | Theft of an API token (pasted in a repo, in a chat) | S | High | Shown once; hash at rest; detectable prefix; expiry; revocation; visible last use; never in a URL |
 | T4 | Takeover of a freshly installed instance | S, E | Critical | Install code in the logs |
-| T5 | An attendee takes control of the remote | S, T | High | One-time secret, device credential, approval of the 2nd device, kick |
+| T5 | An attendee takes control of the remote | S, T | High | One-time 2-minute secret never shown by default, hashed device credential, approval of every device with a matching two-digit code, at most 2 remotes, kick (ADR-017) |
 | T6 | Public link leak (forwarding, history, capture) | I | Medium | Default expiry; revocation; no notes; `noindex`; `no-referrer`; optional pinned revision |
-| T7 | Speaker notes leak | I | High | Notes are not included in `/v/`, nor in `/c/`, nor in the remote, nor in the HTML export unless explicitly chosen |
+| T7 | Speaker notes leak | I | High | Notes are not included in `/v/`, nor in `/c/`, nor on the real-time socket, nor in the HTML export unless explicitly chosen. An **approved** remote device gets them over HTTP with its device credential (ADR-017); tests check every socket frame and content document |
 | T8 | SSRF through `add_asset` with a URL or through CIMD (requesting `http://169.254.169.254/…` or internal services) | I, E | High | `https` only; resolve DNS and **block private, loopback, link-local and metadata ranges**; pin the resolved IP (anti *DNS rebinding*); no redirects to blocked ranges; 10 s timeout; maximum size; type verification by signature |
 | T9 | Spam or offensive audience content on the projector | T | Medium–high (reputation) | The projector only shows what the presenter opens; hide/delete; limits; filter; pause; kick |
 | T10 | Cheating in the quiz (reading the answer, voting several times, bots) | T | Low | Correct answer held on the server; one answer per participant; server clock; per-IP limits |
@@ -190,6 +195,8 @@ Behind a reverse proxy, the real IP is taken from `X-Forwarded-For` **only** if 
 **HTTPS**
 - `https` profile of `compose.yaml`: Caddy obtains and renews certificates automatically given a domain.
 - On a local network without HTTPS, the interface shows a clear warning: the password travels unencrypted and there is no *service worker*. How to use a tunnel or a local certificate is documented.
+- Remote control on plain HTTP (ADR-017): `ws://` works, but remote commands, the pairing code and the speaker notes shown on the phone travel unencrypted; the pairing panel and the phone page say so. Without a secure context the phone cannot hold a screen wake lock and may sleep.
+- Remote control on plain HTTP (ADR-017): `ws://` works, but remote commands, the pairing code and the speaker notes shown on the phone travel unencrypted; the pairing panel and the phone page say so. Without a secure context the phone cannot hold a screen wake lock and may sleep.
 
 ## 9. Supply chain
 

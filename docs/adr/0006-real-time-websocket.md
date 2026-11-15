@@ -1,5 +1,10 @@
 # ADR-006 · Real time: WebSocket with an in-memory hub
 
+> **Amended by [ADR-017](0017-remote-control.md)** (phase F4): for slide navigation the **screen** (the player page)
+> is authoritative, not the server; the server relays commands and caches the screen's last state. Sockets
+> authenticate with their first frame (`auth`), never with cookies. Validation is hand-written (no zod in the
+> browser bundles). The rest of this record stands.
+
 **Context.** Messages in both directions: remote commands, laser pointer (~20 msg/s), player state, answers and votes from hundreds of phones, live boards.
 
 **Options.**

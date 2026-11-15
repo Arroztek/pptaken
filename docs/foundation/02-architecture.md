@@ -323,6 +323,12 @@ Why layer 1 is mandatory: *service workers* do not work on `http://192.168.x.x`,
 
 ## 7. Real time and live sessions
 
+> Amended by [ADR-017](../adr/0017-remote-control.md) (phase F4): the **screen** (the player page) is authoritative for
+> `{slide, step, black}`; the server relays remote commands to it and caches its last announced state. Sockets
+> authenticate with a first `auth` frame; frames are `{ v: 1, type, ...fields }` with exact keys and hand-written
+> validators ([realtime spec](../spec/realtime.md)). Every remote device needs approval. The table and diagram below
+> are the original plan; the spec is normative.
+
 **Live session** = a presentation opened by the presenter. It has a pinned revision, state (slide, step), an audience code and active modules. The server stores the state; the clients mirror it.
 
 WebSocket connection roles and what they can emit:

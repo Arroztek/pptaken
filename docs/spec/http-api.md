@@ -244,3 +244,53 @@ Imports never trust the archive: the deck is validated with `parseDeck`, sanitiz
 asset is re-checked like `add_asset` (content signature, declared type, SHA-256, limits); all rows are written in one
 transaction.
 <!-- END export and import (F3) -->
+
+<!-- BEGIN remote control (F4) -->
+## Remote control (F4)
+
+Design: [ADR-017](../adr/0017-remote-control.md); socket protocol: [realtime.md](realtime.md). All routes are
+rate limited per IP like the rest of the API, answer `Cache-Control: no-store`, and every `POST`/`DELETE` needs the
+CSRF header and a same-origin `Origin` (the phone sends both too).
+
+### Owner routes (session required)
+
+| Route | Body / query | Response |
+|---|---|---|
+| `GET /api/v1/live?deck=<id>` | | `200 { live: { id, deckId, revision, expiresAt, devices } \| null }`: the deck's active live session (`devices`: paired, not revoked) |
+| `POST /api/v1/live` | `{ deckId }` | `201` (new) or `200` (reused) `{ live: {…}, screenTicket, publicUrl }`. Starts or reuses the deck's live session (12 h), records the current revision, and issues a **screen ticket** (60 s) for the socket's first frame. `publicUrl` is `PPTAKEN_PUBLIC_URL` or `null` |
+| `GET /api/v1/live/lan` | | `200 { addresses: ["http://192.168.1.20:8080", …] }`: this machine's IPv4 LAN addresses with the request's port, for the QR when the page is on `localhost` |
+| `POST /api/v1/live/:id/pairing` | `{}` | `201 { secret, expiresAt, path: "/r" }`: a one-time 128-bit secret (22 base64url characters), valid 2 minutes, stored only as SHA-256; older unredeemed codes stop working. The page shows `<origin>/r#<secret>` as a QR |
+| `GET /api/v1/live/:id/devices` | | `200 { devices: [{ id, label, code, status, online }] }` |
+| `POST /api/v1/live/:id/devices/:deviceId/approve` | `{}` | `204`; `404` unless the device is pending |
+| `DELETE /api/v1/live/:id/devices/:deviceId` | | `204`: deny a pending device or remove an approved one (its socket closes with 4003) |
+| `POST /api/v1/live/:id/kick` | `{}` | `200 { revoked: n }`: every device credential of the session is revoked and its sockets close |
+| `DELETE /api/v1/live/:id` | | `204`: ends the session; every credential stops working |
+
+`404 NOT_FOUND` for an unknown, ended or expired session.
+
+### Phone routes (no session)
+
+#### `POST /api/v1/remote/pair`
+Body `{ "secret": "<22 characters>" }`. Redeems the code once and creates a **pending** device:
+`201 { credential, deviceId, liveId, code, label, expiresAt }`. `credential` (43 base64url characters, 256 bits) is
+shown once and stored only as SHA-256; `code` is the two digits the laptop shows in its approval prompt; `label` is
+derived from the User-Agent. Errors: `401 UNAUTHENTICATED` (unknown, used or expired code: indistinguishable),
+`403 FORBIDDEN` (two remotes already paired, or CSRF), `429 RATE_LIMITED` (10 per minute per IP, and at most 50
+failures per 10 minutes instance-wide).
+
+#### `GET /api/v1/remote/deck`
+Header `Authorization: Device <credential>` (never in the URL). For an **approved** device only: `200` with the
+presenter data of the session's revision (the same shape as `GET /api/v1/decks/:id/presenter`: `title`, `revision`,
+`aspectRatio`, `targetMinutes?`, `slides[{ id, title, section?, durationHintSec?, notesHtml }]`) plus `liveId` and
+`contentUrl` (a signed 5-minute URL of the content document, for the slide previews). `401` for an unknown,
+revoked or expired credential, `403` while the device is pending. With the owner-only presenter API and export, this
+is the only route that returns speaker notes (threat T7).
+
+### Pages and files
+
+- `GET /r`: the phone page (no session, `noindex`, the player page's CSP). The pairing secret travels in the URL
+  fragment, which browsers never send; the page strips it at once.
+- `GET /_rt/<module>.js`: the browser modules of `@pptaken/realtime` (`client`, `dom`, `i18n`, `limits`, `panel`,
+  `phone`, `protocol`, `screen`), `phone-page.js`, `phone.css`, and `qr.js` (the pinned QR encoder). No data.
+- `GET /ws`: the WebSocket endpoint ([realtime.md](realtime.md)).
+<!-- END remote control (F4) -->
