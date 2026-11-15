@@ -8,6 +8,7 @@ export {
   runBlobStoreContract,
 } from "./contracts/blob.js";
 export { runClockContract, runIdGeneratorContract } from "./contracts/ids.js";
+export { type LiveStoreHarness, runLiveSessionContract } from "./contracts/live.js";
 export {
   runAssetRepositoryContract,
   runAuditLogContract,
@@ -52,3 +53,4 @@ export {
   MemoryUnitOfWork,
   seededRandom,
 } from "./memory.js";
+export { MemoryLiveSessionStore } from "./memory-live.js";

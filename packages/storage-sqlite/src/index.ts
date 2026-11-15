@@ -9,6 +9,7 @@ export {
   type SqliteOwnerRecord,
   type SqliteSessionRecord,
 } from "./auth.js";
+export { createSqliteLiveStore } from "./live.js";
 export {
   backupTo,
   loadMigrations,

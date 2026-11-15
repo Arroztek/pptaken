@@ -12,6 +12,7 @@
       "!**/*.md",
       "!**/last-run.json",
       "!**/.last-run.json",
+      "!**/remote-last-run.json",
       "!**/test-results",
       "!**/.screenshots",
       "!**/*.svelte",

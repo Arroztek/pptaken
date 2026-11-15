@@ -136,6 +136,40 @@ export interface McpActivityTable {
   token_id: string | null;
 }
 
+// Tables of migration 0003_live, used by the live-session store adapter (src/live.ts).
+export interface LiveSessionTable {
+  workspace_id: string;
+  id: string;
+  deck_id: string;
+  revision: number;
+  started_at: number;
+  expires_at: number;
+  ended_at: number | null;
+}
+
+export interface LivePairingTable {
+  workspace_id: string;
+  live_id: string;
+  secret_hash: string;
+  created_at: number;
+  expires_at: number;
+  redeemed_at: number | null;
+}
+
+export interface LiveDeviceTable {
+  workspace_id: string;
+  id: string;
+  live_id: string;
+  credential_hash: string;
+  label: string;
+  code: string;
+  status: string;
+  created_at: number;
+  approved_at: number | null;
+  revoked_at: number | null;
+  expires_at: number;
+}
+
 /** Typed view of the database for Kysely. */
 export interface Database {
   deck: DeckTable;
@@ -150,6 +184,9 @@ export interface Database {
   api_token: ApiTokenTable;
   auth_setting: AuthSettingTable;
   mcp_activity: McpActivityTable;
+  live_session: LiveSessionTable;
+  live_pairing: LivePairingTable;
+  live_device: LiveDeviceTable;
 }
 
 type Db = Kysely<Database>;

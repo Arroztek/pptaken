@@ -9,11 +9,12 @@ import {
   makeSlideInputs,
   ownerPrincipal,
   pngBytes,
+  runLiveSessionContract,
   runStorageContract,
 } from "@pptaken/testing";
 import { sql } from "kysely";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
-import { openSqliteStorage, type SqliteStorage } from "../src/index.js";
+import { createSqliteLiveStore, openSqliteStorage, type SqliteStorage } from "../src/index.js";
 import { tempDir } from "./helpers.js";
 
 runStorageContract("sqlite :memory:", () => {
@@ -28,6 +29,23 @@ runStorageContract("sqlite file (WAL)", () => {
     uow,
     cleanup: async () => {
       await uow.close();
+      tmp.remove();
+    },
+  };
+});
+
+runLiveSessionContract("sqlite :memory:", () => {
+  const storage = openSqliteStorage({ filename: ":memory:" });
+  return { store: createSqliteLiveStore(storage), cleanup: () => storage.close() };
+});
+
+runLiveSessionContract("sqlite file (WAL)", () => {
+  const tmp = tempDir();
+  const storage = openSqliteStorage({ filename: join(tmp.dir, "pptaken.db") });
+  return {
+    store: createSqliteLiveStore(storage),
+    cleanup: async () => {
+      await storage.close();
       tmp.remove();
     },
   };

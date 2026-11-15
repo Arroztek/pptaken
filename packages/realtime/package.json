@@ -1,0 +1,30 @@
+{
+  "name": "@pptaken/realtime",
+  "version": "0.0.0",
+  "description": "PPTaken real-time remote control: the versioned WebSocket protocol (hand-written validators), the pure live-session reducer, the in-memory RealtimeHub, and the browser clients (screen, remote panel, phone).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./protocol": {
+      "types": "./dist/protocol.d.ts",
+      "default": "./dist/protocol.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@pptaken/player": "workspace:*",
+    "@types/node": "22.20.5",
+    "vitest": "5.1.0"
+  }
+}

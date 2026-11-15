@@ -35,6 +35,7 @@ export type KeyPurpose =
   | "install-code"
   | "csrf"
   | "audience-identity"
+  | "live-ticket"
   | "generic";
 
 /** HKDF-SHA256 subkey of the instance secret for one purpose (32 bytes). */

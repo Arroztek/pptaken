@@ -38,6 +38,24 @@ export {
   validationError,
 } from "./errors.js";
 export {
+  base64Url,
+  createLiveSessions,
+  DEVICE_CREDENTIAL_PATTERN,
+  type DeviceRecord,
+  type DeviceStatus,
+  LIVE_SESSION_TTL_MS,
+  type LiveDeps,
+  type LiveSessionRecord,
+  type LiveSessionStore,
+  type LiveSessions,
+  MAX_REMOTES,
+  PAIRING_SECRET_PATTERN,
+  PAIRING_TTL_MS,
+  type PairingRecord,
+  type PairResult,
+  type ResolvedDevice,
+} from "./live.js";
+export {
   normalizeMediaType,
   RASTER_MEDIA_TYPES,
   type RasterMediaType,
