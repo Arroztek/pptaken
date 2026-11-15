@@ -1,4 +1,12 @@
 **/node_modules
 **/dist
+**/test-results
+**/playwright-report
+**/last-run.json
+data
+apps/server/data
 .git
+.github
 docs
+docker/Dockerfile
+*.log

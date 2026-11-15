@@ -1,0 +1,28 @@
+# PPTaken, one service. Start: docker compose -f docker/compose.yaml up -d
+# Then read the install code: docker compose -f docker/compose.yaml logs pptaken
+services:
+  pptaken:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: pptaken:local
+    restart: unless-stopped
+    environment:
+      # The URL people and agents use to reach this instance (no trailing slash).
+      PPTAKEN_PUBLIC_URL: ${PPTAKEN_PUBLIC_URL:-http://localhost:8080}
+      # Set to "true" only behind a reverse proxy you control (X-Forwarded-For / X-Forwarded-Proto).
+      PPTAKEN_TRUST_PROXY: ${PPTAKEN_TRUST_PROXY:-false}
+    ports:
+      - "8080:8080"
+    volumes:
+      - pptaken-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  pptaken-data:

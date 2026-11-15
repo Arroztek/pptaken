@@ -1,0 +1,33 @@
+{
+  "startedAt": "2026-11-15T03:15:19.586Z",
+  "engines": {
+    "chromium": {
+      "ok": true,
+      "checks": [
+        "page 200",
+        "ready with 20 slides",
+        "slide 1 visible",
+        "ArrowRight -> slide 2"
+      ]
+    },
+    "firefox": {
+      "ok": true,
+      "checks": [
+        "page 200",
+        "ready with 20 slides",
+        "slide 1 visible",
+        "ArrowRight -> slide 2"
+      ]
+    },
+    "webkit": {
+      "ok": true,
+      "checks": [
+        "page 200",
+        "ready with 20 slides",
+        "slide 1 visible",
+        "ArrowRight -> slide 2"
+      ]
+    }
+  },
+  "ok": true
+}

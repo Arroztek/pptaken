@@ -1,0 +1,152 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+// Cross-cutting HTTP helpers: error shape, client IP, host validation (DNS rebinding), origins, security headers.
+import { isIP } from "node:net";
+import type { Context } from "hono";
+import type { ServerConfig } from "./config.js";
+
+export type ApiErrorCode =
+  | "VALIDATION_ERROR"
+  | "UNAUTHENTICATED"
+  | "FORBIDDEN"
+  | "NOT_FOUND"
+  | "SETUP_REQUIRED"
+  | "ALREADY_SETUP"
+  | "RATE_LIMITED"
+  | "INTERNAL";
+
+const STATUS: Record<ApiErrorCode, 400 | 401 | 403 | 404 | 409 | 429 | 500> = {
+  VALIDATION_ERROR: 400,
+  UNAUTHENTICATED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  SETUP_REQUIRED: 409,
+  ALREADY_SETUP: 409,
+  RATE_LIMITED: 429,
+  INTERNAL: 500,
+};
+
+/** The panel API error shape: `{ error: { code, message, hint? } }`. */
+export function apiError(
+  c: Context,
+  code: ApiErrorCode,
+  message: string,
+  options: { hint?: string | undefined; status?: number; retryAfterSec?: number } = {},
+): Response {
+  const error: Record<string, string> = { code, message };
+  if (options.hint !== undefined) error.hint = options.hint;
+  const headers: Record<string, string> = { "Content-Type": "application/json; charset=utf-8" };
+  if (options.retryAfterSec !== undefined)
+    headers["Retry-After"] = String(Math.max(1, options.retryAfterSec));
+  return new Response(JSON.stringify({ error }), {
+    status: options.status ?? STATUS[code],
+    headers,
+  });
+}
+
+export function json(value: unknown, status = 200, headers: Record<string, string> = {}): Response {
+  return new Response(JSON.stringify(value), {
+    status,
+    headers: { "Content-Type": "application/json; charset=utf-8", ...headers },
+  });
+}
+
+/** `host[:port]` of the request (from the Host header, as reconstructed by the adapter). */
+export function requestHost(c: Context): string {
+  return new URL(c.req.url).host.toLowerCase();
+}
+
+function hostnameOf(host: string): string {
+  if (host.startsWith("[")) return host.slice(0, host.indexOf("]") + 1);
+  const i = host.lastIndexOf(":");
+  return i === -1 ? host : host.slice(0, i);
+}
+
+/**
+ * DNS-rebinding defence (T14): the Host header must name this server. Accepted: the public and content host
+ * names, `localhost` and `*.localhost`, IP literals (a rebinding attack needs a domain name) and the extra names
+ * in PPTAKEN_ALLOWED_HOSTS.
+ */
+export function isAllowedHost(host: string, config: ServerConfig): boolean {
+  const name = hostnameOf(host.toLowerCase());
+  if (name === "") return false;
+  if (name === "localhost" || name.endsWith(".localhost")) return true;
+  const bare = name.startsWith("[") ? name.slice(1, -1) : name;
+  if (isIP(bare) !== 0) return true;
+  for (const url of [config.publicUrl, config.contentUrl]) {
+    if (url !== null && new URL(url).hostname.toLowerCase() === name) return true;
+  }
+  return config.allowedHosts.includes(name);
+}
+
+/** Scheme of the request: the public URL's, or X-Forwarded-Proto behind a trusted proxy, or the connection's. */
+export function requestProto(c: Context, config: ServerConfig): "http" | "https" {
+  if (config.trustProxy) {
+    const fwd = c.req.header("x-forwarded-proto")?.split(",")[0]?.trim().toLowerCase();
+    if (fwd === "https" || fwd === "http") return fwd;
+  }
+  return new URL(c.req.url).protocol === "https:" ? "https" : "http";
+}
+
+/** Origin the request was sent to (scheme + Host). */
+export function ownOrigin(c: Context, config: ServerConfig): string {
+  return `${requestProto(c, config)}://${requestHost(c)}`;
+}
+
+/** The public origin: PPTAKEN_PUBLIC_URL, or the request's own origin when it is not configured. */
+export function publicOrigin(c: Context, config: ServerConfig): string {
+  return config.publicUrl ?? ownOrigin(c, config);
+}
+
+/** Origin serving `/c/*`: PPTAKEN_CONTENT_URL, or the public origin. */
+export function contentOrigin(c: Context, config: ServerConfig): string {
+  return config.contentUrl ?? publicOrigin(c, config);
+}
+
+export function isHttps(c: Context, config: ServerConfig): boolean {
+  return publicOrigin(c, config).startsWith("https:");
+}
+
+/**
+ * Client IP for rate limits: the socket address, or the last X-Forwarded-For entry (the one appended by our own
+ * proxy) when PPTAKEN_TRUST_PROXY is on. Never trusted otherwise: anyone can forge the header.
+ */
+export function clientIp(c: Context, config: ServerConfig, socketIp: string | undefined): string {
+  if (config.trustProxy) {
+    const parts = (c.req.header("x-forwarded-for") ?? "")
+      .split(",")
+      .map((p) => p.trim())
+      .filter((p) => p !== "");
+    const last = parts[parts.length - 1];
+    if (last !== undefined && isIP(last) !== 0) return last;
+  }
+  return socketIp ?? "unknown";
+}
+
+export const PERMISSIONS_POLICY =
+  "accelerometer=(), autoplay=(), camera=(), display-capture=(), geolocation=(), gyroscope=(), hid=(), magnetometer=(), microphone=(), midi=(), payment=(), publickey-credentials-get=(), serial=(), usb=(), fullscreen=(self)";
+
+/** Strict CSP for the app's HTML pages (web app, player page). */
+export function appCsp(frameSrc: string[]): string {
+  return [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "font-src 'self'",
+    "connect-src 'self'",
+    `frame-src ${["'self'", ...frameSrc].join(" ")}`,
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join("; ");
+}
+
+/** CSP for responses that are not documents (JSON, files). */
+export const NON_DOCUMENT_CSP = "default-src 'none'; frame-ancestors 'none'; sandbox";
+
+/** Media-type check for JSON bodies. */
+export function isJsonRequest(c: Context): boolean {
+  const type = c.req.header("content-type")?.split(";")[0]?.trim().toLowerCase();
+  return type === "application/json";
+}
