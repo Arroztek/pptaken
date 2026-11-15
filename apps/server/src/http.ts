@@ -50,12 +50,16 @@ export function json(value: unknown, status = 200, headers: Record<string, strin
   });
 }
 
+/** Header lookup, case-insensitive; `undefined` when absent. Used by the request-agnostic helpers below. */
+export type HeaderLookup = (name: string) => string | undefined;
+
 /** `host[:port]` of the request (from the Host header, as reconstructed by the adapter). */
 export function requestHost(c: Context): string {
   return new URL(c.req.url).host.toLowerCase();
 }
 
-function hostnameOf(host: string): string {
+/** The host name of a `host[:port]` value (IPv6 literals keep their brackets). */
+export function hostnameOf(host: string): string {
   if (host.startsWith("[")) return host.slice(0, host.indexOf("]") + 1);
   const i = host.lastIndexOf(":");
   return i === -1 ? host : host.slice(0, i);
@@ -78,13 +82,25 @@ export function isAllowedHost(host: string, config: ServerConfig): boolean {
   return config.allowedHosts.includes(name);
 }
 
-/** Scheme of the request: the public URL's, or X-Forwarded-Proto behind a trusted proxy, or the connection's. */
-export function requestProto(c: Context, config: ServerConfig): "http" | "https" {
+/**
+ * Scheme of a request, request-agnostic (also used for WebSocket upgrades, which bypass Hono): X-Forwarded-Proto
+ * behind a trusted proxy, otherwise whether the connection itself is TLS.
+ */
+export function protoFrom(
+  header: HeaderLookup,
+  encrypted: boolean,
+  config: ServerConfig,
+): "http" | "https" {
   if (config.trustProxy) {
-    const fwd = c.req.header("x-forwarded-proto")?.split(",")[0]?.trim().toLowerCase();
+    const fwd = header("x-forwarded-proto")?.split(",")[0]?.trim().toLowerCase();
     if (fwd === "https" || fwd === "http") return fwd;
   }
-  return new URL(c.req.url).protocol === "https:" ? "https" : "http";
+  return encrypted ? "https" : "http";
+}
+
+/** Scheme of the request: X-Forwarded-Proto behind a trusted proxy, or the connection's. */
+export function requestProto(c: Context, config: ServerConfig): "http" | "https" {
+  return protoFrom((n) => c.req.header(n), new URL(c.req.url).protocol === "https:", config);
 }
 
 /** Origin the request was sent to (scheme + Host). */
@@ -110,9 +126,14 @@ export function isHttps(c: Context, config: ServerConfig): boolean {
  * Client IP for rate limits: the socket address, or the last X-Forwarded-For entry (the one appended by our own
  * proxy) when PPTAKEN_TRUST_PROXY is on. Never trusted otherwise: anyone can forge the header.
  */
-export function clientIp(c: Context, config: ServerConfig, socketIp: string | undefined): string {
+/** Client IP, request-agnostic (also used for WebSocket upgrades): see {@link clientIp}. */
+export function clientIpFrom(
+  header: HeaderLookup,
+  config: ServerConfig,
+  socketIp: string | undefined,
+): string {
   if (config.trustProxy) {
-    const parts = (c.req.header("x-forwarded-for") ?? "")
+    const parts = (header("x-forwarded-for") ?? "")
       .split(",")
       .map((p) => p.trim())
       .filter((p) => p !== "");
@@ -120,6 +141,34 @@ export function clientIp(c: Context, config: ServerConfig, socketIp: string | un
     if (last !== undefined && isIP(last) !== 0) return last;
   }
   return socketIp ?? "unknown";
+}
+
+export function clientIp(c: Context, config: ServerConfig, socketIp: string | undefined): string {
+  return clientIpFrom((n) => c.req.header(n), config, socketIp);
+}
+
+/**
+ * Whether an `Origin` header names this server: the origin the request was sent to (scheme + Host) or the public
+ * origin. Request-agnostic (WebSocket upgrades: browsers always send `Origin`, and a page on another site must not
+ * open a socket with its visitor's network position, T14).
+ */
+export function isSameOrigin(
+  origin: string | undefined,
+  own: string,
+  config: ServerConfig,
+): boolean {
+  if (origin === undefined || origin === "" || origin === "null") return false;
+  let parsed: URL;
+  try {
+    parsed = new URL(origin);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+  const allowed = [own, ...(config.publicUrl === null ? [] : [config.publicUrl])].map(
+    (o) => new URL(o).origin,
+  );
+  return allowed.includes(parsed.origin);
 }
 
 export const PERMISSIONS_POLICY =

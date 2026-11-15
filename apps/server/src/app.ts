@@ -13,8 +13,13 @@ import {
   TokenBucketLimiter,
 } from "@pptaken/auth-local";
 import { openFsBlobStore } from "@pptaken/blob-fs";
-import { createCore, createUlidGenerator, systemClock } from "@pptaken/core";
-import { createSqliteAuthStore, openSqliteStorage } from "@pptaken/storage-sqlite";
+import { createCore, createLiveSessions, createUlidGenerator, systemClock } from "@pptaken/core";
+import { RealtimeHub } from "@pptaken/realtime";
+import {
+  createSqliteAuthStore,
+  createSqliteLiveStore,
+  openSqliteStorage,
+} from "@pptaken/storage-sqlite";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { ServerConfig } from "./config.js";
@@ -32,11 +37,14 @@ import {
   requestHost,
 } from "./http.js";
 import { createLogger, type Logger, type LogSink } from "./logger.js";
+import { createRealtime, type RealtimeServer } from "./realtime.js";
 import { apiRoutes } from "./routes-api.js";
 import { contentRoutes, playerRoutes } from "./routes-content.js";
 import { exportRoutes } from "./routes-export.js";
+import { liveRoutes } from "./routes-live.js";
 import { mcpRoutes, protectedResourceMetadata } from "./routes-mcp.js";
 import { presenterRoutes } from "./routes-present.js";
+import { remotePageRoutes } from "./routes-remote.js";
 import { WebApp } from "./static.js";
 
 export interface CreateServerOptions {
@@ -49,6 +57,9 @@ export interface CreateServerOptions {
   socketIp?: (raw: Request, env: unknown) => string | undefined;
 }
 
+/** A Node HTTP server whose `upgrade` events the realtime endpoint (`/ws`) handles. */
+export type UpgradableServer = import("node:http").Server;
+
 export interface PPTakenServer {
   app: Hono<AppEnv>;
   /** Web-standard fetch handler. Pass the Node adapter's env as the second argument. */
@@ -56,7 +67,14 @@ export interface PPTakenServer {
   /** The install code printed at startup while no owner exists. */
   installCode: string | null;
   services: Services;
-  /** Marks the server not ready and closes the database. */
+  /** The `/ws` endpoint (remote control). */
+  realtime: RealtimeServer;
+  /**
+   * Wires `/ws` onto a Node HTTP server (its `upgrade` event; the fetch handler alone cannot accept sockets).
+   * Returns a function that detaches it. Without it the presentation works and pairing simply cannot connect.
+   */
+  attach(server: UpgradableServer): () => void;
+  /** Closes every socket (1001), marks the server not ready and closes the database. */
   close(): Promise<void>;
 }
 
@@ -120,6 +138,15 @@ export async function createServer(
     logger,
     clock,
     contentKey: deriveKey(secret.key, "content-token"),
+    liveKey: deriveKey(secret.key, "live-ticket"),
+    live: createLiveSessions({
+      store: createSqliteLiveStore(storage),
+      clock,
+      ids,
+      random: (n) => new Uint8Array(randomBytes(n)),
+      audit: storage.audit,
+    }),
+    hub: new RealtimeHub(),
     limits: {
       signIn: new SignInThrottle({ clock }),
       apiPerIp: new TokenBucketLimiter({ capacity: 300, refill: 300, intervalMs: minute, clock }),
@@ -145,6 +172,13 @@ export async function createServer(
         capacity: 20,
         refill: 20,
         intervalMs: minute,
+        clock,
+      }),
+      pairPerIp: new TokenBucketLimiter({ capacity: 10, refill: 10, intervalMs: minute, clock }),
+      pairFailures: new TokenBucketLimiter({
+        capacity: 50,
+        refill: 50,
+        intervalMs: 10 * minute,
         clock,
       }),
     },
@@ -258,6 +292,8 @@ export async function createServer(
   );
 
   app.route("/", presenterRoutes(services)); // before the API router's catch-all
+  app.route("/", liveRoutes(services));
+  app.route("/", remotePageRoutes(services));
   app.route("/api/v1", apiRoutes(services));
   app.all("/api/*", (c) => apiError(c, "NOT_FOUND", "No such API route"));
   app.route("/mcp", mcpRoutes(services));
@@ -303,13 +339,17 @@ export async function createServer(
     return c.text("Internal error", 500);
   });
 
+  const realtime = createRealtime(services);
   return {
     app,
     fetch: (request, env) => app.fetch(request, env),
     installCode,
     services,
+    realtime,
+    attach: (server) => realtime.attach(server),
     async close() {
       closing = true;
+      realtime.close();
       await storage.close();
     },
   };

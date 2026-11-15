@@ -121,15 +121,23 @@ function presenterPage(deckId: string, title: string): string {
 <script type="module" src="/_player/presenter-page.js"></script></body></html>`;
 }
 
-/** The presenter data of the deck's current revision. Steps are left to the client (it reads the player). */
-export async function presenterData(s: Services, deckId: string): Promise<PresenterData | null> {
+/**
+ * The presenter data of a revision of the deck (default: the current one). Steps are left to the client (it reads
+ * the player). Also served to an APPROVED remote device for its live session's revision (F4).
+ */
+export async function presenterData(
+  s: Services,
+  deckId: string,
+  revision?: number,
+): Promise<PresenterData | null> {
   const deck = await s.storage.decks.get(DEFAULT_WORKSPACE_ID, deckId);
   if (deck === null || deck.deletedAt !== null) return null;
+  const number = revision ?? deck.currentRevision;
   let document: Awaited<ReturnType<typeof s.core.getRevision>>["document"];
   try {
     ({ document } = await s.core.getRevision(ownerPrincipal(DEFAULT_WORKSPACE_ID), {
       presentationId: deckId,
-      revision: deck.currentRevision,
+      revision: number,
     }));
   } catch (error) {
     if (isDomainError(error) && error.code === "NOT_FOUND") return null;
@@ -137,7 +145,7 @@ export async function presenterData(s: Services, deckId: string): Promise<Presen
   }
   const data: PresenterData = {
     title: document.title,
-    revision: deck.currentRevision,
+    revision: number,
     aspectRatio: document.aspectRatio === "4:3" ? "4:3" : "16:9",
     slides: document.slides.map((slide) => {
       const out: PresenterSlide = {

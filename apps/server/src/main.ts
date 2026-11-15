@@ -47,6 +47,8 @@ async function runServer(config: ServerConfig): Promise<void> {
   const http = server as unknown as import("node:http").Server;
   http.headersTimeout = 30_000;
   http.requestTimeout = 60_000;
+  // Remote control: /ws on the same port (WebSocket upgrades bypass Hono; see realtime.ts).
+  pptaken.attach(http);
 
   let stopping = false;
   const shutdown = (signal: string) => {
@@ -55,6 +57,8 @@ async function runServer(config: ServerConfig): Promise<void> {
     logger.info("shutting down", { signal });
     const force = setTimeout(() => process.exit(1), 10_000);
     force.unref();
+    // Sockets first (1001 "going away": clients reconnect with backoff), so close() is not held open by them.
+    pptaken.realtime.close();
     server.close(async () => {
       await pptaken.close();
       logger.info("stopped");

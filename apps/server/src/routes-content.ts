@@ -48,7 +48,8 @@ const UI_FONT_FAMILIES = new Map([
 
 const PAGE_SCRIPT = `// PPTaken player page: loads the deck (the signed content URL online, the stored offline copy without a
 // network), mounts the player shell and, in secure contexts, asks the service worker to keep an offline copy once
-// the deck is in memory.
+// the deck is in memory. Online, it also loads the remote control (/_rt/screen.js) on demand: remote commands are
+// applied as local input, and any failure there never reaches the player.
 import { createPlayer } from "./shell.js";
 import { pickLocale } from "./i18n.js";
 import { syncChannelName } from "./sync.js";
@@ -66,17 +67,21 @@ async function start() {
   }
   body.dataset.source = source.fromCopy ? "copy" : "network";
   let keeping = false;
+  let remote = null;
+  const locale = pickLocale(navigator.languages);
   const player = createPlayer(document.getElementById("stage"), {
     ...(source.fromCopy ? { contentHtml: source.contentHtml } : { contentUrl: source.contentUrl }),
     showHud: true,
     indicator: true,
     title: document.title,
-    locale: pickLocale(navigator.languages),
+    locale,
+    remoteKeys: !source.fromCopy,
+    onKey: (code, from) => (remote ? remote.onKey(code, from) : false),
     presenterUrl: "/p/" + encodeURIComponent(id) + "/presenter",
     sync: syncChannelName(id) ?? undefined,
     onReady: (slides) => { status.hidden = true; body.dataset.slides = String(slides.length); body.dataset.state = "ready"; },
     onLoadTimeout: () => { body.dataset.state = "slow"; status.hidden = false; status.textContent = "This presentation is taking too long to load. If you are in an embedded preview, open this page in your regular browser."; },
-    onChange: (s) => { body.dataset.slide = String(s.slide); body.dataset.step = String(s.step); body.dataset.mode = s.mode; body.dataset.black = String(s.black); },
+    onChange: (s) => { body.dataset.slide = String(s.slide); body.dataset.step = String(s.step); body.dataset.mode = s.mode; body.dataset.black = String(s.black); remote?.onChange(s); },
     onFault: (f) => { body.dataset.state = "fault"; status.hidden = false; status.textContent = "The presentation stopped: " + f; },
     onOffline: (o) => {
       body.dataset.offline = o.state;
@@ -89,6 +94,22 @@ async function start() {
   });
   if (source.fromCopy) player.setOfflineCopy(true);
   player.iframe.focus();
+  if (!source.fromCopy) {
+    Promise.all([import("/_rt/screen.js"), import("/_rt/qr.js")]).then(([m, q]) => {
+      remote = m.startRemoteScreen({
+        deckId: id,
+        player,
+        mount: document.getElementById("stage"),
+        locale,
+        qr: (text) => q.encodeQR(text, "raw", { ecc: "medium", border: 4 }),
+        onStatus: (st, devices) => {
+          body.dataset.remote = st;
+          body.dataset.remotes = String(devices.filter((d) => d.status === "approved" && d.online).length);
+          body.dataset.pending = String(devices.filter((d) => d.status === "pending").length);
+        },
+      });
+    }).catch(() => { body.dataset.remote = "unavailable"; });
+  }
 }
 start().catch(() => { body.dataset.state = "error"; status.textContent = "Could not load the presentation."; });
 `;
@@ -133,7 +154,33 @@ async function start() {
   await presenter.ready;
   status.hidden = true;
   body.dataset.state = "ready";
+  if (!source.fromCopy) mountRemote(locale).catch(() => {});
   if (!source.fromCopy) offlineCopyStatus(id).then((r) => presenter.setOfflineCopy(r.kept));
+}
+// Remote control panel (pairing QR, approvals, kick): a button here, over HTTP only (no socket in this window).
+async function mountRemote(locale) {
+  const [m, q, l] = await Promise.all([import("/_rt/panel.js"), import("/_rt/qr.js"), import("/_rt/i18n.js")]);
+  const rt = l.remoteLabels(locale);
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = rt.panelTitle;
+  button.dataset.pptakenRemoteButton = "";
+  button.style.cssText = "position:fixed;right:16px;bottom:16px;z-index:5;font:14px Inter,system-ui,sans-serif;padding:8px 14px;border-radius:6px;border:1px solid #3A3F4B;background:#22252D;color:#F2EFE9;cursor:pointer";
+  document.body.append(button);
+  const panel = m.createPanel({
+    doc: document,
+    mount: document.body,
+    locale,
+    poll: true,
+    qr: (text) => q.encodeQR(text, "raw", { ecc: "medium", border: 4 }),
+    live: async () => {
+      const res = await fetch("/api/v1/live", { method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "X-PPTaken-CSRF": "1" }, body: JSON.stringify({ deckId: id }) });
+      if (!res.ok) throw new Error("live " + res.status);
+      const r = await res.json();
+      return { liveId: r.live.id, publicUrl: r.publicUrl };
+    },
+  });
+  button.addEventListener("click", () => panel.toggle());
 }
 start().catch((error) => {
   if (error instanceof SignedOutError) { location.href = "/login"; return; }

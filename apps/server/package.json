@@ -15,7 +15,8 @@
     "start": "node dist/main.js",
     "test": "vitest run --testTimeout=30000",
     "test:browser": "pnpm run build && node browser/run.mjs",
-    "test:e2e-ui": "pnpm build && node browser/ui-e2e.mjs"
+    "test:e2e-ui": "pnpm build && node browser/ui-e2e.mjs",
+    "test:remote": "pnpm run build && node browser/remote.mjs"
   },
   "dependencies": {
     "@hono/node-server": "2.1.8",
@@ -26,15 +27,19 @@
     "@pptaken/export": "workspace:*",
     "@pptaken/mcp": "workspace:*",
     "@pptaken/player": "workspace:*",
+    "@pptaken/realtime": "workspace:*",
     "@pptaken/schema": "workspace:*",
     "@pptaken/storage-sqlite": "workspace:*",
     "hono": "4.13.18",
+    "qr": "0.7.2",
+    "ws": "8.22.1",
     "zod": "4.6.7"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "2.4.0",
     "@pptaken/testing": "workspace:*",
     "@types/node": "22.20.5",
+    "@types/ws": "8.18.2",
     "tsx": "4.23.15",
     "vitest": "5.1.0"
   }

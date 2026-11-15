@@ -9,6 +9,7 @@ pnpm --filter @pptaken/server build
 PPTAKEN_DATA_DIR=./data node apps/server/dist/main.js     # prints "PPTaken ready at … · Install code: XXXX-XXXX"
 pnpm --filter @pptaken/server test                       # integration tests (real SQLite, real blob-fs, real port)
 pnpm --filter @pptaken/server test:browser               # Playwright: Chromium, Firefox, WebKit
+pnpm --filter @pptaken/server test:remote                # Playwright: remote control, laptop + phone contexts
 ```
 
 `createServer(config, options)` (from `src/app.ts`) builds everything for tests; `src/main.ts` is the CLI entry.
@@ -26,6 +27,9 @@ pnpm --filter @pptaken/server test:browser               # Playwright: Chromium,
 | `POST /api/v1/decks/import` | owner session + CSRF | raw `.pptaken` body (`application/zip`), own size limit, 10 imports / 10 min / IP; creates a new presentation |
 | `POST /mcp` | `Authorization: Bearer ppt_…` | Streamable HTTP, stateless (SDK `createMcpHandler`: 2026-07-28 per-request protocol plus stateless 2025-era fallback) |
 | `GET /.well-known/oauth-protected-resource[/mcp]` | public | RFC 9728 metadata, referenced by the `401` `WWW-Authenticate` header |
+| `/api/v1/live…`, `POST /api/v1/remote/pair`, `GET /api/v1/remote/deck` | owner session + CSRF / pairing secret / device credential | remote control (`routes-live.ts`, F4, ADR-017): live sessions, screen tickets, pairing, approval, kick; deck data for an approved phone |
+| `GET /ws` (WebSocket) | first frame `auth` (screen ticket or device credential) | `realtime.ts`: `ws` in noServer mode on the `upgrade` event; Host/Origin/IP checks by hand, 20 sockets per IP, 1 KB frames ([realtime spec](../../docs/spec/realtime.md)) |
+| `GET /r`, `GET /_rt/*` | public | the phone page and the `@pptaken/realtime` browser modules, plus the pinned QR encoder (`routes-remote.ts`) |
 | `GET /p/:deckId` | owner session (else `302 /login`) | trusted player page; loads `/_player/page.js` and the `@pptaken/player` shell modules |
 | `GET /c/:deckId/:revision?ct=…` | signed content token (5 min, bound to deck + revision) | deck document built from the stored sanitized revision, CSP from `contentHeaders` |
 | `GET /c/asset/:token/:sha256` | signed asset token (12 h, bound to the deck) | `assetHeaders()`, only assets linked to that deck |

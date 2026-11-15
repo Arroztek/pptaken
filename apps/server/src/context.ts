@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // What every route module receives from the composition root.
 import type { LocalAuth, SignInThrottle, TokenBucketLimiter } from "@pptaken/auth-local";
-import type { Core } from "@pptaken/core";
+import type { Core, LiveSessions } from "@pptaken/core";
+import type { RealtimeHub } from "@pptaken/realtime";
 import type { SqliteStorage } from "@pptaken/storage-sqlite";
 import type { ServerConfig } from "./config.js";
 import type { Logger } from "./logger.js";
@@ -28,6 +29,12 @@ export interface Services {
   clock: Clock;
   /** HKDF subkey for content tokens. */
   contentKey: Buffer;
+  /** HKDF subkey for screen tickets (the player page's socket credential). */
+  liveKey: Buffer;
+  /** Live sessions, pairing and device credentials (core use cases on the SQLite store). */
+  live: LiveSessions;
+  /** In-memory pub/sub of the live sessions (remote control). */
+  hub: RealtimeHub;
   limits: {
     signIn: SignInThrottle;
     /** Every /api request per IP (DoS guard). */
@@ -39,5 +46,9 @@ export interface Services {
     /** Tool calls per token (120/min) and writes per token (20/min), security §7. */
     mcpCallsPerToken: TokenBucketLimiter;
     mcpWritesPerToken: TokenBucketLimiter;
+    /** Pairing attempts per IP (10/min). */
+    pairPerIp: TokenBucketLimiter;
+    /** Failed pairing attempts, instance-wide (key "all"): a global cap on guessing. */
+    pairFailures: TokenBucketLimiter;
   };
 }

@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-11-15T17:06:12.320Z",
+  "startedAt": "2026-11-15T21:41:31.486Z",
   "engines": {
     "chromium": {
       "ok": true,
@@ -25,7 +25,7 @@
         "layer 2: offline reload navigates; srcdoc content is opaque and has no network",
         "layer 2: a deck never opened says so: true",
         "partial: a missing asset shows partial, navigation works",
-        "cache: 31 entries, no token, content or auth URL",
+        "cache: 32 entries, no token, content or auth URL",
         "logout: the worker deleted the offline copies; nothing is served offline"
       ],
       "offline": {
@@ -63,7 +63,7 @@
         "layer 2: offline reload navigates; srcdoc content is opaque and has no network",
         "layer 2: a deck never opened says so: true",
         "partial: a missing asset shows partial, navigation works",
-        "cache: 31 entries, no token, content or auth URL",
+        "cache: 32 entries, no token, content or auth URL",
         "logout: the worker deleted the offline copies; nothing is served offline"
       ],
       "offline": {
@@ -101,7 +101,7 @@
         "layer 2: offline reload navigates; srcdoc content is opaque and has no network",
         "layer 2: a deck never opened says so: true",
         "partial: a missing asset shows partial, navigation works",
-        "cache: 31 entries, no token, content or auth URL",
+        "cache: 32 entries, no token, content or auth URL",
         "logout: the worker deleted the offline copies; nothing is served offline"
       ],
       "offline": {
