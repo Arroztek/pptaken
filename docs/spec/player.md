@@ -1,20 +1,24 @@
-# Player engine (`@pptaken/player`), phase F1
+# Player engine (`@pptaken/player`), phases F1 and F3
 
 The player shows a sanitized `pptaken.deck` in the browser: one slide at a time, revealable steps, scaling with a
-black letterbox, keyboard navigation and the position in the URL. License: Apache-2.0. Design background:
+black letterbox, keyboard navigation and the position in the URL (F1); an overview grid, printing to PDF (one page
+per slide), a key help overlay and a presenter view with notes, next slide, clock and pace per section, kept in
+sync with the main window (F3). License: Apache-2.0. Design background:
 [ADR-001](../adr/0001-content-format.md) and [architecture §6](../foundation/02-architecture.md).
 
-It has three parts with clear trust boundaries:
+It has these parts with clear trust boundaries:
 
 | Part | Runs | Trust |
 |---|---|---|
 | **Builder** (`buildDeckDocument`, `contentHeaders`) | server, pure function | input must come from `sanitizeDeck` (barrier 1) |
-| **Runtime** (`RUNTIME_SOURCE`, about 5 KB) | inside the sandboxed iframe, the only script there | runs next to untrusted content |
-| **Shell** (`createPlayer`) | the app page | trusted; owns the state |
+| **Runtime** (`RUNTIME_SOURCE`, about 8.2 KB) | inside the sandboxed iframe, the only script there | runs next to untrusted content |
+| **Shell** (`createPlayer`) | the app page | trusted; owns the state and the mode |
+| **Presenter view** (`createPresenter`, `@pptaken/player/presenter`) | a second app window | trusted; the only place with notes |
+| **Notes renderer** (`renderNotes`) | server, pure function | turns untrusted Markdown into allowlisted HTML |
 
-The shell and the runtime talk only through a small, versioned `postMessage` protocol validated on both ends.
-Presenter view, overview, offline preload, service worker, print and HTML export are F3; the design leaves room
-for them (reserved `mode` values, a single iframe per deck, state owned by the shell).
+The shell and the runtime talk only through a small, versioned `postMessage` protocol validated on both ends. The
+main window and the presenter window talk through a same-origin `BroadcastChannel`, also validated. Offline
+preload, the service worker and HTML export are other F3 work, outside this document's scope for now.
 
 ## Serving requirements
 
@@ -121,9 +125,29 @@ messages, so keys work whichever side has focus. Clicking the player gives the i
 | Home / End | first / last |
 | `b`, `.` | black screen on/off (HID clickers) |
 | `f` | full screen on/off (on the host element) |
+| `o` | overview on/off |
+| `s` | open (or focus) the presenter window (when the page passes `presenterUrl`) |
+| `p` | print / PDF |
+| `?` | key help on/off |
+| `Escape` | close the overview or the help |
+| `t`, `Shift+R` | presenter view only: start/pause the clock, reset it |
+
+In the overview: arrows move the highlight (left/right one slide, up/down one row), Home/End go to the ends,
+Enter (or a click) goes to the highlighted slide, `Escape` or `o` close it where the talk was; `b`, `.` and `f`
+still work.
 
 Keys are matched on `KeyboardEvent.key` (layout aware). Keys with Ctrl, Alt or Meta are ignored, Shift too except
-Shift+Space, as are keys typed in inputs, text areas, selects and `contenteditable` elements of the parent page.
+Shift+Space, Shift+R and `?` (which needs Shift on most layouts), as are keys typed in inputs, text areas, selects
+and `contenteditable` elements of the parent page.
+
+**Gated keys.** `o`, `s`, `p` and `?` change the mode or open windows. When they arrive from the iframe (a `key`
+message), the shell acts only if `navigator.userActivation.isActive` is true in its own page: a real key press in
+the iframe propagates the user gesture to its ancestors, a message posted by a script does not. Without the API
+the shell fails closed (the keys then work only with focus on the parent page).
+
+**Help overlay.** `?` shows the key list in `#8B8FA0` JetBrains Mono over translucent black, centered; `?` or
+`Escape` fade it out (no transition under `prefers-reduced-motion`). Nothing is shown otherwise: no persistent
+chrome. Texts come from `i18n.ts` (English, Spanish; option `locale`).
 
 ## URL state
 
@@ -148,11 +172,15 @@ numbers are dropped.
 
 | Direction | Message | Fields |
 |---|---|---|
-| shell → iframe | `goto` | `slide` 0..199, `step` 0..255 |
-| shell → iframe | `mode` | `mode: "present"` (`"overview"`, `"print"` reserved for F3) |
-| iframe → shell | `ready` | `slides: [{ id, steps }]`, 1..200 entries, ids in the schema alphabet and unique |
-| iframe → shell | `key` | `code`, one of the closed set of key codes |
-| iframe → shell | `state` | `slide`, `step`: what the iframe shows after a `goto` |
+| shell → iframe | `goto` | `slide` 0..199, `step` 0..255 (in the overview: the highlighted slide) |
+| shell → iframe | `mode` | `mode`: `"present"`, `"overview"` or `"print"` |
+| iframe → shell | `ready` | `slides: [{ id, steps }]`, 1..200 entries, ids in the schema alphabet and unique; `width`, `height`: the canvas, integers 1..4096 |
+| iframe → shell | `key` | `code`, one of the closed set of key codes (`KEY_CODES`, 22 codes) |
+| iframe → shell | `state` | `slide`, `step`: what the iframe shows after a `goto`; also sent as the acknowledgement of a `mode` |
+| iframe → shell | `select` | `slide` 0..199: a thumbnail clicked in the overview |
+
+Only the shell sends `mode`. The shell honours `select` only while it has the overview open (otherwise it is
+dropped), and checks the slide against the deck. The runtime never changes the mode by itself.
 
 The shell accepts messages only when `event.source` is its iframe's window and `event.origin` is `"null"` (the
 content always has an opaque origin). The runtime accepts messages only from `window.parent`. Both post with
@@ -163,6 +191,104 @@ truth for `{ slide, step }`; the runtime only applies `goto` and reports.
 it (for example a `<meta http-equiv="refresh">` that slipped past the sanitizer): the shell blanks the iframe,
 stops and calls `onFault("unexpected-navigation")`.
 
+## Overview (`mode: "overview"`)
+
+Implemented inside the content runtime, in the same document (no extra iframes): the stage becomes a scrollable
+grid and the runtime positions every `<section>` with an inline `transform: translate() scale()` (set with
+`!important`, so slide CSS cannot move a thumbnail). Columns depend on the slide count only
+(`overviewColumns(n) = clamp(ceil(sqrt(1.2 n)), 1, 6)`), so the shell knows how far ArrowUp/ArrowDown move without
+asking the content. Under each thumbnail a caption shows `n  title` (gray mono); where a `section` starts, its
+name is shown above the thumbnail (the builder puts it on the section element as `data-section`, escaped). The
+highlight is a 3 px ring in the focus-ring color `#A99BFF` (the one brand color the neutral-player rule allows);
+the runtime scrolls it into view inside the iframe only. Content inside thumbnails takes no pointer events, so a
+click always lands on a slide, and the runtime reports it with `select`.
+
+**Steps in the overview: every slide is shown fully revealed, by design.** The overview is a map of the talk; a
+thumbnail with half its content hidden is misleading. Consequence: whoever sees the screen while the overview is
+open sees upcoming steps. Present mode is untouched: closing the overview restores the exact slide and step.
+
+Performance: no virtualization. Sections get `content-visibility: auto` in the overview, so off-screen thumbnails
+skip rendering. Measured with a synthetic 200-slide deck (text, list, SVG and a step per slide), see Tests.
+
+## Print (`mode: "print"`) and PDF
+
+Print mode is pure CSS from the builder: every slide stacked at canvas size, every step visible, `break-after:
+page`, backgrounds kept (`print-color-adjust: exact`), and `@page { size: <W>px <H>px; margin: 0 }`. The same rules
+also apply under `@media print`, so printing the content document from any path shows all steps.
+
+`player.print()` (key `p`): the shell (1) closes the overview/help, (2) adds a print stylesheet to the page and
+marks the host (`data-pptaken-printing`): the host and the iframe grow to `W × (N·H)` CSS pixels, everything else
+in `<body>` is hidden in print media, and the page's `@page` is the canvas size, (3) sends `mode: "print"` and waits
+for the acknowledgement (`state`, or 1.5 s), (4) waits two frames and calls `window.print()` on the **app page**.
+On `afterprint` (or any key, as a fail-safe) it returns to present mode at the same position. `Ctrl+P` from the
+browser menu triggers the same layout through `beforeprint` (best effort: the content's `@media print` rules do the
+rest).
+
+Why not print the content frame: the content is a sandboxed iframe with an opaque origin; the shell cannot call
+`print()` on it (cross-origin), and the content's CSP sandbox has no `allow-modals`, so it cannot print itself.
+Chromium slices a tall cross-origin iframe into pages when it prints the parent, which gives exactly one page per
+slide (verified with `page.pdf()`). The host must be a descendant of `<body>` whose ancestors do not clip it.
+
+Verified: Chromium, a real PDF of the 20-slide example has 20 pages and each page has text (`pdftotext`), with the
+revealable steps printed. Firefox and WebKit: the print layout (mode, frame size, slides stacked at canvas size,
+all steps visible, return on `afterprint`) is verified; their PDF output is not (Playwright exposes PDF only for
+Chromium, and their handling of a tall cross-origin iframe when printing was not verified).
+
+## Presenter view
+
+`createPresenter(root, { contentUrl, data, sync?, locale?, now?, tickMs?, keyboard?, onChange? })`, module
+`@pptaken/player/presenter`, framework-free, served by the server like the shell modules. Page
+`GET /p/:deckId/presenter` (owner session), data from `GET /api/v1/decks/:id/presenter` (see the HTTP API spec).
+
+- **Layout** (dark, neutral, `@pptaken/ui` tokens: ink/paper/slate colors, Inter for text, JetBrains Mono for the
+  clock and numbers): a top bar with slide `n / N` and step, the clock (elapsed vs target) with the pace status,
+  and buttons (previous, next, start/pause, reset); on the left the current slide and the pace per section; on
+  the right the next slide (or "End of the presentation") and the notes (scrollable, 1.5rem type).
+- **Previews** are two ordinary players (`createPlayer` with `hash: false`, `keyboard: false`, `help: false` and
+  an `onKey` hook): the same sandboxed iframe, CSP and runtime as the main window, each scaled by the runtime with a
+  CSS transform. The next preview sits at `next(position)`: the next step, or the next slide with no step.
+- **Keys**: navigation keys, `b`/`.` (black screen of the main window), `f` (full screen of the presenter), `t`
+  start/pause, `Shift+R` reset. Keys pressed inside a preview come back through `onKey`.
+- **Clock and pace** (`pace.ts`, pure, tested with a fake clock): the clock counts only while running (manual
+  start, decision below); time is attributed to the slide shown while it runs. Plan per slide: `durationHintSec`,
+  and slides without a hint share what is left of `targetMinutes`. Pace is **on time** while the elapsed time is
+  inside the planned window of the current slide, **behind** after it, **ahead** before it (shown as `+m:ss
+  behind` / `-m:ss ahead`). Sections are runs of consecutive slides with the same `section`; the table shows
+  planned vs actual per section, the current one highlighted, finished ones over plan in orange and under plan in
+  green. Without hints and target only the clock is shown.
+- **Notes** arrive as HTML from `renderNotes` and are rebuilt node by node against the same allowlist
+  (`setNotesHtml`, no `innerHTML`), defense in depth.
+
+### Window sync (`sync.ts`)
+
+A `BroadcastChannel` named `pptaken:<deckId>` (`syncChannelName`), same origin, no network. Messages, all `v: 1`,
+exact keys, validated on receipt and before sending, unknown ones ignored:
+
+| Message | Fields | Meaning |
+|---|---|---|
+| `hello` | none | a window joined; the others answer with `nav` and `black` |
+| `nav` | `slide` 0..199, `step` 0..255 | this window moved by its own input |
+| `black` | `on` boolean | black screen on/off |
+
+Either window can navigate and both follow. A change applied because of a message is not sent back (no echo,
+hence no ping-pong); a burst of keys converges. When the presenter opens, it says `hello` and takes the main
+window's position. Only positions travel on the channel: never notes or other presenter data.
+
+## Speaker notes policy
+
+Notes are Markdown in the deck (`slides[].notes`, at most 16 KB). They reach the browser **only** through
+`GET /api/v1/decks/:id/presenter` (owner session) and are shown **only** in the presenter view. They are stripped
+before building the content document (`/c/*`), are not in the content iframe, not on the sync channel, and the
+public link (F5) and the remote (F4) must not get them (threat T7).
+
+`renderNotes(markdown)` is a small hand-written renderer (no dependency): paragraphs (every line break kept as
+`<br>`), `**bold**`, `*italic*`, `` `code` ``, fenced code blocks, `-`/`*`/`+` and `1.`/`1)` lists nested one
+level, `#` → `h3` and `##`+ → `h4`, one level of `>` blockquote, backslash escapes. Output allowlist: `p br
+strong em code pre ul ol li h3 h4 blockquote`, no attributes except a numeric `ol start`, no inline styles, no
+URLs. Links, images, autolinks, raw HTML and entities are shown as text (escaped, never decoded). Inline formatting
+does not span lines. Input over 64 KB is cut. Linear time: emphasis uses a delimiter stack with per-kind opener
+lists and depth 4, code spans pair backtick runs by precomputed "next run of the same length".
+
 ## API
 
 ```ts
@@ -172,14 +298,27 @@ contentHeaders({ nonce, assetBaseUrl?, frameAncestors? }): Record<string, string
 contentSecurityPolicy({ nonce, assetBaseUrl?, frameAncestors? }): string
 assetHeaders(): Record<string, string>
 
+renderNotes(markdown): string                      // speaker notes -> allowlisted HTML
+parsePresenterData(json): PresenterData | null     // presenter API shape, validated
+
 // browser (import "@pptaken/player/shell": no builder, no schema, no zod)
-createPlayer(host, { contentUrl, initial?, hash?, keyboard?, showHud?, title?, onReady?, onChange?, onRender?, onFault? })
-  -> { goto(slide, step?), next, prev, first, last, black(on?), toggleFullscreen, getState, iframe, ready, destroy }
+createPlayer(host, { contentUrl, initial?, hash?, keyboard?, showHud?, title?, help?, locale?, presenterUrl?,
+  sync?, onKey?, onReady?, onChange?, onRender?, onFault?, onLoadTimeout?, loadTimeoutMs? })
+  -> { goto(slide, step?), next, prev, first, last, black(on?), toggleFullscreen, overview(on?), print(),
+       openPresenter(), help(on?), getState, getCanvas, iframe, ready, destroy }
+// state: { slide, step, slideId, slideCount, stepCount, black, mode, highlight }
+
+// browser (import "@pptaken/player/presenter")
+createPresenter(root, { contentUrl, data, sync?, locale?, now?, tickMs?, keyboard?, onChange? })
+  -> { goto, next, prev, toggleClock, resetClock, getState, current, upcoming, ready, destroy }
 
 // shared, pure
-navigation: clamp, next, prev, first, last, samePosition, parseHash, formatHash, KEY_ACTIONS
-protocol: parseShellMessage, parseContentMessage, PROTOCOL_VERSION, MAX_SLIDES, MAX_STEPS, message types
-keys: keyCodeOf, KEY_CODES
+navigation: clamp, next, prev, first, last, samePosition, parseHash, formatHash, overviewMove, KEY_ACTIONS
+protocol: parseShellMessage, parseContentMessage, overviewColumns, PROTOCOL_VERSION, MODES, MAX_SLIDES,
+  MAX_STEPS, MAX_CANVAS, KEY_CODES, message types
+sync ("@pptaken/player/sync"): openSync, parseSyncMessage, syncChannelName
+pace ("@pptaken/player/pace"): clock*, slideTimes, attribute, buildPlan, paceAt, sectionReport, formatClock
+keys: keyCodeOf     i18n: LABELS, labelsFor, pickLocale
 ```
 
 ## Build
@@ -204,8 +343,64 @@ bundler.
   into the built document (scripts, handlers, `@import`, `@font-face`, images and backgrounds to `/api`, frames,
   media, forms, `fetch`, XHR, cookies, storage, parent access, top navigation, popups, `eval`) with zero requests
   reaching any server, plus the navigation fault. Results in `packages/player/browser/last-run.json`.
+- F3 unit tests: notes renderer (features, hostile corpus, 2000 random inputs, output re-parsed with a strict
+  grammar and with the sanitizer's HTML parser, linear time on 14 adversarial shapes, 64 KB under 250 ms), new
+  protocol messages and bounds, key mapping, overview navigation, sync messages over a real `BroadcastChannel`
+  (Node), presenter data validation, and clock/pace with a fake clock.
+- F3 browser tests (same harness, all three engines): overview with keys (from the page and from inside the
+  iframe), mouse, sections, all steps shown, `select` validated and ignored outside the overview; key help; print
+  layout and, in Chromium, a real PDF via `page.pdf()` (20 pages for the 20-slide example, text on every page via
+  `pdftotext`, steps printed); presenter window opened with `s`, sync in both directions (keys, button, a burst of
+  12 keys converges), previews at the current and next position, notes shown and absent from every content
+  document and from the `/c/` response, black screen both ways, clock start/pause/reset (real time), pace ahead,
+  and behind after 20 minutes with Playwright's fake clock; the hostile document cannot select, change the mode,
+  print, open help or open windows. Last run: Chromium 407, Firefox 401, WebKit 401 checks, all passing.
+- Overview with 200 slides (synthetic deck: heading, list, SVG and a step per slide; 1280×720): open to ready
+  55-135 ms, first two frames 17-24 ms, scroll through the whole grid p95 about 16.7 ms cold and warm in all three
+  engines, 30 ArrowDown presses 38-173 ms. No virtualization needed at this size.
+- `apps/server`: Vitest for the presenter API and page (owner only, notes rendered, never on the content origin,
+  rate limit, fonts) and the browser smoke test extended with the real presenter window (sync both ways, notes
+  shown there and absent from content documents) in all three engines.
 
-## Open questions
+## Decisions and open questions (F3)
+
+Decisions (the safer or simpler option where the brief left room):
+
+- **Overview steps fully revealed**, on the audience screen too (see Overview). Alternative considered: thumbnails
+  at the current reveal state, which hides content the presenter wants to find.
+- **Overview grid is continuous** (sections are labels, not row breaks), so ArrowUp/ArrowDown are exactly ±columns
+  and the column count is a pure function of the slide count shared by shell and runtime. No extra message.
+- **Overview highlight owned by the shell**; `goto` moves it in the content. `select` is honoured only while the
+  overview is open.
+- **Mode keys from the iframe need a user gesture** (`navigator.userActivation`), fail closed without the API.
+- **Print through the app page**, the iframe grown to N canvases (see Print). Any key during print mode ends it.
+- **`ready` carries the canvas size** (`width`, `height`): the shell needs it for the print page size and the
+  presenter for its preview boxes. Same protocol version (shell and runtime always ship together).
+- **`KEY_CODES` moved to `protocol.ts`** (keys.ts keeps the `KeyCode` type) so the runtime does not carry the list.
+- **Clock starts manually** (`t` or the button), never on the first move: rehearsals and a late start would
+  otherwise count. Reset (`Shift+R`) also clears the time per slide.
+- **Pace windows**: on time while inside the planned window of the current slide; slides without a hint share the
+  remaining target time evenly.
+- **No echo on the sync channel**; last writer wins if both windows move at the very same moment (the next key
+  resyncs). The channel carries positions and the black screen only.
+- **Previews are full players at preview size** (the runtime scales the canvas with a transform inside each
+  iframe), not 1920×1080 iframes scaled from outside: same visual result, less rendering work.
+- **UI fonts on the app origin** (`/_player/fonts/`), because the app CSP allows `font-src 'self'` only and the
+  presenter must not depend on the content origin.
+
+Open questions:
+
+- **Printing in Firefox and WebKit**: the layout is verified, but whether they paginate a tall cross-origin iframe
+  when printing the parent was not (no PDF API in Playwright). If not, the fallback is to open the content
+  document top-level for printing (its `@media print` rules already lay it out), which needs a print-only content
+  URL and `allow-modals` thinking.
+- **Overview on the audience screen** shows upcoming steps; a presenter-only overview (in the presenter window)
+  may be preferable for some talks.
+- **Presenter on a public/delegated link** (backlog): the data API is owner-only today.
+- **BroadcastChannel needs both windows on the same origin and profile**: a presenter on another device is F4
+  (remote, through the server).
+
+## Open questions (F1)
 
 - **Reveal animations.** Authors cannot select `pptaken-revealed`. Expose a stable, content-visible hook for
   CSS transitions (for example a state attribute the sanitizer allows in selectors only), or keep reveals instant.

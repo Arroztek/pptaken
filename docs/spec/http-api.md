@@ -113,3 +113,118 @@ before setup, to the presentation list after), `/welcome` (setup wizard and "Con
 
 `POST /mcp` — Streamable HTTP, stateless, `Authorization: Bearer ppt_...`. Defined in
 [`docs/foundation/02-architecture.md`](../foundation/02-architecture.md) §5; not part of the panel API.
+
+<!-- BEGIN presenter view (F3) -->
+## Presenter view (owner session required, F3)
+
+### `GET /api/v1/decks/:id/presenter`
+The data of the presenter view for the deck's current revision. Owner session only (`401 UNAUTHENTICATED`
+without it, `409 SETUP_REQUIRED` before setup, `404 NOT_FOUND` for an unknown or deleted deck), rate limited like
+the rest of the API (`429`), `Cache-Control: no-store`. It never exists on the content origin.
+
+```json
+{
+  "title": "string",
+  "revision": 3,
+  "aspectRatio": "16:9",
+  "targetMinutes": 20,
+  "slides": [
+    {
+      "id": "intro",
+      "title": "string",
+      "section": "string",
+      "durationHintSec": 60,
+      "notesHtml": "<p>Say <strong>hello</strong></p>"
+    }
+  ]
+}
+```
+
+- `targetMinutes`, `section` and `durationHintSec` are present only when the deck sets them.
+- `notesHtml` is the slide's Markdown notes rendered by `renderNotes` (`@pptaken/player`): allowlisted tags only
+  (`p br strong em code pre ul ol li h3 h4 blockquote`), no attributes except a numeric `ol start`, no styles, no
+  URLs; links, images and raw HTML appear as text. Empty string when the slide has no notes.
+- No slide HTML or CSS. The number of steps per slide is not included (the server does not run the document); the
+  presenter view takes it from the player's `ready` message.
+- Together with the owner-only, opt-in export (see the export section), this is the only route that returns speaker notes (threat T7): they are stripped from `/c/*`, and the public link
+  and remote must never get them.
+
+### `GET /p/:deckId/presenter`
+The trusted presenter page (owner session; `302 /login` without it, `404` for an unknown deck), with the same
+strict app CSP as `/p/:deckId`. It loads `/_player/presenter-page.js`, which fetches the route above and
+`/api/v1/decks/:id/content-url`, and mounts `createPresenter`. The main player opens it with the key `s`; both
+windows stay in sync over a same-origin `BroadcastChannel` (no server round trip).
+
+Supporting static files (app origin, no session needed, no data): `/_player/presenter.js` and the other player
+modules, `/_player/presenter.css` (Inter and JetBrains Mono `@font-face` rules) and
+`/_player/fonts/{inter|jetbrains-mono}/<file>.woff2`.
+<!-- END presenter view (F3) -->
+
+<!-- BEGIN export and import (F3) -->
+## Export and import (owner session required, phase F3)
+
+Human-only actions (security §3.3): they need the panel session cookie; API and OAuth tokens get
+`401 UNAUTHENTICATED` here, and the core refuses any non-owner principal (`FORBIDDEN_ACTOR`). Not MCP tools.
+Every export and import is written to the audit log (`presentation.export`, `presentation.import`). These routes
+are served before the generic `/api` body limit and apply their own (see `POST /decks/import`); the rate limit per
+IP of the rest of the panel API also applies.
+
+### `GET /api/v1/decks/:id/export?format=html|pptaken&notes=0|1&revision=`
+A file download.
+
+- `format` (required): `html` = one self-contained page that opens from disk (`file://`) without a server or a
+  network (`@pptaken/export` `exportHtml`); `pptaken` = the portable archive described below.
+- `notes`: `0` or `1`. Default: **`0` for `html`** (the file is meant to be shared; threat T7) and **`1` for
+  `pptaken`** (the owner's own backup or transfer). In the HTML file, notes live only in the outer page (shown with
+  the `n` key), never in the sandboxed deck frame.
+- `revision`: optional older revision (positive integer); default the current one.
+- `200` headers: `Content-Type: text/html; charset=utf-8` or `application/zip`;
+  `Content-Disposition: attachment; filename="<ascii-slug>.<ext>"; filename*=UTF-8''<percent-encoded title>.<ext>`
+  (RFC 6266/8187; the ASCII name is `[a-z0-9-]` only, the Unicode one has no quotes, separators or controls);
+  `Cache-Control: no-store`; `X-Content-Type-Options: nosniff`;
+  `Content-Security-Policy: sandbox; default-src 'none'; frame-ancestors 'none'` (a download is never rendered as
+  an app document); `X-PPTaken-Revision` (the exported revision) and `X-PPTaken-Notes` (`0`/`1`).
+- Errors: `VALIDATION_ERROR` (bad `format`, `notes` or `revision`), `NOT_FOUND` (unknown, other workspace, trashed,
+  or the revision is not kept), `UNAUTHENTICATED`, `SETUP_REQUIRED`, `RATE_LIMITED`.
+- The web app uses a plain `<a href download>` to this URL (same origin, the cookie goes along).
+
+### `POST /api/v1/decks/import`
+Creates a **new** presentation (revision 1) from a `.pptaken` archive; it never overwrites one.
+
+- Body: the raw archive bytes with `Content-Type: application/zip` (no multipart: the simplest robust option, and a
+  cross-site form cannot send this type without a CORS preflight). CSRF rules as for every `POST`.
+- Size limit `PPTAKEN_MAX_IMPORT_MB` (default 100 MB), enforced from `Content-Length` before reading and while
+  reading → `413 VALIDATION_ERROR`. Rate limit: 10 imports per 10 minutes per IP → `429 RATE_LIMITED` with
+  `Retry-After`.
+- `201`:
+  ```json
+  {
+    "deck": { "id": "01J...", "title": "...", "lang": "en", "slideCount": 20, "revision": 1,
+              "updatedAt": "...", "createdBy": "owner" },
+    "assetCount": 2,
+    "warnings": [{ "code": "UNUSED_ASSET", "message": "...", "path"?: "slides[3].html", "slideId"?: "intro" }]
+  }
+  ```
+  Warning codes: the sanitizer's (`REMOVED_ELEMENT`, `REMOVED_CSS_RULE`…), `UNKNOWN_ASSET_REF` (a reference without
+  a file in the archive; it will not display) and `UNUSED_ASSET` (a file no slide references; not imported).
+- Errors: `VALIDATION_ERROR` with a precise English message for anything wrong with the archive (not a ZIP, unsafe
+  or unexpected entry names, symbolic links, duplicates, encryption, ZIP64, compression ratio or size limits, CRC or
+  SHA-256 mismatch, missing or invalid `manifest.json`/`deck.json`, an unsupported `formatVersion`), with the deck
+  (schema), or with an asset (type detected from the content, declared type, pixel and size limits; the core's
+  `UNSUPPORTED_MEDIA` and `LIMIT_EXCEEDED` are reported as `VALIDATION_ERROR` with their hint);
+  `FORBIDDEN` (CSRF), `UNAUTHENTICATED`, `SETUP_REQUIRED`, `RATE_LIMITED`. No new error code was added.
+
+### The `.pptaken` archive (format version 1)
+A ZIP (stored or deflated entries, UTF-8 names) with exactly:
+
+- `manifest.json`: `{ "format": "pptaken.archive", "formatVersion": 1, "exportedAt": ISO-8601, "generator":
+  "pptaken <version>", "deck": { "title", "lang" }, "notes": boolean, "assets": [{ "sha256", "mediaType", "bytes",
+  "width"?, "height"? }] }`. Readers ignore unknown keys; a higher `formatVersion` is refused with a clear message.
+- `deck.json`: the `pptaken.deck` envelope as stored (sanitized), without notes when exported with `notes=0`.
+- `assets/<sha256>`: the raw bytes of each referenced asset, named by their SHA-256; only assets the deck references.
+- Optionally an `assets/` directory entry. Anything else makes the archive invalid.
+
+Imports never trust the archive: the deck is validated with `parseDeck`, sanitized again and validated again; every
+asset is re-checked like `add_asset` (content signature, declared type, SHA-256, limits); all rows are written in one
+transaction.
+<!-- END export and import (F3) -->

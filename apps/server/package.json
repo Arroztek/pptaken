@@ -23,6 +23,7 @@
     "@pptaken/auth-local": "workspace:*",
     "@pptaken/blob-fs": "workspace:*",
     "@pptaken/core": "workspace:*",
+    "@pptaken/export": "workspace:*",
     "@pptaken/mcp": "workspace:*",
     "@pptaken/player": "workspace:*",
     "@pptaken/schema": "workspace:*",

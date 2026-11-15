@@ -38,6 +38,9 @@ importers:
       '@pptaken/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@pptaken/export':
+        specifier: workspace:*
+        version: link:../../packages/export
       '@pptaken/mcp':
         specifier: workspace:*
         version: link:../../packages/mcp
@@ -136,6 +139,22 @@ importers:
         specifier: workspace:*
         version: link:../schema
     devDependencies:
+      '@types/node':
+        specifier: 22.20.5
+        version: 22.20.5
+
+  packages/export:
+    dependencies:
+      '@pptaken/player':
+        specifier: workspace:*
+        version: link:../player
+      '@pptaken/schema':
+        specifier: workspace:*
+        version: link:../schema
+    devDependencies:
+      '@pptaken/sanitizer':
+        specifier: workspace:*
+        version: link:../sanitizer
       '@types/node':
         specifier: 22.20.5
         version: 22.20.5

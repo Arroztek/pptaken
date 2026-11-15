@@ -22,6 +22,8 @@ pnpm --filter @pptaken/server test:browser               # Playwright: Chromium,
 | `POST/GET /api/v1/tokens`, `DELETE /api/v1/tokens/:id` | owner session | secret shown once |
 | `GET /api/v1/connect/status` | owner session | flips after the first authenticated MCP request |
 | `GET /api/v1/decks`, `GET /api/v1/decks/:id`, `GET /api/v1/decks/:id/content-url` | owner session | read-only in F2 |
+| `GET /api/v1/decks/:id/export?format=…&notes=…&revision=` | owner session | file download (`routes-export.ts`): single HTML file or `.pptaken` archive; notes off for HTML, on for the archive by default |
+| `POST /api/v1/decks/import` | owner session + CSRF | raw `.pptaken` body (`application/zip`), own size limit, 10 imports / 10 min / IP; creates a new presentation |
 | `POST /mcp` | `Authorization: Bearer ppt_…` | Streamable HTTP, stateless (SDK `createMcpHandler`: 2026-07-28 per-request protocol plus stateless 2025-era fallback) |
 | `GET /.well-known/oauth-protected-resource[/mcp]` | public | RFC 9728 metadata, referenced by the `401` `WWW-Authenticate` header |
 | `GET /p/:deckId` | owner session (else `302 /login`) | trusted player page; loads `/_player/page.js` and the `@pptaken/player` shell modules |
@@ -46,6 +48,7 @@ pnpm --filter @pptaken/server test:browser               # Playwright: Chromium,
 | `PPTAKEN_SECRET_KEY` / `PPTAKEN_SECRET_KEY_FILE` | none | inject the 256-bit secret (hex or base64) instead of `secret.key` |
 | `PPTAKEN_LANG` | none | default deck language |
 | `PPTAKEN_MAX_API_BODY_KB` / `PPTAKEN_MAX_MCP_BODY_MB` | `64` / `4` | enforced while reading, before parsing |
+| `PPTAKEN_MAX_IMPORT_MB` | `100` | largest `.pptaken` archive for `POST /api/v1/decks/import` (1–1024), checked from `Content-Length` and while reading |
 | `PPTAKEN_LOG_LEVEL` | `info` | |
 
 Invalid values stop the server with `Configuration error: <variable> …` (exit code 2).
@@ -100,3 +103,4 @@ Invalid values stop the server with `Configuration error: <variable> …` (exit 
 | Backup format | A directory (`pptaken.db` + `blobs/`) instead of a `.tar`: no dependency needed. **Open:** `.tar` output. |
 | Sign out everywhere | Implemented in `@pptaken/auth-local` (`revokeAllSessions`, also done by `reset-password`) but no HTTP route: the F2 contract has none. **Open:** add `POST /api/v1/auth/logout-all` to the contract. |
 | Open | Audit log of auth events (sign-in, token creation/revocation) is only in the request logs, not in `audit_log`. |
+| Export/import routes | `routes-export.ts` is mounted before the generic `/api` body limit (64 KB) because archives are bigger; its middleware is scoped to its two paths and repeats the panel guards (IP rate limit, CSRF, owner session). Import uses the raw body (`application/zip`), not multipart. Core `LIMIT_EXCEEDED`/`UNSUPPORTED_MEDIA` map to `VALIDATION_ERROR` (no new codes). Export downloads carry `Content-Security-Policy: sandbox` so they never render as app documents. The HTML export embeds the bundled fonts the deck uses (data: URIs), unlike the live content route. |

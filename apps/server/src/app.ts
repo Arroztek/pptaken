@@ -34,7 +34,9 @@ import {
 import { createLogger, type Logger, type LogSink } from "./logger.js";
 import { apiRoutes } from "./routes-api.js";
 import { contentRoutes, playerRoutes } from "./routes-content.js";
+import { exportRoutes } from "./routes-export.js";
 import { mcpRoutes, protectedResourceMetadata } from "./routes-mcp.js";
+import { presenterRoutes } from "./routes-present.js";
 import { WebApp } from "./static.js";
 
 export interface CreateServerOptions {
@@ -224,6 +226,9 @@ export async function createServer(
     await next();
   });
 
+  // Export/import: before the /api body limit (archives are larger); it applies its own limit, CSRF and rate limits.
+  app.route("/api/v1", exportRoutes(services));
+
   // 4. Body size limits, enforced while reading (before parsing).
   const tooLarge = (c: Parameters<typeof apiError>[0]) =>
     apiError(c, "VALIDATION_ERROR", "Request body too large", { status: 413 });
@@ -252,6 +257,7 @@ export async function createServer(
     c.json(protectedResourceMetadata(publicOrigin(c, config))),
   );
 
+  app.route("/", presenterRoutes(services)); // before the API router's catch-all
   app.route("/api/v1", apiRoutes(services));
   app.all("/api/*", (c) => apiError(c, "NOT_FOUND", "No such API route"));
   app.route("/mcp", mcpRoutes(services));
