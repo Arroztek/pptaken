@@ -1,0 +1,33 @@
+{
+  "name": "@pptaken/mcp",
+  "version": "0.0.0",
+  "description": "PPTaken MCP tools on top of @pptaken/core, independent of the transport.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.4.0",
+    "@pptaken/core": "workspace:*",
+    "@pptaken/schema": "workspace:*",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.4.0",
+    "@pptaken/testing": "workspace:*",
+    "@types/node": "22.20.5",
+    "vitest": "5.1.0"
+  }
+}
