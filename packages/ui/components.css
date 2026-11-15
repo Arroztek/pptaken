@@ -374,6 +374,10 @@
 .ppt-badge--live { --_c: var(--ppt-on-accent); background: var(--ppt-accent); border-color: transparent; }
 .ppt-badge--live .ppt-badge__dot { animation: ppt-breathe 2.4s var(--ppt-ease) infinite; }
 
+/* ------------------------------------------------------------------- logo */
+/* Size comes from the height attribute set by the Logo component; width follows the viewBox. */
+.ppt-logo { display: block; width: auto; color: var(--ppt-text); }
+
 /* --------------------------------------------------------------- big code */
 .ppt-bigcode { display: grid; justify-items: start; gap: var(--ppt-space-2); container-type: inline-size; min-width: 0; }
 .ppt-bigcode__value {
@@ -388,7 +392,7 @@
   -webkit-user-select: all;
   white-space: nowrap;
 }
-.ppt-bigcode__sep { color: var(--ppt-text-muted); font-weight: var(--ppt-weight-regular); margin: 0 -0.12em 0 0; }
+.ppt-bigcode__sep { color: var(--ppt-text-muted); font-weight: var(--ppt-weight-regular); margin: 0 -0.12em 0 0; user-select: none; }
 .ppt-bigcode__hint { font-size: var(--ppt-text-sm); color: var(--ppt-text-muted); }
 .ppt-bigcode__hint strong { color: var(--ppt-text); font-family: var(--ppt-font-mono); font-weight: var(--ppt-weight-medium); }
 
@@ -408,6 +412,10 @@
   color: #000000;
 }
 .ppt-qr__plate > :is(img, svg, canvas) { display: block; width: var(--ppt-qr-size, 176px); height: auto; aspect-ratio: 1; image-rendering: pixelated; }
+/* Size steps used by FramedQR (the component applies one of these; the var above is the fallback for hand-written markup). */
+.ppt-qr--sm .ppt-qr__plate > :is(img, svg, canvas) { width: 128px; }
+.ppt-qr--md .ppt-qr__plate > :is(img, svg, canvas) { width: 176px; }
+.ppt-qr--lg .ppt-qr__plate > :is(img, svg, canvas) { width: 224px; }
 .ppt-qr__frame::before, .ppt-qr__frame::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   background:

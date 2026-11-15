@@ -24,7 +24,7 @@
   <span class="ppt-eyebrow">{label ?? t("quiz.audienceCode")}</span>
   <!-- user-select: all, so one tap selects the whole code; the separator is not selectable. Screen readers get the spelled-out version. -->
   <span class="ppt-bigcode__value" aria-hidden="true"
-    >{clean.slice(0, half)}<span class="ppt-bigcode__sep" style="user-select:none">·</span>{clean.slice(half)}</span
+    >{clean.slice(0, half)}<span class="ppt-bigcode__sep">·</span>{clean.slice(half)}</span
   >
   <span class="ppt-sr-only">{spoken}</span>
   {#if hint && joinUrl}

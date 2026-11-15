@@ -23,7 +23,6 @@
   role={label ? "img" : undefined}
   aria-label={label || undefined}
   aria-hidden={label ? undefined : "true"}
-  style="display:block;width:auto;color:var(--ppt-text)"
 >
   {@html art.body}
 </svg>
