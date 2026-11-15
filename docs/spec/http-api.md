@@ -158,6 +158,22 @@ windows stay in sync over a same-origin `BroadcastChannel` (no server round trip
 Supporting static files (app origin, no session needed, no data): `/_player/presenter.js` and the other player
 modules, `/_player/presenter.css` (Inter and JetBrains Mono `@font-face` rules) and
 `/_player/fonts/{inter|jetbrains-mono}/<file>.woff2`.
+
+## Offline presenting (F3)
+
+### `GET /api/v1/decks/:id/offline`
+The offline deck document of the current revision, for the player's service worker (layer 2): `200 { id,
+revision, html }`, `Cache-Control: no-store`, owner session only (same errors and rate limit as the presenter data).
+`html` is built by `buildOfflineDocument`: speaker notes removed, images and every bundled font inlined as `data:`
+URIs, the no-network CSP as its first `<meta>`. It is JSON on the app origin and is only ever mounted by the shell
+in the sandboxed iframe through `srcdoc` (docs/spec/player.md, "Offline presenting").
+
+### `GET /p/sw.js`
+The service worker (no session, no data): `text/javascript`, `Cache-Control: no-cache`, `nosniff`,
+`Content-Security-Policy: default-src 'none'; connect-src 'self'; frame-ancestors 'none'`. Scope `/p/`.
+
+The player and presenter pages (`/p/:deckId`, `/p/:deckId/presenter`) send the app CSP plus
+`'sha256-<runtime>'` in `script-src` and `data:` in `font-src`, needed by the offline (srcdoc) document.
 <!-- END presenter view (F3) -->
 
 <!-- BEGIN export and import (F3) -->

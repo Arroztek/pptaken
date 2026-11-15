@@ -65,3 +65,17 @@ barriers 2-3 that the sanitizer cannot close. They change the serving design:
 Open question: slide `id`s must be unique deck-wide (they are) and the sanitizer's `<use>` check is per slide, so
 colliding element ids across slides could rebuild `<use>` chains. Decide between deck-wide unique element ids or a
 per-slide id prefix. Details: [`packages/sanitizer/README.md`](../../packages/sanitizer/README.md).
+
+## Verification (offline presenting, spike S4, 2026-11-15)
+
+No engine (Chromium, WebKit; Firefox not measured) routes the opaque-origin sandboxed content frame or its
+subresources through the app origin's service worker, same origin or not. Offline (layer 2) therefore delivers a
+server-built **offline deck document** through `<iframe sandbox="allow-scripts" srcdoc>`: images and fonts inlined
+as `data:` URIs, notes removed, and the no-network CSP as the first `<meta>` (`connect-src 'none'`, `img-src
+data:`, `font-src data:`, a nonce). Barrier 2 is unchanged (same sandbox attribute, opaque origin). Barrier 3 holds
+with two policies: the document's `<meta>` and the player page's CSP, which a srcdoc frame inherits; the page CSP
+gains only the runtime's exact hash and `data:` fonts. Verified in all three engines: opaque origin, no
+cookie/storage/parent access, `fetch`/XHR blocked, zero requests, a nonced non-runtime script blocked by the
+inherited policy, content navigation detected as a fault. `sandbox` and `frame-ancestors` cannot come from a
+`<meta>`; the attribute provides the sandbox and a srcdoc document cannot be framed elsewhere. Details:
+[`docs/spikes/S4-offline.md`](../spikes/S4-offline.md).

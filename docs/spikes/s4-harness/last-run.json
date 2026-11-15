@@ -1,0 +1,69 @@
+{
+  "startedAt": "2026-11-15T16:50:48.154Z",
+  "origins": {
+    "app": "http://localhost:18660",
+    "content": "http://127.0.0.1:18661"
+  },
+  "engines": {
+    "chromium": {
+      "serviceWorkerApi": true,
+      "controlled": true,
+      "messages": [
+        "srcdoc: origin=null img=true font=loaded api=blocked",
+        "content-doc: origin=null img=true font=loaded api=blocked",
+        "app-doc: origin=null img=true font=loaded api=blocked"
+      ],
+      "serviceWorkerSaw": [
+        "same navigate document /",
+        "same no-cors script /page.js"
+      ],
+      "srcdocUnderStrictPage": "img=true font=error NetworkError",
+      "console": [
+        "error: Executing inline script violates the following Content Security Policy directive 'script-src 'self' 'sha256-i3Xu7ooTAHKzUmVK9QXqKdq3nlIDZ7DfF97MWujkOio='",
+        "error: Connecting to 'http://localhost:18660/api/x' violates the following Content Security Policy directive: \"connect-src 'none'\". The action has been blocked.",
+        "error: Fetch API cannot load http://localhost:18660/api/x. Refused to connect because it violates the document's Content Security Policy.",
+        "error: Connecting to 'http://127.0.0.1:18661/api/x' violates the following Content Security Policy directive: \"connect-src 'none'\". The action has been blocked.",
+        "error: Fetch API cannot load http://127.0.0.1:18661/api/x. Refused to connect because it violates the document's Content Security Policy.",
+        "error: Connecting to 'http://localhost:18660/api/x' violates the following Content Security Policy directive: \"connect-src 'none'\". The action has been blocked.",
+        "error: Fetch API cannot load http://localhost:18660/api/x. Refused to connect because it violates the document's Content Security Policy."
+      ]
+    },
+    "firefox": {
+      "serviceWorkerApi": true,
+      "controlled": false,
+      "messages": [
+        "srcdoc: origin=null img=true font=loaded api=blocked",
+        "app-doc: origin=null img=true font=loaded api=blocked",
+        "content-doc: origin=null img=true font=loaded api=blocked"
+      ],
+      "serviceWorkerSaw": null,
+      "srcdocUnderStrictPage": "img=true font=error NetworkError",
+      "console": [
+        "error: [JavaScript Error: \"Content-Security-Policy: The page’s settings blocked an inline script (script-src-elem) from being executed because it violates the f",
+        "error: [JavaScript Error: \"Content-Security-Policy: The page’s settings blocked the loading of a resource (connect-src) at http://localhost:18660/api/x because ",
+        "error: [JavaScript Error: \"Content-Security-Policy: The page’s settings blocked the loading of a resource (connect-src) at http://localhost:18660/api/x because ",
+        "error: [JavaScript Error: \"Content-Security-Policy: The page’s settings blocked the loading of a resource (connect-src) at http://127.0.0.1:18661/api/x because "
+      ]
+    },
+    "webkit": {
+      "serviceWorkerApi": true,
+      "controlled": true,
+      "messages": [
+        "srcdoc: origin=null img=true font=loaded api=blocked",
+        "app-doc: origin=null img=true font=loaded api=blocked",
+        "content-doc: origin=null img=true font=loaded api=blocked"
+      ],
+      "serviceWorkerSaw": [
+        "same navigate document /",
+        "same no-cors script /page.js"
+      ],
+      "srcdocUnderStrictPage": "img=true font=error NetworkError",
+      "console": [
+        "error: Refused to execute a script because its hash, its nonce, or 'unsafe-inline' does not appear in the script-src directive of the Content Security Policy.",
+        "error: Refused to connect to http://localhost:18660/api/x because it does not appear in the connect-src directive of the Content Security Policy.",
+        "error: Refused to connect to http://localhost:18660/api/x because it does not appear in the connect-src directive of the Content Security Policy.",
+        "error: Refused to connect to http://127.0.0.1:18661/api/x because it does not appear in the connect-src directive of the Content Security Policy."
+      ]
+    }
+  }
+}

@@ -11,14 +11,16 @@ It has these parts with clear trust boundaries:
 | Part | Runs | Trust |
 |---|---|---|
 | **Builder** (`buildDeckDocument`, `contentHeaders`) | server, pure function | input must come from `sanitizeDeck` (barrier 1) |
-| **Runtime** (`RUNTIME_SOURCE`, about 8.2 KB) | inside the sandboxed iframe, the only script there | runs next to untrusted content |
+| **Runtime** (`RUNTIME_SOURCE`, about 10.0 KB) | inside the sandboxed iframe, the only script there | runs next to untrusted content |
+| **Offline document builder** (`buildOfflineDocument`) | server, pure function | same input rule as the builder |
+| **Service worker** (`dist/sw.js`, served at `/p/sw.js`) | the browser, scope `/p/` | trusted; never touches content routes |
 | **Shell** (`createPlayer`) | the app page | trusted; owns the state and the mode |
 | **Presenter view** (`createPresenter`, `@pptaken/player/presenter`) | a second app window | trusted; the only place with notes |
 | **Notes renderer** (`renderNotes`) | server, pure function | turns untrusted Markdown into allowlisted HTML |
 
 The shell and the runtime talk only through a small, versioned `postMessage` protocol validated on both ends. The
 main window and the presenter window talk through a same-origin `BroadcastChannel`, also validated. Offline
-preload, the service worker and HTML export are other F3 work, outside this document's scope for now.
+presenting (in-memory preload and service worker) is specified below; HTML export lives in `@pptaken/export`.
 
 ## Serving requirements
 
@@ -178,6 +180,7 @@ numbers are dropped.
 | iframe → shell | `key` | `code`, one of the closed set of key codes (`KEY_CODES`, 22 codes) |
 | iframe → shell | `state` | `slide`, `step`: what the iframe shows after a `goto`; also sent as the acknowledgement of a `mode` |
 | iframe → shell | `select` | `slide` 0..199: a thumbnail clicked in the overview |
+| iframe → shell | `preload` | once, after `ready`: `ok` boolean, `images` and `fonts` 0..10000 (resources now in memory), `failed`: at most 16 of `"image-error"`, `"image-timeout"`, `"font-error"`, `"font-timeout"`; `ok` must equal `failed.length === 0` |
 
 Only the shell sends `mode`. The shell honours `select` only while it has the overview open (otherwise it is
 dropped), and checks the slide against the deck. The runtime never changes the mode by itself.
@@ -289,6 +292,124 @@ URLs. Links, images, autolinks, raw HTML and entities are shown as text (escaped
 does not span lines. Input over 64 KB is cut. Linear time: emphasis uses a delimiter stack with per-kind opener
 lists and depth 4, code spans pair backtick runs by precomputed "next run of the same length".
 
+## Offline presenting (F3)
+
+Goal: once a presentation has loaded, presenting never fails because the network drops; with a service worker
+(secure contexts) it also survives a reload or a closed tab. Three layers (architecture §6); the third, the
+single-file HTML export, is `@pptaken/export`. Empirical background: [spike S4](../spikes/S4-offline.md).
+
+### Layer 1: in-memory preload (every browser, any `http://` host)
+
+After `ready`, the runtime collects every image URL of the document (`<img>`, SVG `<image>`, `url()` in every
+stylesheet rule except `@font-face`, and in `style` attributes; `url(#id)` skipped), decodes each with
+`new Image().decode()` and keeps the images referenced for the whole talk (so the browser keeps them in its memory
+cache; hidden sections and CSS backgrounds included). It also calls `load()` on **every declared font face**
+(`document.fonts`). Then it sends `preload` once. Budget: 30 s; whatever is still pending counts as a timeout.
+Nothing waits for the preload: navigation works from `ready`.
+
+**Font policy: all declared faces**, not only the families a slide names. Reason: the bundled catalog is small (6
+WOFF2 subsets, about 300 KB), a used family needs every `unicode-range` subset anyway (a later slide may contain
+`ñ`), and detecting "used" reliably (CSS shorthands, SVG presentation attributes, the overview's own font) costs
+runtime code. Revisit if the catalog grows.
+
+### Indicator
+
+States (pure state machine, `offline.ts`): `loading` → `ready` (preload ok) or `partial` (some failure); `ready`
+becomes `service-worker` when an offline copy is stored (layer 2) or the page runs from it. `partial` stays partial.
+
+- Neutral player: **no banner**. With `indicator: true` the shell shows an **8 px dot** at 12 px from the top-right
+  corner of the host (the letterbox corner, outside the canvas), hidden under the black screen and in print. Colors
+  (brand decision 10, semantic colors are allowed there): chrome gray `#8B8FA0` while loading, Success `#3DD68C` for
+  ready and service-worker, Warning `#FF9F43` for partial. Not color alone: the dot has `role="img"` and an
+  `aria-label` with the text.
+- Text on demand (en/es, `i18n.ts`): "Ready to present offline." / "Some resources could not be loaded." / "Ready
+  to present offline. A copy is saved on this device." — in the `?` help overlay (last line), in the presenter view
+  header (dot and text), and for 2 s as HUD text when the state leaves `loading` (with `showHud`).
+- API: `onOffline(status)` option, `player.getOffline()`, `player.setOfflineCopy(on)`; the presenter view has the
+  same `getOffline`/`setOfflineCopy`. The server's player page mirrors it as `body[data-offline]`
+  (`loading|ready|partial|service-worker`), plus `data-offline-images`, `data-offline-fonts`, `data-offline-copy`
+  and `data-source` (`network|copy`), for tests.
+
+With the network cut after `ready`, everything keeps working from memory: navigation, steps, overview, black
+screen, print layout, and a presenter window that was already open (its data is loaded once and kept in memory,
+its previews preload too; the windows sync over `BroadcastChannel`, which needs no network).
+
+### Layer 2: service worker (secure contexts only)
+
+Registered by the player page (`offline-client.ts`) only when `isSecureContext` and `navigator.serviceWorker`
+exist; without it nothing changes. Script `/p/sw.js`, **scope `/p/`**: the narrowest scope that controls the
+player (`/p/:id`) and presenter (`/p/:id/presenter`) pages; a controlled page's requests to `/_player/*` and
+`/api/*` reach the worker regardless of scope. Served with `Content-Type: text/javascript`, `Cache-Control:
+no-cache`, `nosniff` and `Content-Security-Policy: default-src 'none'; connect-src 'self'; frame-ancestors 'none'`.
+Built from TypeScript (`sw.ts` + `offline-cache.ts`, `tsconfig.sw.json`) into one classic script by
+`scripts/build-runtime.mjs`; the server replaces a build placeholder with a hash of the worker, the shell modules,
+the page scripts and styles and the runtime, so any change installs a new worker.
+
+**Why the content frame is not cached as such:** spike S4 measured that no engine routes the opaque-origin
+sandboxed iframe (navigation or subresources, same or separate content origin) through the app's worker. So the
+worker stores an **offline deck document** instead and, offline, the shell mounts it with **`srcdoc`**:
+
+- `GET /api/v1/decks/:id/offline` (owner session, JSON `{ id, revision, html }`, `no-store`): the current revision
+  built by `buildOfflineDocument`: notes removed; images (`png`, `jpeg`, `gif`, `webp`, `avif`) and every bundled
+  font face inlined as `data:` URIs; the CSP as the **first** `<meta>` of `<head>`: `default-src 'none';
+  script-src 'nonce-…'; style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'; form-action
+  'none'; base-uri 'none'; frame-src 'none'`. Missing assets stay `asset:` references and fail (→ `partial`).
+- The shell takes `contentHtml` instead of `contentUrl` and refuses (`TypeError`) any string that does not start
+  with exactly that `<meta>` (`isOfflineDocument`). Same iframe: `sandbox="allow-scripts"`, opaque origin.
+- A srcdoc frame **inherits the page's CSP** (S4, all three engines), so both policies apply. The player and
+  presenter pages therefore send `playerCsp`: the app CSP plus `'sha256-<RUNTIME_SHA256>'` in `script-src` (exactly
+  the runtime, no other inline script) and `data:` in `font-src`. A content script carrying the right nonce is
+  still blocked by the inherited policy (tested). The inherited `connect-src 'self'` is narrowed to `'none'` by the
+  document's own `<meta>`.
+- Barriers 2-3 on this path are tested in all three engines (player browser test "offline-srcdoc-security": opaque
+  origin, no cookies/storage/parent/top navigation/`eval`, `fetch`/XHR blocked, zero requests to any server, a
+  content navigation detected as a fault, a document without the CSP `<meta>` refused).
+
+**What is stored** (explicit allowlist, `offline-cache.ts`; everything else is never touched by the worker):
+
+| Cache | Entries |
+|---|---|
+| `pptaken-offline-shell-<build>` | `/_player/` modules, page scripts and styles, UI fonts (stored at install) |
+| `pptaken-offline-v1-deck-<id>` | `/p/<id>`, `/p/<id>/presenter`, `/api/v1/decks/<id>/offline`, `/api/v1/decks/<id>/presenter`, bookkeeping `{revision, bytes, usedAt}` |
+
+Never: `/api/v1/auth/*`, `/api/v1/decks/:id/content-url` (a 5-minute signed URL, useless offline), `/c/*` (signed
+tokens). **Keys are origin + path**: the query and fragment are dropped, so no token is ever part of a key, and the
+stored routes carry no token at all (the offline document needs none). Only a direct `200` from our origin with the
+expected media type is stored: never an error, a redirect (login) or an opaque response.
+
+**When:** the page asks the worker (`keep`, over a `MessageChannel`, validated both ways) once the deck reports
+its preload; the worker fetches the four deck URLs itself and stores them **all or nothing**, replacing the deck's
+previous entries (so one revision per deck). It never writes deck entries while proxying requests.
+
+**Serving:** network first, so online behavior is unchanged. A stored copy answers when the network fails, or does
+not answer within **2.5 s** ("lie-fi", slow refusals); after a failure, stored copies answer at once for 15 s (a
+page loads in one go instead of waiting 2.5 s per module). A deck never kept answers, offline, with a small static
+page (`data-state="unavailable"`): "This presentation is not available offline. Open it once with a connection to
+keep a copy on this device."
+
+**Quota:** before storing, `navigator.storage.estimate()`; if the copies would take the origin above 80 % of its
+quota, least recently used decks (`usedAt`, refreshed on every offline open) are evicted first. A
+`QuotaExceededError` evicts the next oldest deck and retries, until none is left (then nothing is stored, the copy
+reports not kept).
+
+**Updates:** no `skipWaiting()`, no `clients.claim()`. A new worker installs (stores the new shell) and waits until
+no player or presenter page is open, so it never takes over mid-talk. On activation it deletes shell caches of other
+builds and deck caches of other formats. Deck copies survive an update (each one is self-consistent: page, CSP hash
+and runtime were stored together); if a future shell cannot drive an old copy (protocol version), the page shows
+the load-timeout message and the next online open refreshes the copy.
+
+**Privacy model:** the copies hold private content and speaker notes on this device, in the owner's browser
+profile, like the browser's own cache. They are deleted (fail closed) when: the web app signs out (it deletes every
+`pptaken-offline-*` cache directly, no worker needed); the worker sees a `401` or a redirect on a deck route (signed
+out or expired session); the owner clicks "Forget offline copies" (web app deck list, shown when copies exist). After
+that nothing is served offline. A shared computer should not be used to present private decks without signing out.
+
+### Offline reload
+
+`loadContent` asks for the signed content URL; if that request fails (or the API errors), it asks
+`/api/v1/decks/:id/offline`, which the worker answers from the copy. `401` is never answered from a copy. The
+presenter page does the same, so a presenter window can be opened, and reloaded, offline (layer 2).
+
 ## API
 
 ```ts
@@ -301,11 +422,18 @@ assetHeaders(): Record<string, string>
 renderNotes(markdown): string                      // speaker notes -> allowlisted HTML
 parsePresenterData(json): PresenterData | null     // presenter API shape, validated
 
+buildOfflineDocument(deck, { nonce, assets?, fonts? }): { html, missing }   // offline (srcdoc) document
+RUNTIME_SHA256                                     // CSP hash source of the runtime
+
 // browser (import "@pptaken/player/shell": no builder, no schema, no zod)
-createPlayer(host, { contentUrl, initial?, hash?, keyboard?, showHud?, title?, help?, locale?, presenterUrl?,
-  sync?, onKey?, onReady?, onChange?, onRender?, onFault?, onLoadTimeout?, loadTimeoutMs? })
+createPlayer(host, { contentUrl | contentHtml, initial?, hash?, keyboard?, showHud?, indicator?, title?, help?,
+  locale?, presenterUrl?, sync?, onKey?, onReady?, onChange?, onRender?, onFault?, onOffline?, onLoadTimeout?,
+  loadTimeoutMs? })
   -> { goto(slide, step?), next, prev, first, last, black(on?), toggleFullscreen, overview(on?), print(),
-       openPresenter(), help(on?), getState, getCanvas, iframe, ready, destroy }
+       openPresenter(), help(on?), getState, getCanvas, getOffline, setOfflineCopy(on), iframe, ready, destroy }
+// offline ("@pptaken/player/offline", "/offline-client", "/offline-cache"): offlineStateOf, offlineStatus,
+//   isOfflineDocument; loadContent, keepOfflineCopy, offlineCopyStatus, SignedOutError; routeOf, cacheKeyOf,
+//   isCacheable, signsOut, pickEvictions, bytesToFree, parseClientMessage, parseWorkerReply
 // state: { slide, step, slideId, slideCount, stepCount, black, mode, highlight }
 
 // browser (import "@pptaken/player/presenter")
@@ -326,8 +454,9 @@ keys: keyCodeOf     i18n: LABELS, labelsFor, pickLocale
 `tsc` only. The library is compiled as usual; the runtime (`runtime.ts` with `keys.ts` and `messages.ts`) is
 compiled by a second `tsconfig.runtime.json` without comments, and `scripts/build-runtime.mjs` concatenates the
 three modules in an IIFE (removing their relative `import` lines and `export` keywords), drops indentation, checks
-that the result cannot close a `<script>` element, and writes `dist/runtime-source.js` (`RUNTIME_SOURCE`). No
-bundler.
+that the result cannot close a `<script>` element, and writes `dist/runtime-source.js` (`RUNTIME_SOURCE` and its
+CSP hash `RUNTIME_SHA256`). The same script concatenates `offline-cache.ts` and `sw.ts` (compiled by
+`tsconfig.sw.json` with the `WebWorker` lib) into the classic worker `dist/sw.js` (about 12.5 KB). No bundler.
 
 ## Tests
 
@@ -354,10 +483,24 @@ bundler.
   12 keys converges), previews at the current and next position, notes shown and absent from every content
   document and from the `/c/` response, black screen both ways, clock start/pause/reset (real time), pace ahead,
   and behind after 20 minutes with Playwright's fake clock; the hostile document cannot select, change the mode,
-  print, open help or open windows. Last run: Chromium 407, Firefox 401, WebKit 401 checks, all passing.
+  print, open help or open windows. Last run (with the offline sections): Chromium 441, Firefox 435, WebKit 436 checks, all
+  passing.
 - Overview with 200 slides (synthetic deck: heading, list, SVG and a step per slide; 1280×720): open to ready
   55-135 ms, first two frames 17-24 ms, scroll through the whole grid p95 about 16.7 ms cold and warm in all three
   engines, 30 ArrowDown presses 38-173 ms. No virtualization needed at this size.
+- Offline, unit (`test/offline.test.ts`): `preload` validator and bounds, indicator state machine, offline
+  document (CSP `<meta>` first, inlining, notes removed, invalid input refused, shape check), worker allowlist and
+  token-free cache keys, cacheable/signed-out responses, cache names and versions, eviction and quota (fake
+  estimates and errors), page/worker messages, `loadContent` fallback with a fake `fetch`.
+- Offline, browser (player harness, all three engines): preload and dot (size, place, color, label), HUD and help
+  text, every slide and step with the network cut (`setOffline` + every request aborted), overview and black screen
+  offline, `partial` with a 404 asset, the srcdoc path under the production page CSP (traversal offline, opaque
+  origin, no requests) and its hostile-content checks.
+- `apps/server` browser test: the F3 definition of done on the real server (see `apps/server/browser/offline.mjs`):
+  ready offline, network cut three ways (server stopped too), every slide and step, overview and selection, black
+  screen, presenter opened before the cut (notes, next preview, clock, sync), and with the worker: presenter opened
+  after the cut, player and presenter reloaded offline, a never-opened deck's message, srcdoc barriers, `partial`,
+  token-free cache, logout deleting the copies.
 - `apps/server`: Vitest for the presenter API and page (owner only, notes rendered, never on the content origin,
   rate limit, fonts) and the browser smoke test extended with the real presenter window (sync both ways, notes
   shown there and absent from content documents) in all three engines.
@@ -365,6 +508,21 @@ bundler.
 ## Decisions and open questions (F3)
 
 Decisions (the safer or simpler option where the brief left room):
+
+- **Offline delivery through `srcdoc`, not through the worker intercepting the content frame**: no engine routes
+  the sandboxed frame through the app's worker (S4). The offline document reuses the export's approach.
+- **The page CSP gains the runtime hash and `data:` fonts** (player and presenter pages only), because a srcdoc
+  frame inherits it. Alternative rejected: a worker on the content origin, which needs an unsandboxed document there.
+- **Preload all declared font faces** (see Layer 1).
+- **One offline copy per deck (current revision)**, stored all or nothing when the page asks, never while proxying.
+- **Network first with a 2.5 s grace and a 15 s circuit breaker** when a copy exists: online behavior unchanged
+  on a healthy network; a dead or slow network does not make an offline load crawl. A slow but working network
+  may get the stored player page or presenter data (the deck itself still comes from the content route online).
+- **No `skipWaiting`/`clients.claim`**; deck copies survive worker updates.
+- **Logout clears copies in the web app directly** (Cache Storage, no worker needed), and the worker fails closed
+  on `401`/redirects. Minimal "Forget offline copies" control in the deck list.
+- **The dot is persistent** (8 px, letterbox corner, hidden in black screen and print), as the brand decided;
+  the text is only on demand.
 
 - **Overview steps fully revealed**, on the audience screen too (see Overview). Alternative considered: thumbnails
   at the current reveal state, which hides content the presenter wants to find.
@@ -399,6 +557,15 @@ Open questions:
 - **Presenter on a public/delegated link** (backlog): the data API is owner-only today.
 - **BroadcastChannel needs both windows on the same origin and profile**: a presenter on another device is F4
   (remote, through the server).
+- **Presenter window opened after the network is cut, without a service worker** (plain `http://` on the local
+  network): not possible (its page cannot load). Open it before the talk. An in-memory presenter rendered into an
+  `about:blank` popup by the main page would remove that limit.
+- **Gated mode keys cannot be tested in automation**: under Playwright `navigator.userActivation.isActive` is
+  always `true` (all three engines), so the existing "content cannot change the mode" check relies on timing.
+- **Real-browser offline**: Firefox's automatic offline mode and real Safari/iOS were not verified (only
+  Playwright's emulations; see S4 for how each one interacts with the worker).
+- **Memory**: every decoded image is kept for the whole talk; a 200-slide deck with many large images may need a
+  budget or a sliding window.
 
 ## Open questions (F1)
 
