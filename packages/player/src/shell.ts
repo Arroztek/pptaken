@@ -8,6 +8,7 @@
 
 import { type Labels, type Locale, labelsFor } from "./i18n.js";
 import { type KeyCode, keyCodeOf } from "./keys.js";
+import { LASER_TIMEOUT_MS, laserGeometry } from "./laser.js";
 import * as nav from "./navigation.js";
 import { KEY_ACTIONS, type KeyAction } from "./navigation.js";
 import {
@@ -105,6 +106,8 @@ export interface PlayerOptions {
   onRender?(position: nav.Position): void;
   /** Called when the content misbehaves; the player blanks the iframe and stops. */
   onFault?(fault: PlayerFault): void;
+  /** Adds the remote-control keys (R: pair a phone, K: disconnect every remote) to the key help. */
+  remoteKeys?: boolean;
 }
 
 export interface Player {
@@ -129,6 +132,12 @@ export interface Player {
   openPresenter(): void;
   /** Shows or hides the key help overlay (toggles without `on`). */
   help(on?: boolean): void;
+  /**
+   * Shows the laser dot at a canvas point (integers 0..10000 along the canvas width and height), or hides it with
+   * `null`. Drawn by the shell above the iframe; hidden after 1.5 s without a new point, under the black screen,
+   * in the overview and in print.
+   */
+  pointer(point: { x: number; y: number } | null): void;
   /** Current state, or `null` until the deck is ready. */
   getState(): PlayerState | null;
   /** The logical canvas size, or `null` until the deck is ready. */
@@ -152,7 +161,7 @@ const CHROME = "#8B8FA0";
 const CHROME_BG = "rgba(0,0,0,.86)";
 const MONO = "'JetBrains Mono',ui-monospace,monospace";
 /** Keys that change the mode or open windows: from the iframe they need a real user gesture (see `activated`). */
-const GATED = new Set<KeyCode>(["KeyO", "KeyS", "KeyP", "Question"]);
+const GATED = new Set<KeyCode>(["KeyO", "KeyS", "KeyP", "Question", "KeyR", "KeyK"]);
 export const PRESENTER_WINDOW = "pptaken-presenter";
 
 function checkedHttpUrl(url: string, base: string, what: string): URL {
@@ -173,7 +182,7 @@ function nextFrame(win: Window): Promise<void> {
   return new Promise((resolve) => win.requestAnimationFrame(() => resolve()));
 }
 
-function helpRows(t: Labels, presenter: boolean): [string, string][] {
+function helpRows(t: Labels, presenter: boolean, remote: boolean): [string, string][] {
   const rows: [string, string][] = [
     ["→ Space PgDn Enter", t.helpNext],
     ["← Backspace PgUp", t.helpPrev],
@@ -183,6 +192,7 @@ function helpRows(t: Labels, presenter: boolean): [string, string][] {
     ["O", t.helpOverview],
   ];
   if (presenter) rows.push(["S", t.helpPresenter]);
+  if (remote) rows.push(["R", t.helpRemote], ["K", t.helpKick]);
   rows.push(["P", t.helpPrint], ["?", t.helpHelp], ["Esc", t.helpClose]);
   return rows;
 }
@@ -294,7 +304,11 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
     title.style.cssText = "margin-bottom:8px;letter-spacing:.08em;text-transform:uppercase";
     const table = doc.createElement("table");
     table.style.cssText = "border-collapse:collapse;font:inherit;color:inherit";
-    for (const [keys, what] of helpRows(labels, presenterUrl !== null)) {
+    for (const [keys, what] of helpRows(
+      labels,
+      presenterUrl !== null,
+      options.remoteKeys === true,
+    )) {
       const row = table.insertRow();
       const k = row.insertCell();
       k.textContent = keys;
@@ -305,6 +319,39 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
     helpStatus.style.cssText = "margin-top:12px";
     helpBox.append(title, table, helpStatus);
   }
+
+  // Laser: a trusted layer above the iframe (and above the black layer, which hides it explicitly).
+  const laser = doc.createElement("div");
+  laser.setAttribute("aria-hidden", "true");
+  laser.setAttribute("data-pptaken-laser", "");
+  laser.style.cssText =
+    "position:absolute;left:0;top:0;border-radius:50%;pointer-events:none;display:none;will-change:transform;" +
+    "background:#FF3B30;box-shadow:0 0 0 2px rgba(255,59,48,.35),0 0 12px 4px rgba(255,59,48,.55)";
+  let laserTimer: ReturnType<typeof setTimeout> | undefined;
+  const hideLaser = (): void => {
+    clearTimeout(laserTimer);
+    laserTimer = undefined;
+    laser.style.display = "none";
+  };
+  const showLaser = (point: { x: number; y: number } | null): void => {
+    if (point === null || !canvas || faulted || blackOn || mode !== "present" || printing) {
+      hideLaser();
+      return;
+    }
+    const g = laserGeometry(
+      { width: host.clientWidth, height: host.clientHeight },
+      canvas,
+      point.x,
+      point.y,
+    );
+    if (!g) return hideLaser();
+    laser.style.width = `${g.size}px`;
+    laser.style.height = `${g.size}px`;
+    laser.style.transform = `translate3d(${g.x - g.size / 2}px,${g.y - g.size / 2}px,0)`;
+    laser.style.display = "block";
+    clearTimeout(laserTimer);
+    laserTimer = setTimeout(hideLaser, LASER_TIMEOUT_MS);
+  };
 
   const send = (message: ShellMessage): void => {
     // The content has an opaque origin, so "*" is the only possible target; messages carry no secrets.
@@ -407,6 +454,7 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
     if (value === blackOn) return;
     blackOn = value;
     curtain.style.display = blackOn ? "block" : "none";
+    if (blackOn) hideLaser();
     if (dot) dot.style.visibility = blackOn ? "hidden" : "visible"; // a black screen is all black
     if (!remote) sync?.send({ v: PROTOCOL_VERSION, type: "black", on: blackOn });
     notify();
@@ -424,6 +472,7 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
   const setMode = (next: Mode): void => {
     if (next === mode) return;
     mode = next;
+    if (next !== "present") hideLaser();
     send({ v: PROTOCOL_VERSION, type: "mode", mode: next });
     if (next === "present") apply(position, true);
     else notify();
@@ -595,6 +644,8 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
         return;
       case "clock":
       case "clockReset":
+      case "remote":
+      case "kick":
         return;
     }
   };
@@ -720,6 +771,7 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
   if (hud) host.append(hud);
   if (helpBox) host.append(helpBox);
   if (dot) host.append(dot);
+  host.append(laser); // last: above every other layer (it hides itself under the black screen)
   renderOffline();
 
   // The content should report ready quickly. If it does not, tell the page once; nothing is blanked.
@@ -744,6 +796,7 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
     print,
     openPresenter,
     help: showHelp,
+    pointer: showLaser,
     getState: state,
     getCanvas: () => (canvas ? { ...canvas } : null),
     getOffline: () => ({ ...offline, failed: [...offline.failed] }),
@@ -767,6 +820,8 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
       iframe.removeEventListener("load", onLoad);
       clearTimeout(hudTimer);
       clearTimeout(loadTimer);
+      clearTimeout(laserTimer);
+      laser.remove();
       if (doc.fullscreenElement === host) void doc.exitFullscreen().catch(() => {});
       iframe.remove();
       curtain.remove();

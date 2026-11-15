@@ -23,6 +23,13 @@ export {
 } from "./csp.js";
 export { LABELS, type LabelKey, type Labels, type Locale, labelsFor, pickLocale } from "./i18n.js";
 export { type KeyCode, type KeyLike, keyCodeOf } from "./keys.js";
+export {
+  LASER_COORD_MAX,
+  LASER_SIZE,
+  LASER_TIMEOUT_MS,
+  type LaserGeometry,
+  laserGeometry,
+} from "./laser.js";
 export * as navigation from "./navigation.js";
 export {
   type DeckShape,

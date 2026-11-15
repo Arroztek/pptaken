@@ -17,6 +17,10 @@
       "types": "./dist/protocol.d.ts",
       "default": "./dist/protocol.js"
     },
+    "./laser": {
+      "types": "./dist/laser.d.ts",
+      "default": "./dist/laser.js"
+    },
     "./navigation": {
       "types": "./dist/navigation.d.ts",
       "default": "./dist/navigation.js"

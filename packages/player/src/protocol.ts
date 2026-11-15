@@ -78,6 +78,8 @@ const KEY_SET: Readonly<Record<KeyCode, true>> = {
   KeyS: true,
   KeyP: true,
   KeyT: true,
+  KeyR: true,
+  KeyK: true,
   ShiftKeyR: true,
   Escape: true,
   Question: true,

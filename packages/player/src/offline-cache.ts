@@ -30,6 +30,7 @@ export const SHELL_FILES = [
   "shell.js",
   "keys.js",
   "navigation.js",
+  "laser.js",
   "protocol.js",
   "messages.js",
   "i18n.js",

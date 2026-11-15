@@ -180,6 +180,9 @@ describe("keyCodeOf", () => {
       ["s", "KeyS"],
       ["p", "KeyP"],
       ["t", "KeyT"],
+      ["r", "KeyR"],
+      ["R", "KeyR"],
+      ["k", "KeyK"],
       ["Escape", "Escape"],
       ["?", "Question"],
     ];
@@ -192,7 +195,7 @@ describe("keyCodeOf", () => {
   });
 
   it("ignores other keys and modifiers", () => {
-    for (const k of ["a", "r", "R", "Tab", "F5", "Unidentified", "", "constructor", "oo", "ß"])
+    for (const k of ["a", "q", "Q", "Tab", "F5", "Unidentified", "", "constructor", "oo", "ß"])
       expect(keyCodeOf(key(k))).toBeNull();
     for (const k of ["O", "S", "P", "T", "B", "ArrowRight"])
       expect(keyCodeOf(key(k, { shiftKey: true }))).toBeNull();

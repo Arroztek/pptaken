@@ -27,6 +27,8 @@ export type KeyCode =
   | "KeyS"
   | "KeyP"
   | "KeyT"
+  | "KeyR"
+  | "KeyK"
   | "ShiftKeyR"
   | "Escape"
   | "Question";
@@ -80,4 +82,6 @@ const LETTERS = new Map<string, KeyCode>([
   ["s", "KeyS"],
   ["p", "KeyP"],
   ["t", "KeyT"],
+  ["r", "KeyR"],
+  ["k", "KeyK"],
 ]);

@@ -18,12 +18,16 @@ export type KeyAction =
   | "print"
   | "clock"
   | "clockReset"
+  | "remote"
+  | "kick"
   | "close"
   | "help";
 
 /**
  * What each key does in present mode. HID clickers send PageDown/PageUp, and `b` or `.` for a black screen.
- * `clock` and `clockReset` act in the presenter view only; the overview remaps arrows, Enter and Escape.
+ * `clock` and `clockReset` act in the presenter view only; `remote` (the phone pairing panel) and `kick`
+ * (disconnect every remote) are handled by the page through `onKey` (remote control, F4); the overview remaps
+ * arrows, Enter and Escape.
  */
 export const KEY_ACTIONS: Readonly<Record<KeyCode, KeyAction>> = {
   ArrowRight: "next",
@@ -46,6 +50,8 @@ export const KEY_ACTIONS: Readonly<Record<KeyCode, KeyAction>> = {
   KeyP: "print",
   KeyT: "clock",
   ShiftKeyR: "clockReset",
+  KeyR: "remote",
+  KeyK: "kick",
   Escape: "close",
   Question: "help",
 };

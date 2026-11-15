@@ -1,8 +1,8 @@
 {
-  "date": "2026-11-15T17:07:15.370Z",
+  "date": "2026-11-15T21:30:10.641Z",
   "origins": {
-    "shell": "http://localhost:20643",
-    "content": "http://127.0.0.1:20644"
+    "shell": "http://localhost:30329",
+    "content": "http://127.0.0.1:30330"
   },
   "engines": {
     "chromium": {
@@ -16,8 +16,8 @@
         {
           "label": "burst",
           "presses": 140,
-          "elapsedMs": 439,
-          "frames": 45,
+          "elapsedMs": 318,
+          "frames": 38,
           "p50": 16.7,
           "p95": 16.7,
           "max": 16.8
@@ -25,16 +25,16 @@
         {
           "label": "paced",
           "presses": 120,
-          "elapsedMs": 3532,
-          "frames": 231,
+          "elapsedMs": 3490,
+          "frames": 230,
           "p50": 16.7,
           "p95": 16.8,
           "max": 16.8
         }
       ],
       "overview200": {
-        "openToReadyMs": 117,
-        "firstTwoFramesMs": 23.6,
+        "openToReadyMs": 89,
+        "firstTwoFramesMs": 32.2,
         "scrollCold": {
           "height": 5964,
           "p50": 16.7,
@@ -44,10 +44,10 @@
         "scrollWarm": {
           "height": 5964,
           "p50": 16.7,
-          "p95": 16.8,
+          "p95": 16.7,
           "max": 16.8
         },
-        "thirtyArrowDownMs": 157
+        "thirtyArrowDownMs": 63
       },
       "pdf": {
         "pages": 20,
@@ -67,8 +67,8 @@
         {
           "label": "burst",
           "presses": 140,
-          "elapsedMs": 646,
-          "frames": 57,
+          "elapsedMs": 364,
+          "frames": 41,
           "p50": 16.66,
           "p95": 16.68,
           "max": 16.68
@@ -76,16 +76,16 @@
         {
           "label": "paced",
           "presses": 120,
-          "elapsedMs": 1915,
-          "frames": 134,
+          "elapsedMs": 1206,
+          "frames": 91,
           "p50": 16.66,
           "p95": 16.68,
           "max": 16.68
         }
       ],
       "overview200": {
-        "openToReadyMs": 318,
-        "firstTwoFramesMs": 23,
+        "openToReadyMs": 173,
+        "firstTwoFramesMs": 28,
         "scrollCold": {
           "height": 5964,
           "p50": 16.66,
@@ -98,7 +98,7 @@
           "p95": 16.68,
           "max": 16.68
         },
-        "thirtyArrowDownMs": 472
+        "thirtyArrowDownMs": 205
       }
     },
     "webkit": {
@@ -114,38 +114,38 @@
         {
           "label": "burst",
           "presses": 140,
-          "elapsedMs": 733,
-          "frames": 65,
+          "elapsedMs": 530,
+          "frames": 53,
           "p50": 16,
-          "p95": 28,
+          "p95": 18,
           "max": 30
         },
         {
           "label": "paced",
           "presses": 120,
-          "elapsedMs": 3208,
-          "frames": 222,
+          "elapsedMs": 3114,
+          "frames": 221,
           "p50": 15,
-          "p95": 18,
-          "max": 47
+          "p95": 17,
+          "max": 30
         }
       ],
       "overview200": {
-        "openToReadyMs": 225,
-        "firstTwoFramesMs": 53,
+        "openToReadyMs": 165,
+        "firstTwoFramesMs": 19,
         "scrollCold": {
           "height": 5964,
-          "p50": 20,
-          "p95": 30,
-          "max": 32
+          "p50": 16,
+          "p95": 17,
+          "max": 30
         },
         "scrollWarm": {
           "height": 5964,
-          "p50": 20,
-          "p95": 30,
-          "max": 39
+          "p50": 16,
+          "p95": 29,
+          "max": 32
         },
-        "thirtyArrowDownMs": 436
+        "thirtyArrowDownMs": 244
       }
     }
   }
