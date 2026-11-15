@@ -144,6 +144,17 @@ const deckSummary = object({
   createdBy: oneOf(["owner", "agent"] as const),
 });
 const deckPage = object({ decks: arrayOf(deckSummary), nextCursor: nullable(str) });
+const importWarning = object({
+  code: str,
+  message: str,
+  path: optionalNull(str),
+  slideId: optionalNull(str),
+});
+const importResult = object({
+  deck: object({ id: str, title: str }),
+  assetCount: count,
+  warnings: arrayOf(importWarning),
+});
 
 export type SetupStatus = Infer<typeof setupStatus>;
 export type Token = Infer<typeof token>;
@@ -152,6 +163,26 @@ export type CreatedToken = Infer<typeof createdToken>;
 export type ConnectStatus = Infer<typeof connectStatus>;
 export type DeckSummary = Infer<typeof deckSummary>;
 export type DeckPage = Infer<typeof deckPage>;
+export type ImportResult = Infer<typeof importResult>;
+export type ImportWarning = Infer<typeof importWarning>;
+export type ExportFormat = "html" | "pptaken";
+
+/** Largest archive the server accepts by default (PPTAKEN_MAX_IMPORT_MB). */
+export const MAX_IMPORT_MB = 100;
+
+/**
+ * Same-origin URL of an export download, used as a plain `<a href download>` (the session cookie goes along).
+ * HTML leaves the speaker notes out unless asked; the .pptaken archive keeps them.
+ */
+export function exportUrl(
+  id: string,
+  format: ExportFormat,
+  notes: boolean,
+  base = "/api/v1",
+): string {
+  const query = new URLSearchParams({ format, notes: notes ? "1" : "0" });
+  return `${base}/decks/${encodeURIComponent(id)}/export?${query.toString()}`;
+}
 export type Session = "signed-in" | "signed-out" | "setup-required";
 
 // ------------------------------------------------------------------ client
@@ -170,6 +201,8 @@ export interface ApiClient {
   revokeToken(id: string): Promise<void>;
   connectStatus(): Promise<ConnectStatus>;
   listDecks(params?: { cursor?: string | null; q?: string }): Promise<DeckPage>;
+  /** Uploads a .pptaken archive as the raw body (application/zip); the server creates a new presentation. */
+  importDeck(file: Blob): Promise<ImportResult>;
 }
 
 export function createApi(
@@ -181,9 +214,11 @@ export function createApi(
     path: string,
     guard: Guard<T> | null,
     body?: unknown,
+    raw?: { body: Blob; type: string },
   ): Promise<T> {
     const headers: Record<string, string> = { Accept: "application/json" };
-    if (body !== undefined) headers["Content-Type"] = "application/json";
+    if (raw !== undefined) headers["Content-Type"] = raw.type;
+    else if (body !== undefined) headers["Content-Type"] = "application/json";
     // CSRF: every state-changing request carries the header; the browser adds Origin.
     if (method !== "GET") headers["X-PPTaken-CSRF"] = "1";
     let response: Response;
@@ -193,7 +228,7 @@ export function createApi(
         headers,
         credentials: "same-origin",
         cache: "no-store",
-        body: body === undefined ? null : JSON.stringify(body),
+        body: raw !== undefined ? raw.body : body === undefined ? null : JSON.stringify(body),
       });
     } catch (cause) {
       throw new ApiError("NETWORK", 0, cause instanceof Error ? cause.message : "Network error");
@@ -258,6 +293,11 @@ export function createApi(
       const qs = query.toString();
       return request("GET", `/decks${qs ? `?${qs}` : ""}`, deckPage);
     },
+    importDeck: (file) =>
+      request("POST", "/decks/import", importResult, undefined, {
+        body: file,
+        type: "application/zip",
+      }),
   };
 }
 

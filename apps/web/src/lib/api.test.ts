@@ -204,3 +204,50 @@ describe("parseRetryAfter", () => {
     expect(parseRetryAfter("soon")).toBeNull();
   });
 });
+
+describe("export and import", () => {
+  it("builds same-origin export URLs", async () => {
+    const { exportUrl } = await import("./api");
+    expect(exportUrl("01J/x", "html", false)).toBe(
+      "/api/v1/decks/01J%2Fx/export?format=html&notes=0",
+    );
+    expect(exportUrl("abc", "pptaken", true)).toBe(
+      "/api/v1/decks/abc/export?format=pptaken&notes=1",
+    );
+  });
+
+  it("uploads the archive as a raw application/zip body with the CSRF header", async () => {
+    const { calls, api } = fakeFetch(201, {
+      deck: { id: "d1", title: "Imported", lang: "en", slideCount: 2, revision: 1 },
+      assetCount: 1,
+      warnings: [{ code: "UNUSED_ASSET", message: "not used" }],
+    });
+    const file = new Blob([new Uint8Array([0x50, 0x4b, 3, 4])]);
+    const result = await api.importDeck(file);
+    expect(result).toEqual({
+      deck: { id: "d1", title: "Imported" },
+      assetCount: 1,
+      warnings: [{ code: "UNUSED_ASSET", message: "not used", path: null, slideId: null }],
+    });
+    const call = calls[0];
+    expect(call?.url).toBe("/api/v1/decks/import");
+    expect(call?.init.method).toBe("POST");
+    expect(call?.init.body).toBe(file);
+    const headers = call?.init.headers as Record<string, string>;
+    expect(headers["Content-Type"]).toBe("application/zip");
+    expect(headers["X-PPTaken-CSRF"]).toBe("1");
+  });
+
+  it("surfaces the server's validation message for a refused archive", async () => {
+    const { api } = fakeFetch(400, {
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "Not a valid .pptaken archive: manifest.json is missing",
+      },
+    });
+    await expect(api.importDeck(new Blob(["x"]))).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: "Not a valid .pptaken archive: manifest.json is missing",
+    });
+  });
+});

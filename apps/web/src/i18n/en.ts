@@ -95,6 +95,29 @@ export const webEn = {
     examplePrompt:
       "Create a 5-slide presentation about the history of the printing press. Use PPTaken.",
   },
+  transfer: {
+    exportFor: "Export {title}",
+    exportTitle: "Export “{title}”",
+    htmlTitle: "Single HTML file",
+    htmlText:
+      "One file that opens in any browser with a double click. No server or internet needed.",
+    includeNotes: "Include speaker notes",
+    includeNotesHint: "Anyone who gets the file can read them.",
+    downloadHtml: "Download HTML",
+    archiveTitle: "PPTaken archive",
+    archiveText:
+      "A .pptaken file with the slides, images and speaker notes. Import it into any PPTaken to move or back up this presentation.",
+    downloadArchive: "Download .pptaken",
+    import: "Import",
+    importing: "Importing {name}…",
+    importedTitle: "Imported “{title}”.",
+    importedClean: "Everything came across as it was.",
+    importedAdjusted: "{n} things were adjusted on the way in:",
+    importedAdjustedOne: "1 thing was adjusted on the way in:",
+    importFailed: "Could not import {name}.",
+    wrongType: "Choose a .pptaken file exported from PPTaken.",
+    tooLarge: "This file is larger than {n} MB.",
+  },
   tokens: {
     title: "Agent tokens",
     subtitle: "Each agent signs in with its own token. Revoke one and that agent stops at once.",

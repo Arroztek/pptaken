@@ -78,6 +78,9 @@ export function createState(options = {}) {
     csp: options.csp ?? STRICT_CSP,
     /** Every API request, for assertions (method, path, csrf header, origin). */
     log: [],
+    /** Export downloads ({ id, format, notes }) and import body sizes. */
+    exports: [],
+    imports: [],
   };
 }
 
@@ -282,6 +285,72 @@ async function handleApi(state, req, res, url) {
     const page = list.slice(start, start + state.pageSize);
     const next = start + state.pageSize < list.length ? String(start + state.pageSize) : null;
     return send(res, 200, { decks: page, nextCursor: next });
+  }
+
+  // Export: a small stand-in file per format, with the real server's download headers.
+  const exp = path.match(/^\/decks\/([^/]+)\/export$/);
+  if (method === "GET" && exp) {
+    const deck = state.decks.find((d) => d.id === decodeURIComponent(exp[1]));
+    if (!deck) return fail(res, 404, "NOT_FOUND", "Presentation not found");
+    const format = url.searchParams.get("format");
+    const notes = url.searchParams.get("notes");
+    if (format !== "html" && format !== "pptaken") {
+      return fail(res, 400, "VALIDATION_ERROR", "format must be html or pptaken");
+    }
+    state.exports.push({ id: deck.id, format, notes });
+    const name = `${deck.id}.${format}`;
+    const body =
+      format === "html"
+        ? `<!doctype html><title>${deck.id}</title><p>notes=${notes}</p>`
+        : "PK\u0005\u0006mock";
+    res.writeHead(200, {
+      "Content-Type": format === "html" ? "text/html; charset=utf-8" : "application/zip",
+      "Content-Disposition": `attachment; filename="${name}"; filename*=UTF-8''${name}`,
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+    });
+    return res.end(body);
+  }
+
+  // Import: a body containing BROKEN is refused like a damaged archive; WARN adds a warning.
+  if (method === "POST" && path === "/decks/import") {
+    if ((req.headers["content-type"] ?? "").split(";")[0] !== "application/zip") {
+      return fail(res, 400, "VALIDATION_ERROR", "The request body must be a .pptaken archive");
+    }
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    const text = Buffer.concat(chunks).toString("latin1");
+    state.imports.push(text.length);
+    if (text.includes("BROKEN")) {
+      return fail(
+        res,
+        400,
+        "VALIDATION_ERROR",
+        "Not a valid .pptaken archive: manifest.json is missing",
+        {
+          hint: "Export the presentation again from PPTaken and import the unmodified file.",
+        },
+      );
+    }
+    const deck = {
+      id: `deck_imp_${state.imports.length}`,
+      title: `Imported deck ${state.imports.length}`,
+      lang: "en",
+      slideCount: 3,
+      revision: 1,
+      updatedAt: new Date().toISOString(),
+      createdBy: "owner",
+    };
+    state.decks.unshift(deck);
+    const warnings = text.includes("WARN")
+      ? [
+          {
+            code: "UNUSED_ASSET",
+            message: "asset:0123456789abcdef… is not used by any slide; it was not imported",
+          },
+        ]
+      : [];
+    return send(res, 201, { deck, assetCount: 0, warnings });
   }
 
   const one = path.match(/^\/decks\/([^/]+)$/);

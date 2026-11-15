@@ -98,6 +98,29 @@ export const webEs: WebDictionary = {
     examplePrompt:
       "Crea una presentación de 5 slides sobre la historia de la imprenta. Usa PPTaken.",
   },
+  transfer: {
+    exportFor: "Exportar {title}",
+    exportTitle: "Exportar “{title}”",
+    htmlTitle: "Archivo HTML único",
+    htmlText:
+      "Un solo archivo que se abre en cualquier navegador con doble clic. Sin servidor ni internet.",
+    includeNotes: "Incluir notas del orador",
+    includeNotesHint: "Quien reciba el archivo podrá leerlas.",
+    downloadHtml: "Descargar HTML",
+    archiveTitle: "Archivo de PPTaken",
+    archiveText:
+      "Un archivo .pptaken con las slides, las imágenes y las notas del orador. Impórtalo en cualquier PPTaken para mover esta presentación o guardar una copia.",
+    downloadArchive: "Descargar .pptaken",
+    import: "Importar",
+    importing: "Importando {name}…",
+    importedTitle: "“{title}” importada.",
+    importedClean: "Todo llegó tal como estaba.",
+    importedAdjusted: "Se ajustaron {n} cosas al importar:",
+    importedAdjustedOne: "Se ajustó 1 cosa al importar:",
+    importFailed: "No se pudo importar {name}.",
+    wrongType: "Elige un archivo .pptaken exportado desde PPTaken.",
+    tooLarge: "Este archivo pesa más de {n} MB.",
+  },
   tokens: {
     title: "Tokens del agente",
     subtitle:

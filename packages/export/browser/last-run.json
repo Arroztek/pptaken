@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-15T15:40:32.630Z",
+  "sizes": {
+    "talk": 450834,
+    "talkWithNotes": 453456,
+    "charla": 356133,
+    "embeddedFonts": [
+      "Bricolage Grotesque",
+      "Inter",
+      "JetBrains Mono"
+    ]
+  },
+  "engines": {
+    "chromium": {
+      "passed": 283,
+      "failed": 0,
+      "failures": [],
+      "notes": [
+        "full screen with f: entered",
+        "meta refresh in the frame: no request; fault detected"
+      ],
+      "requests": [],
+      "fonts": [
+        "Bricolage Grotesque",
+        "Inter",
+        "JetBrains Mono"
+      ]
+    },
+    "firefox": {
+      "passed": 283,
+      "failed": 0,
+      "failures": [],
+      "notes": [
+        "file: navigation not reported as a request event by Playwright",
+        "full screen with f: entered",
+        "meta refresh in the frame: no request; no fault"
+      ],
+      "requests": [],
+      "fonts": [
+        "Bricolage Grotesque",
+        "Inter",
+        "JetBrains Mono"
+      ]
+    },
+    "webkit": {
+      "passed": 283,
+      "failed": 0,
+      "failures": [],
+      "notes": [
+        "full screen with f: entered",
+        "document.cookie returns \"\" in the sandboxed frame (no throw)",
+        "meta refresh in the frame: no request; fault detected"
+      ],
+      "requests": [],
+      "fonts": [
+        "Bricolage Grotesque",
+        "Inter",
+        "JetBrains Mono"
+      ]
+    }
+  }
+}

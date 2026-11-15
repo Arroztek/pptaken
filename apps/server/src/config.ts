@@ -40,6 +40,8 @@ export interface ServerConfig {
   secretKeyFile: string | undefined;
   maxApiBodyBytes: number;
   maxMcpBodyBytes: number;
+  /** Largest `.pptaken` archive accepted by `POST /api/v1/decks/import` (PPTAKEN_MAX_IMPORT_MB, default 100). */
+  maxImportBytes: number;
   logLevel: "debug" | "info" | "warn" | "error";
 }
 
@@ -140,6 +142,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
       int("PPTAKEN_MAX_API_BODY_KB", env.PPTAKEN_MAX_API_BODY_KB, 64, 1, 1024) * 1024,
     maxMcpBodyBytes:
       int("PPTAKEN_MAX_MCP_BODY_MB", env.PPTAKEN_MAX_MCP_BODY_MB, 4, 1, 32) * 1024 * 1024,
+    maxImportBytes:
+      int("PPTAKEN_MAX_IMPORT_MB", env.PPTAKEN_MAX_IMPORT_MB, 100, 1, 1024) * 1024 * 1024,
     logLevel: logLevel as ServerConfig["logLevel"],
   };
 }

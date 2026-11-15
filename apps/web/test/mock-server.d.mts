@@ -62,6 +62,8 @@ export interface MockState {
   loginAttempts: number[];
   csp: string;
   log: MockLogEntry[];
+  exports: { id: string; format: string; notes: string | null }[];
+  imports: number[];
 }
 
 export interface MockServer {

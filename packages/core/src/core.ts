@@ -24,6 +24,14 @@ import {
   runRead,
 } from "./usecases/context.js";
 import {
+  type ExportPresentationInput,
+  type ExportPresentationResult,
+  exportPresentation,
+  type ImportPresentationInput,
+  type ImportPresentationResult,
+  importPresentation,
+} from "./usecases/portability.js";
+import {
   type CreatePresentationInput,
   type CreatePresentationResult,
   createPresentation,
@@ -172,6 +180,19 @@ export interface Core {
     call?: CallContext,
   ): Promise<{ scanned: number; deleted: string[] }>;
 
+  /** Owner only (`decks:read`). The deck of a revision and its referenced assets' bytes. Audited. */
+  exportPresentation(
+    p: Principal,
+    input: ExportPresentationInput,
+    call?: CallContext,
+  ): Promise<ExportPresentationResult>;
+  /** Owner only (`decks:write`). Creates a new presentation from an exported deck and assets. */
+  importPresentation(
+    p: Principal,
+    input: ImportPresentationInput,
+    call?: CallContext,
+  ): Promise<ImportPresentationResult>;
+
   /** Owner only. Newest first. */
   listAuditLog(
     p: Principal,
@@ -207,6 +228,8 @@ export function createCore(deps: CoreDeps): Core {
     getAsset: (p, i, c) => getAsset(ctx, p, i, c),
     listAssets: (p, i, c) => listAssets(ctx, p, i, c),
     collectOrphanBlobs: (p, i, c) => collectOrphanBlobs(ctx, p, i, c),
+    exportPresentation: (p, i, c) => exportPresentation(ctx, p, i, c),
+    importPresentation: (p, i, c) => importPresentation(ctx, p, i, c),
     listAuditLog: (p, i, c) =>
       runRead(c, async () => {
         requireOwner(p, "read the audit log");

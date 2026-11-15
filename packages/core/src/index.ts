@@ -90,6 +90,15 @@ export type {
   AssetInfo,
 } from "./usecases/assets.js";
 export type { RevisionWriteResult } from "./usecases/commit.js";
+export type {
+  ExportedAsset,
+  ExportPresentationInput,
+  ExportPresentationResult,
+  ImportAssetInput,
+  ImportPresentationInput,
+  ImportPresentationResult,
+  PortabilityWarning,
+} from "./usecases/portability.js";
 export {
   type CreatePresentationInput,
   type CreatePresentationResult,

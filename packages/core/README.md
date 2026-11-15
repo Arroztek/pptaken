@@ -74,6 +74,8 @@ nested transaction, and do no slow I/O (blob writes happen before the transactio
 | `getAsset` / `listAssets` | `decks:read` | content route, panel | `getAsset` with `presentationId` only serves that deck's assets |
 | `collectOrphanBlobs` | owner or system | job | Instance-wide; deletes blobs no asset row references, older than `graceMs` (1 h); `dryRun` |
 | `listAuditLog` | **owner** | panel | Newest first, cursor, `target` filter |
+| `exportPresentation` | `decks:read` + **owner** | panel download | The deck of a revision (notes only with `includeNotes: true`) and the bytes of the assets it references; audited. Data only: the server makes the HTML file or the `.pptaken` archive (`@pptaken/export`) |
+| `importPresentation` | `decks:write` + **owner** | panel upload | Creates a **new** presentation from `{ deck, assets }`: `parseDeck`, re-sanitize, re-validate; each asset checked like `addAsset` (signature, declared type, SHA-256, limits); only referenced assets are kept (`UNUSED_ASSET` warning for the others, `UNKNOWN_ASSET_REF` for references without a file); one transaction; audited |
 
 All writes (successful or not) are audited: successes inside their transaction (best effort: an audit failure
 never fails the write), failures afterwards with `result: "denied"` (scope/actor errors) or `"error"`.
@@ -143,4 +145,5 @@ byte-level image fixtures (including polyglots and truncated files).
 | Title search | ASCII case-insensitive substring (the portable guarantee of SQLite `LIKE`; Postgres would use `ILIKE`). |
 | Open: cross-slide id/`@keyframes` collisions | Not handled here (sanitizer README open question); the core only calls `sanitizeDeck`. |
 | Open: audit retention | The audit log grows without bound; a retention job belongs to a later phase. |
+| Export/import actor | Owner only in v1 (human-only action, security §3.3): an export can carry notes out of the instance and an import writes a whole deck; agents get `FORBIDDEN_ACTOR`. `includeNotes` defaults to `false` in the core; the `.pptaken` route opts in. Import re-implements `addAsset`'s checks with the same helpers (`sniffImage`, `normalizeMediaType`) so that all rows go in one transaction instead of N `addAsset` calls. |
 | Open: quiz, share links, live sessions | Later phases add their own ports, tables and use cases; `include: ["quiz"]` is not supported yet. |
