@@ -24,6 +24,22 @@
     "./builder": {
       "types": "./dist/builder.d.ts",
       "default": "./dist/builder.js"
+    },
+    "./presenter": {
+      "types": "./dist/presenter.d.ts",
+      "default": "./dist/presenter.js"
+    },
+    "./sync": {
+      "types": "./dist/sync.d.ts",
+      "default": "./dist/sync.js"
+    },
+    "./pace": {
+      "types": "./dist/pace.d.ts",
+      "default": "./dist/pace.js"
+    },
+    "./notes": {
+      "types": "./dist/notes.d.ts",
+      "default": "./dist/notes.js"
     }
   },
   "files": [

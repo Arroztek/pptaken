@@ -10,10 +10,20 @@
 //   e. scaling: 16:9 and 4:3 at several viewport sizes keep the aspect ratio, centered on black
 //   f. frame times while pressing next/prev quickly (asserted in Chromium only)
 //   g. security: raw hostile content injected after the builder cannot reach the parent, cookies or the network;
-//      a content-initiated navigation is detected as a fault
+//      a content-initiated navigation is detected as a fault; content cannot select, change the mode, print, open
+//      help or open windows by itself
+//   h. overview (o): keyboard and mouse, highlight, sections, all steps shown, select validated
+//   i. overview performance with 200 slides (measured; asserted loosely in Chromium)
+//   j. key help overlay (?)
+//   k. print (p): layout in every engine; in Chromium a real PDF via page.pdf, page count and page text checked
+//   l. presenter window (s): sync both ways over BroadcastChannel, previews, notes only there, black, clock, pace
+//   m. pace with the Playwright clock (behind after 20 fake minutes)
 // Results go to browser/last-run.json.
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { chromium, firefox, webkit } from "@playwright/test";
 import { sanitizeDeck } from "@pptaken/sanitizer";
 import { parseDeck } from "@pptaken/schema";
@@ -100,6 +110,17 @@ const PROBE = (o) => `(() => {
     const x = new XMLHttpRequest(); x.onload = ok; x.onerror = () => ko(new Error("xhr")); x.open("GET", "/api/xhr"); x.send();
   })]).then((all) => {
     r.network = all.map((a) => a.status);
+    // Try to drive the shell without a user gesture: select a slide, change the mode, open the presenter
+    // window, print, show help. All of it must be ignored.
+    for (const m of [
+      { v: 1, type: "select", slide: 2 },
+      { v: 1, type: "mode", mode: "print" },
+      { v: 1, type: "mode", mode: "overview" },
+      { v: 1, type: "key", code: "KeyO" },
+      { v: 1, type: "key", code: "KeyS" },
+      { v: 1, type: "key", code: "KeyP" },
+      { v: 1, type: "key", code: "Question" },
+    ]) parent.postMessage(m, "*");
     parent.postMessage({ probe: r }, "*");
   });
 })();`;
@@ -120,8 +141,27 @@ const hostileNav = {
     ),
 };
 
+// 200 slides (the schema maximum) with text, a list, an SVG and a step each, in 10 sections: overview performance.
+const big = clean(
+  parseDeck({
+    schemaVersion: 1,
+    title: "Big",
+    slides: Array.from({ length: 200 }, (_, i) => ({
+      id: `s${i}`,
+      title: `Slide ${i + 1}`,
+      section: `Part ${Math.floor(i / 20) + 1}`,
+      html:
+        `<h1 style="font:700 96px sans-serif;margin:80px">Slide ${i + 1}</h1>` +
+        `<ul style="font:48px sans-serif;margin:0 80px">${"<li>A point worth making</li>".repeat(4)}</ul>` +
+        `<p data-step="1" style="font:48px sans-serif;margin:40px 80px">Revealed later</p>` +
+        `<svg width="400" height="300" viewBox="0 0 4 3" style="position:absolute;right:80px;bottom:80px"><rect width="4" height="3" fill="hsl(${(i * 37) % 360} 60% 50%)"/></svg>`,
+    })),
+  }).deck,
+);
+
 const DECKS = new Map([
   ["talk", { deck: talk }],
+  ["big", { deck: big }],
   ["charla", { deck: charla }],
   ["hello", { deck: hello }],
   ["steps", { deck: steps }],
@@ -673,6 +713,20 @@ for (const [name, type] of [
       apiResponses.join(" | "),
     );
     check("shell still works next to hostile content", (await state())?.slideCount === 3);
+    const after = await state();
+    const shellSide = await page.evaluate(() => ({
+      printing: document.getElementById("host").hasAttribute("data-pptaken-printing"),
+      help: !document.querySelector("#host [role=dialog]").hidden,
+    }));
+    check(
+      "content cannot select, change the mode, print, open help or open windows by itself",
+      after.mode === "present" &&
+        after.slide === 0 &&
+        !shellSide.printing &&
+        !shellSide.help &&
+        context.pages().length === 1,
+      JSON.stringify({ after, shellSide, pages: context.pages().length }),
+    );
     check(
       "no fault for a document that stays put",
       t.faults.length === 0,
@@ -705,9 +759,534 @@ for (const [name, type] of [
     check("control: the server records content-initiated requests", nav2.length >= 1);
   });
 
+  // h. Overview: keyboard and mouse, highlight, sections, steps fully revealed, and the select message.
+  await section("overview", async () => {
+    await open("talk", "#/5/1");
+    await waitState(4, 1);
+    const ov = () =>
+      frame().evaluate(() => {
+        const sections = [...document.querySelectorAll("#pptaken-stage > section")];
+        const steps = [...document.querySelectorAll("#pptaken-stage [data-step]")];
+        const mark = document.getElementById("pptaken-mark")?.getBoundingClientRect();
+        return {
+          mode: document.documentElement.getAttribute("data-pptaken-mode"),
+          shown: sections.filter((s) => getComputedStyle(s).display !== "none").length,
+          stepsVisible: steps.filter((e) => getComputedStyle(e).visibility === "visible").length,
+          steps: steps.length,
+          labels: [...document.querySelectorAll("#pptaken-overlay > .pptaken-sec")].map(
+            (e) => e.textContent,
+          ),
+          rects: sections.map((s) => {
+            const r = s.getBoundingClientRect();
+            return [r.x, r.y, r.width, r.height];
+          }),
+          mark: mark ? [mark.x, mark.y, mark.width, mark.height] : null,
+        };
+      });
+    const inMark = (v, i) => {
+      const [x, y, w, h] = v.rects[i];
+      const [mx, my, mw, mh] = v.mark ?? [0, 0, 0, 0];
+      return mx <= x && my <= y && mx + mw >= x + w - 0.5 && my + mh >= y + h - 0.5;
+    };
+    await focusParent();
+    await page.keyboard.press("o");
+    await page.waitForFunction(() => window.__player.getState().mode === "overview");
+    await frame().waitForFunction(
+      () => document.documentElement.getAttribute("data-pptaken-mode") === "overview",
+    );
+    let v = await ov();
+    check("o opens the overview with every slide", v.shown === 20, JSON.stringify(v.shown));
+    check(
+      "the overview shows every step (fully revealed by design)",
+      v.stepsVisible === v.steps && v.steps > 0,
+      `${v.stepsVisible}/${v.steps}`,
+    );
+    check(
+      "the overview groups by section",
+      JSON.stringify(v.labels) === JSON.stringify([...new Set(talk.slides.map((s) => s.section))]),
+      JSON.stringify(v.labels),
+    );
+    const [, , w0, h0] = v.rects[0];
+    check(
+      "thumbnails keep the canvas aspect ratio and fit 5 columns",
+      Math.abs(w0 / h0 - 16 / 9) < 0.01 && w0 * 5 < 1280,
+      JSON.stringify(v.rects[0]),
+    );
+    check("the current slide is highlighted", inMark(v, 4), JSON.stringify([v.mark, v.rects[4]]));
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("ArrowDown");
+    await page.waitForFunction(() => window.__player.getState().highlight === 10);
+    // The content applies the goto asynchronously: poll until the ring is on slide 11.
+    for (let i = 0; i < 40; i++) {
+      v = await ov();
+      if (inMark(v, 10)) break;
+      await page.waitForTimeout(50);
+    }
+    check(
+      "arrows move the highlight (right, down a row of 5)",
+      inMark(v, 10),
+      JSON.stringify([v.mark, v.rects[10]]),
+    );
+    check("the position does not change while browsing", (await state()).slide === 4);
+    await page.keyboard.press("Enter");
+    await waitState(10, 0);
+    check("Enter goes to the highlighted slide", (await state()).mode === "present");
+    check("the content is back in present mode", (await ov()).shown === 1);
+
+    // Escape and o close without moving; iframe focus works too (keys forwarded with a user gesture).
+    await page.keyboard.press("o");
+    await page.waitForFunction(() => window.__player.getState().mode === "overview");
+    await page.keyboard.press("ArrowLeft");
+    await page.keyboard.press("Escape");
+    await waitState(10, 0);
+    check("Escape closes the overview where it was", (await state()).mode === "present");
+    await focusIframe();
+    await page.keyboard.press("o");
+    const fromFrame = await page
+      .waitForFunction(() => window.__player.getState().mode === "overview", null, {
+        timeout: 3000,
+      })
+      .then(
+        () => true,
+        () => false,
+      );
+    check("o from inside the iframe opens the overview", fromFrame);
+    if (fromFrame) {
+      await page.keyboard.press("o");
+      await page.waitForFunction(() => window.__player.getState().mode === "present");
+      check("o closes it again", true);
+    }
+
+    // Mouse: click a thumbnail.
+    await page.evaluate(() => window.__player.overview(true));
+    await frame().waitForFunction(
+      () => document.documentElement.getAttribute("data-pptaken-mode") === "overview",
+    );
+    v = await ov();
+    const [x, y, w, h] = v.rects[13];
+    await page.mouse.click(x + w / 2, y + h / 2);
+    await waitState(13, 0);
+    check("clicking a thumbnail goes to it", (await state()).mode === "present");
+
+    // The select message: validated, and only honoured while the overview is open.
+    const post = (m) => frame().evaluate((msg) => parent.postMessage(msg, "*"), m);
+    await post({ v: 1, type: "select", slide: 4 });
+    await page.waitForTimeout(200);
+    check("select is ignored outside the overview", (await state()).slide === 13);
+    await page.evaluate(() => window.__player.overview(true));
+    await page.waitForFunction(() => window.__player.getState().mode === "overview");
+    for (const m of [
+      { v: 1, type: "select", slide: 99 },
+      { v: 1, type: "select", slide: "4" },
+      { v: 1, type: "select", slide: 4, step: 1 },
+      { v: 2, type: "select", slide: 4 },
+      { v: 1, type: "mode", mode: "present" },
+    ])
+      await post(m);
+    await page.waitForTimeout(200);
+    const s = await state();
+    check(
+      "invalid select messages are dropped",
+      s.mode === "overview" && s.slide === 13,
+      JSON.stringify(s),
+    );
+    await post({ v: 1, type: "key", code: "KeyP" });
+    await page.waitForTimeout(200);
+    check(
+      "a forged print key (no user gesture) is ignored",
+      !(await page.evaluate(() =>
+        document.getElementById("host").hasAttribute("data-pptaken-printing"),
+      )),
+    );
+    await post({ v: 1, type: "select", slide: 4 });
+    await waitState(4, 0);
+    check("a valid select in the overview is honoured", (await state()).mode === "present");
+  });
+
+  // i. Overview performance with 200 slides (no virtualization; content-visibility: auto).
+  await section("overview-200", async () => {
+    await open("big");
+    const tOpen = Date.now();
+    await page.evaluate(() => window.__player.overview(true));
+    await frame().waitForFunction(
+      () =>
+        document.documentElement.getAttribute("data-pptaken-mode") === "overview" &&
+        document.querySelectorAll("#pptaken-overlay > .pptaken-cap").length === 200,
+    );
+    // Time to the first two frames painted in overview, measured inside the content.
+    const firstFrames = await frame().evaluate(
+      () =>
+        new Promise((resolve) => {
+          const t0 = performance.now();
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve(performance.now() - t0)));
+        }),
+    );
+    const openMs = Date.now() - tOpen;
+    // Scroll the grid through the whole deck and record frame intervals: a first (cold) pass renders every
+    // thumbnail for the first time; the second (warm) pass is what browsing feels like afterwards.
+    const measureScroll = () =>
+      frame().evaluate(
+        () =>
+          new Promise((resolve) => {
+            const stage = document.getElementById("pptaken-stage");
+            const max = stage.scrollHeight - stage.clientHeight;
+            const times = [];
+            let n = 0;
+            const step = (t) => {
+              times.push(t);
+              stage.scrollTop = (max * n) / 90;
+              n += 1;
+              if (n <= 90) requestAnimationFrame(step);
+              else {
+                const d = times
+                  .slice(1)
+                  .map((x, i) => x - times[i])
+                  .sort((a, b) => a - b);
+                resolve({
+                  height: stage.scrollHeight,
+                  p50: d[Math.floor(d.length * 0.5)],
+                  p95: d[Math.floor(d.length * 0.95)],
+                  max: d[d.length - 1],
+                });
+              }
+            };
+            requestAnimationFrame(step);
+          }),
+      );
+    const r2 = (x) => ({ ...x, p50: round(x.p50), p95: round(x.p95), max: round(x.max) });
+    const cold = r2(await measureScroll());
+    const scroll = r2(await measureScroll());
+    // Keyboard through the grid.
+    await focusParent();
+    const t1 = Date.now();
+    for (let i = 0; i < 30; i++) await page.keyboard.press("ArrowDown");
+    await page.waitForFunction(() => window.__player.getState().highlight === 180);
+    const keysMs = Date.now() - t1;
+    const visibleMark = await frame().evaluate(() => {
+      const r = document.getElementById("pptaken-mark").getBoundingClientRect();
+      return r.top >= -1 && r.bottom <= innerHeight + 1;
+    });
+    check("the highlight scrolls into view (slide 181 of 200)", visibleMark);
+    engine.overview200 = {
+      openToReadyMs: openMs,
+      firstTwoFramesMs: round(firstFrames),
+      scrollCold: cold,
+      scrollWarm: scroll,
+      thirtyArrowDownMs: keysMs,
+    };
+    if (name === "chromium") {
+      check(`200 slides: overview ready in < 2 s (${openMs} ms)`, openMs < 2000);
+      check(`200 slides: warm scroll frame p95 < 50 ms (${scroll.p95} ms)`, scroll.p95 < 50);
+    }
+    await page.keyboard.press("Enter");
+    await waitState(180, 0);
+    check("200 slides: Enter goes to slide 181", true);
+  });
+
+  // j. Key help overlay.
+  await section("help", async () => {
+    await open("hello");
+    await focusParent();
+    const help = () =>
+      page.evaluate(() => {
+        const d = document.querySelector("#host [role=dialog]");
+        return {
+          hidden: d.hidden,
+          opacity: getComputedStyle(d).opacity,
+          color: getComputedStyle(d).color,
+          text: d.textContent,
+        };
+      });
+    check("no help by default (no persistent chrome)", (await help()).hidden);
+    await page.keyboard.press("?");
+    await page.waitForFunction(
+      () => getComputedStyle(document.querySelector("#host [role=dialog]")).opacity === "1",
+    );
+    const shown = await help();
+    check(
+      "? shows the key help in neutral gray",
+      !shown.hidden &&
+        shown.color === "rgb(139, 143, 160)" &&
+        ["Overview", "Presenter view", "Print / PDF", "Black screen"].every((k) =>
+          shown.text.includes(k),
+        ),
+      JSON.stringify(shown),
+    );
+    await page.keyboard.press("ArrowRight");
+    await waitState(1, 0);
+    check("keys still work with the help open", true);
+    await page.keyboard.press("Escape");
+    await page.waitForFunction(() => document.querySelector("#host [role=dialog]").hidden, null, {
+      timeout: 2000,
+    });
+    check("Escape closes the help", true);
+  });
+
+  // k. Print: every step, one page per slide. Chromium: a real PDF (page.pdf) with the page count checked.
+  await section("print", async () => {
+    await open("talk", "#/6/1");
+    await waitState(5, 1);
+    await page.evaluate(() => {
+      window.__printed = 0;
+      window.print = () => {
+        window.__printed += 1;
+      };
+    });
+    await focusParent();
+    await page.keyboard.press("p");
+    await page.waitForFunction(() => window.__printed === 1, null, { timeout: 5000 });
+    const layout = await page.evaluate(() => ({
+      mode: window.__player.getState().mode,
+      printing: document.getElementById("host").hasAttribute("data-pptaken-printing"),
+      iframe: [
+        document.querySelector("iframe").offsetWidth,
+        document.querySelector("iframe").offsetHeight,
+      ],
+    }));
+    check(
+      "p switches to print mode with a 20-canvas tall frame",
+      layout.mode === "print" &&
+        layout.printing &&
+        layout.iframe[0] === 1920 &&
+        layout.iframe[1] === 20 * 1080,
+      JSON.stringify(layout),
+    );
+    const stacked = await frame().evaluate(() => {
+      const s = [...document.querySelectorAll("#pptaken-stage > section")];
+      const steps = [...document.querySelectorAll("[data-step]")];
+      return {
+        tops: s.map((x) => Math.round(x.getBoundingClientRect().top)),
+        allSteps: steps.every((e) => getComputedStyle(e).visibility === "visible"),
+        breakAfter: getComputedStyle(s[0]).breakAfter,
+      };
+    });
+    check(
+      "print mode stacks every slide at canvas size with every step",
+      stacked.allSteps && stacked.tops.every((t, i) => t === i * 1080),
+      JSON.stringify(stacked),
+    );
+    if (name === "chromium") {
+      const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true });
+      const file = join(tmpdir(), `pptaken-print-${process.pid}.pdf`);
+      writeFileSync(file, pdf);
+      const pages = (pdf.toString("latin1").match(/\/Type\s*\/Page(?![s\w])/g) ?? []).length;
+      check(`PDF has one page per slide (${pages} pages)`, pages === 20);
+      let texts = null;
+      try {
+        texts = Array.from({ length: pages }, (_, i) =>
+          execFileSync("pdftotext", ["-f", String(i + 1), "-l", String(i + 1), file, "-"], {
+            encoding: "utf8",
+          }).trim(),
+        );
+      } catch {
+        engine.notes.push("pdftotext not available: page texts not checked");
+      }
+      if (texts) {
+        check(
+          "every PDF page has text (non-blank)",
+          texts.every((t) => t.length > 0),
+          JSON.stringify(texts.map((t) => t.length)),
+        );
+        // Every step is printed: the revealable items of slide 6 (index 5) are on page 6.
+        const want = (talk.slides[5].html.match(/data-step="[^"]*"[^>]*>([^<]{4,30})/) ?? [])[1];
+        if (want) check("steps are printed", texts[5].includes(want.trim()), want);
+      }
+      engine.pdf = { pages, bytes: pdf.length };
+      rmSync(file, { force: true });
+    } else {
+      engine.notes.push(
+        "print layout checked; PDF output not verifiable (Playwright pdf is Chromium-only)",
+      );
+    }
+    await page.evaluate(() => window.dispatchEvent(new Event("afterprint")));
+    await waitState(5, 1);
+    const back = await page.evaluate(() => ({
+      mode: window.__player.getState().mode,
+      printing: document.getElementById("host").hasAttribute("data-pptaken-printing"),
+      h: document.querySelector("iframe").offsetHeight,
+    }));
+    check(
+      "afterprint returns to present mode at the same position",
+      back.mode === "present" && !back.printing && back.h === 720,
+      JSON.stringify(back),
+    );
+  });
+
+  // l. Presenter window: opened with s, kept in sync both ways, notes only there, next preview, clock, pace.
+  await section("presenter", async () => {
+    await open("talk");
+    await focusParent();
+    const [popup] = await Promise.all([
+      context.waitForEvent("page", { timeout: 10000 }),
+      page.keyboard.press("s"),
+    ]);
+    await popup.waitForFunction(() => window.__presenterReady === true, null, { timeout: 15000 });
+    check("s opens the presenter window", popup.url().endsWith("/presenter/talk"));
+    const pState = () => popup.evaluate(() => window.__presenter.getState());
+    const same = async (slide, step) => {
+      await popup.waitForFunction(
+        ([a, b]) => {
+          const s = window.__presenter.getState();
+          return s && s.slide === a && s.step === b;
+        },
+        [slide, step],
+        { timeout: 4000 },
+      );
+      await waitState(slide, step);
+    };
+    // Main -> presenter.
+    for (let i = 0; i < 3; i++) await page.keyboard.press("ArrowRight");
+    const m = await state();
+    await same(m.slide, m.step);
+    check("main window moves, the presenter follows", true);
+    // Presenter -> main (keyboard and button).
+    await popup.bringToFront();
+    await popup.keyboard.press("ArrowRight");
+    const p1 = await pState();
+    await same(p1.slide, p1.step);
+    check("presenter moves (key), the main window follows", true);
+    await popup.getByRole("button", { name: "Next" }).click();
+    const p2 = await pState();
+    await same(p2.slide, p2.step);
+    check(
+      "presenter moves (button), the main window follows",
+      p2.slide * 100 + p2.step > p1.slide * 100 + p1.step,
+    );
+    // A burst on the main window converges.
+    await page.bringToFront();
+    await focusParent();
+    for (let i = 0; i < 12; i++) await page.keyboard.press("ArrowRight");
+    await page.waitForTimeout(300);
+    const m2 = await state();
+    await same(m2.slide, m2.step);
+    check("both windows converge after a burst of keys", true);
+
+    // Previews: the current one shows the position, the next one the next position.
+    const shape = { slides: await page.evaluate(() => window.__test.slides) };
+    const cur = await pState();
+    const want = nav.next(shape, cur);
+    const previews = await popup.evaluate(() => ({
+      current: window.__presenter.current.getState(),
+      upcoming: window.__presenter.upcoming.getState(),
+    }));
+    check(
+      "the next preview is at the next slide/step",
+      previews.current.slide === cur.slide &&
+        previews.current.step === cur.step &&
+        previews.upcoming.slide === want.slide &&
+        previews.upcoming.step === want.step,
+      JSON.stringify({ previews, want }),
+    );
+    const contentFrames = popup.frames().filter((f) => f.url().includes("/c/deck/"));
+    check("the previews are sandboxed content frames", contentFrames.length === 2);
+
+    // Notes: shown in the presenter for the current slide, absent from every content document.
+    const notes = await popup.evaluate((i) => {
+      const d = new DOMParser().parseFromString(window.__data.slides[i].notesHtml, "text/html");
+      const el = document.querySelector(".pp-notes");
+      return { expected: d.body.textContent, shown: el.textContent, html: el.innerHTML };
+    }, cur.slide);
+    check(
+      "the notes of the current slide are shown",
+      notes.expected.length > 0 && notes.shown === notes.expected,
+      JSON.stringify(notes).slice(0, 200),
+    );
+    const probeText = notes.expected.slice(0, 40);
+    let leaked = false;
+    for (const f of [frame(), ...contentFrames]) {
+      const html = await f.evaluate(() => document.documentElement.outerHTML);
+      if (html.includes(probeText)) leaked = true;
+    }
+    const raw = await (await fetch(`${origins.content}/c/deck/talk`)).text();
+    check("notes are absent from every content document", !leaked && !raw.includes(probeText));
+    const anyNote = talk.slides.find((s) => s.notes)?.notes.slice(0, 30) ?? "";
+    check("no slide's notes are in the /c/ response", anyNote !== "" && !raw.includes(anyNote));
+
+    // Black screen both ways.
+    await page.keyboard.press("b");
+    await popup.waitForFunction(() => !document.querySelector(".pp-black").hidden);
+    check("black screen on the main window shows in the presenter", true);
+    await popup.bringToFront();
+    await popup.keyboard.press("b");
+    await page.waitForFunction(() => !window.__player.getState().black);
+    check("black screen off from the presenter", true);
+
+    // Clock: t starts/pauses, Shift+R resets (short real times).
+    const clock = () => popup.evaluate(() => document.querySelector(".pp-elapsed").textContent);
+    await popup.keyboard.press("t");
+    await popup.waitForFunction(() => window.__presenter.getState().running === true);
+    await popup.waitForTimeout(1300);
+    const running = await clock();
+    check("t starts the clock", running !== "0:00", running);
+    await popup.keyboard.press("t");
+    const paused = await clock();
+    await popup.waitForTimeout(1100);
+    check("t pauses it", (await clock()) === paused);
+    await popup.keyboard.press("Shift+R");
+    await popup.waitForFunction(() => document.querySelector(".pp-elapsed").textContent === "0:00");
+    check("Shift+R resets it", true);
+
+    // Pace: jump far ahead in the deck with little time spent: ahead.
+    await page.bringToFront();
+    await page.evaluate(() => window.__player.goto(15, 0));
+    await same(15, 0);
+    const status = await popup.evaluate(() => document.querySelector(".pp-status").dataset.status);
+    check("pace shows ahead on slide 16 after a few seconds", status === "ahead", status);
+    await popup.close();
+  });
+
+  // m. Pace with the Playwright clock: behind after 20 fake minutes on slide 1; planned vs actual per section.
+  await section("pace-clock", async () => {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    try {
+      const p = await ctx.newPage();
+      await p.clock.install();
+      await p.goto(`${origins.shell}/presenter/talk`);
+      await p.waitForFunction(() => window.__presenterReady === true, null, { timeout: 15000 });
+      await p.keyboard.press("t");
+      await p.clock.fastForward("20:00");
+      await p.clock.runFor(500);
+      const r = await p.evaluate(() => ({
+        elapsed: document.querySelector(".pp-elapsed").textContent,
+        target: document.querySelector(".pp-target").textContent,
+        status: document.querySelector(".pp-status").dataset.status,
+        text: document.querySelector(".pp-status").textContent,
+        rows: [...document.querySelectorAll(".pp-sections tbody tr")].map((tr) => [
+          tr.dataset.state,
+          ...[...tr.cells].map((c) => c.textContent),
+          tr.cells[3]?.dataset.status ?? "",
+        ]),
+      }));
+      check(
+        "fake clock: 20:00 elapsed against the 20:00 target",
+        r.elapsed === "20:00" && r.target === "/ 20:00",
+        JSON.stringify(r),
+      );
+      check(
+        "fake clock: behind on slide 1",
+        r.status === "behind" && r.text.includes("behind"),
+        r.text,
+      );
+      const first = r.rows[0];
+      check(
+        "pace per section: current section planned vs actual, behind",
+        r.rows.length === 5 &&
+          first?.[0] === "current" &&
+          first?.[3] === "20:00" &&
+          first?.[5] === "behind",
+        JSON.stringify(r.rows),
+      );
+    } finally {
+      await ctx.close();
+    }
+  });
+
   console.log(
     `${name}: ${engine.failed === 0 ? "PASS" : "FAIL"} - ${engine.passed} checks passed, ${engine.failed} failed`,
   );
+  if (engine.overview200)
+    console.log(`  overview 200 slides: ${JSON.stringify(engine.overview200)}`);
+  if (engine.pdf) console.log(`  print PDF: ${JSON.stringify(engine.pdf)}`);
   for (const f of engine.frameTimes ?? []) {
     console.log(
       `  frame times, ${f.label}: ${f.presses} presses in ${f.elapsedMs} ms, p50 ${f.p50} ms, p95 ${f.p95} ms, max ${f.max} ms (${f.frames} frames)`,

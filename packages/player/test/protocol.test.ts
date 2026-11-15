@@ -7,8 +7,10 @@ import {
   KEY_CODES,
   type KeyLike,
   keyCodeOf,
+  MAX_CANVAS,
   MAX_SLIDES,
   MAX_STEPS,
+  MODES,
   parseContentMessage,
   parseShellMessage,
 } from "../dist/index.js";
@@ -32,11 +34,10 @@ describe("shell -> iframe messages", () => {
     expect(
       parseShellMessage({ v: 1, type: "goto", slide: MAX_SLIDES - 1, step: MAX_STEPS }),
     ).not.toBeNull();
-    expect(parseShellMessage({ v: 1, type: "mode", mode: "present" })).toEqual({
-      v: 1,
-      type: "mode",
-      mode: "present",
-    });
+    for (const mode of MODES) {
+      expect(parseShellMessage({ v: 1, type: "mode", mode })).toEqual({ v: 1, type: "mode", mode });
+    }
+    expect(MODES).toEqual(["present", "overview", "print"]);
   });
 
   it("drops anything else", () => {
@@ -60,9 +61,12 @@ describe("shell -> iframe messages", () => {
       { v: 1, type: "goto", slide: Number.NaN, step: 0 },
       { v: 1, type: "goto", slide: "1", step: 0 },
       { v: 1, type: "goto", slide: 0, step: null },
-      { v: 1, type: "mode", mode: "overview" },
-      { v: 1, type: "mode", mode: "print" },
+      { v: 1, type: "mode", mode: "speaker" },
+      { v: 1, type: "mode", mode: "toString" },
+      { v: 1, type: "mode", mode: ["overview"] },
+      { v: 1, type: "mode", mode: "overview", extra: 1 },
       { v: 1, type: "mode", mode: "PRESENT" },
+      { v: 1, type: "select", slide: 0 },
       { v: 1, type: "unknown" },
       { v: 1, type: "ready", slides: [{ id: "a", steps: 0 }] },
       Object.assign(Object.create({ inherited: 1 }), { v: 1, type: "goto", slide: 0, step: 0 }),
@@ -74,7 +78,7 @@ describe("shell -> iframe messages", () => {
 });
 
 describe("iframe -> shell messages", () => {
-  it("accepts ready, key and state", () => {
+  it("accepts ready, key, state and select", () => {
     const ready = {
       v: 1,
       type: "ready",
@@ -82,19 +86,28 @@ describe("iframe -> shell messages", () => {
         { id: "cover", steps: 0 },
         { id: "a-2", steps: 3 },
       ],
+      width: 1920,
+      height: 1080,
     };
     expect(parseContentMessage(ready)).toEqual(ready);
     for (const code of KEY_CODES) {
       expect(parseContentMessage({ v: 1, type: "key", code })).toEqual({ v: 1, type: "key", code });
     }
     expect(parseContentMessage({ v: 1, type: "state", slide: 2, step: 1 })).not.toBeNull();
+    expect(parseContentMessage({ v: 1, type: "select", slide: 0 })).toEqual({
+      v: 1,
+      type: "select",
+      slide: 0,
+    });
+    expect(parseContentMessage({ v: 1, type: "select", slide: MAX_SLIDES - 1 })).not.toBeNull();
   });
 
   it("drops anything else", () => {
     const many = Array.from({ length: MAX_SLIDES + 1 }, (_, i) => ({ id: `s${i}`, steps: 0 }));
+    const size = { width: 1920, height: 1080 };
     const bad: unknown[] = [
-      { v: 1, type: "ready", slides: [] },
-      { v: 1, type: "ready", slides: many },
+      { v: 1, type: "ready", slides: [], ...size },
+      { v: 1, type: "ready", slides: many, ...size },
       {
         v: 1,
         type: "ready",
@@ -102,18 +115,32 @@ describe("iframe -> shell messages", () => {
           { id: "a", steps: 0 },
           { id: "a", steps: 1 },
         ],
+        ...size,
       },
-      { v: 1, type: "ready", slides: [{ id: "A", steps: 0 }] },
-      { v: 1, type: "ready", slides: [{ id: "a".repeat(41), steps: 0 }] },
-      { v: 1, type: "ready", slides: [{ id: 'a"><script>', steps: 0 }] },
-      { v: 1, type: "ready", slides: [{ id: "a", steps: -1 }] },
-      { v: 1, type: "ready", slides: [{ id: "a", steps: MAX_STEPS + 1 }] },
-      { v: 1, type: "ready", slides: [{ id: "a", steps: 0, title: "x" }] },
-      { v: 1, type: "ready", slides: [null] },
-      { v: 1, type: "ready", slides: "a" },
-      { v: 1, type: "ready", slides: [{ id: "a", steps: 0 }], extra: true },
+      { v: 1, type: "ready", slides: [{ id: "A", steps: 0 }], ...size },
+      { v: 1, type: "ready", slides: [{ id: "a".repeat(41), steps: 0 }], ...size },
+      { v: 1, type: "ready", slides: [{ id: 'a"><script>', steps: 0 }], ...size },
+      { v: 1, type: "ready", slides: [{ id: "a", steps: -1 }], ...size },
+      { v: 1, type: "ready", slides: [{ id: "a", steps: MAX_STEPS + 1 }], ...size },
+      { v: 1, type: "ready", slides: [{ id: "a", steps: 0, title: "x" }], ...size },
+      { v: 1, type: "ready", slides: [null], ...size },
+      { v: 1, type: "ready", slides: "a", ...size },
+      { v: 1, type: "ready", slides: [{ id: "a", steps: 0 }], extra: true, ...size },
+      { v: 1, type: "ready", slides: [{ id: "a", steps: 0 }] },
+      { v: 1, type: "ready", slides: [{ id: "a", steps: 0 }], width: 0, height: 1080 },
+      { v: 1, type: "ready", slides: [{ id: "a", steps: 0 }], width: 1920, height: MAX_CANVAS + 1 },
+      { v: 1, type: "ready", slides: [{ id: "a", steps: 0 }], width: 1920.5, height: 1080 },
+      { v: 1, type: "ready", slides: [{ id: "a", steps: 0 }], width: "1920", height: 1080 },
+      { v: 1, type: "select", slide: -1 },
+      { v: 1, type: "select", slide: MAX_SLIDES },
+      { v: 1, type: "select", slide: 0.5 },
+      { v: 1, type: "select", slide: "0" },
+      { v: 1, type: "select" },
+      { v: 1, type: "select", slide: 0, step: 0 },
+      { v: 2, type: "select", slide: 0 },
+      { v: 1, type: "mode", mode: "overview" },
       { v: 1, type: "key", code: "KeyA" },
-      { v: 1, type: "key", code: "Escape" },
+      { v: 1, type: "key", code: "Tab" },
       { v: 1, type: "key", code: "toString" },
       { v: 1, type: "key" },
       { v: 1, type: "state", slide: -1, step: 0 },
@@ -148,14 +175,29 @@ describe("keyCodeOf", () => {
       [".", "Period"],
       ["f", "KeyF"],
       ["F", "KeyF"],
+      ["o", "KeyO"],
+      ["O", "KeyO"],
+      ["s", "KeyS"],
+      ["p", "KeyP"],
+      ["t", "KeyT"],
+      ["Escape", "Escape"],
+      ["?", "Question"],
     ];
     for (const [k, code] of cases) expect(keyCodeOf(key(k))).toBe(code);
     expect(keyCodeOf(key(" ", { shiftKey: true }))).toBe("ShiftSpace");
+    expect(keyCodeOf(key("R", { shiftKey: true }))).toBe("ShiftKeyR");
+    expect(keyCodeOf(key("?", { shiftKey: true }))).toBe("Question");
+    // Every mapped code is in the closed set the shell accepts.
+    for (const [, code] of cases) expect(KEY_CODES).toContain(code);
   });
 
   it("ignores other keys and modifiers", () => {
-    for (const k of ["a", "Escape", "Tab", "F5", "Unidentified", ""])
+    for (const k of ["a", "r", "R", "Tab", "F5", "Unidentified", "", "constructor", "oo", "ß"])
       expect(keyCodeOf(key(k))).toBeNull();
+    for (const k of ["O", "S", "P", "T", "B", "ArrowRight"])
+      expect(keyCodeOf(key(k, { shiftKey: true }))).toBeNull();
+    expect(keyCodeOf(key("R", { shiftKey: true, ctrlKey: true }))).toBeNull();
+    expect(keyCodeOf(key("?", { altKey: true }))).toBeNull();
     for (const mods of [
       { ctrlKey: true },
       { altKey: true },

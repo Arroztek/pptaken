@@ -21,23 +21,41 @@ export {
   contentSecurityPolicy,
   PERMISSIONS_POLICY,
 } from "./csp.js";
-export { KEY_CODES, type KeyCode, type KeyLike, keyCodeOf } from "./keys.js";
+export { LABELS, type LabelKey, type Labels, type Locale, labelsFor, pickLocale } from "./i18n.js";
+export { type KeyCode, type KeyLike, keyCodeOf } from "./keys.js";
 export * as navigation from "./navigation.js";
-export { type DeckShape, KEY_ACTIONS, type KeyAction, type Position } from "./navigation.js";
+export {
+  type DeckShape,
+  KEY_ACTIONS,
+  type KeyAction,
+  overviewMove,
+  type Position,
+} from "./navigation.js";
+export { NOTES_MAX_INPUT, NOTES_TAGS, renderInline, renderNotes } from "./notes.js";
+export * as pace from "./pace.js";
+export {
+  type PresenterData,
+  type PresenterSlide,
+  parsePresenterData,
+} from "./presenter-data.js";
 export {
   type ContentMessage,
   type GotoMessage,
   isBoundedInt,
+  KEY_CODES,
   type KeyMessage,
+  MAX_CANVAS,
   MAX_SLIDES,
   MAX_STEPS,
   MODES,
   type Mode,
   type ModeMessage,
+  overviewColumns,
   PROTOCOL_VERSION,
   parseContentMessage,
   parseShellMessage,
   type ReadyMessage,
+  type SelectMessage,
   type ShellMessage,
   SLIDE_ID_PATTERN,
   type SlideInfo,
@@ -46,8 +64,19 @@ export {
 export { RUNTIME_SOURCE } from "./runtime-source.js";
 export {
   createPlayer,
+  type KeySource,
   type Player,
   type PlayerFault,
   type PlayerOptions,
   type PlayerState,
+  PRESENTER_WINDOW,
 } from "./shell.js";
+export {
+  openSync,
+  parseSyncMessage,
+  SYNC_CHANNEL_PATTERN,
+  SYNC_VERSION,
+  type Sync,
+  type SyncMessage,
+  syncChannelName,
+} from "./sync.js";

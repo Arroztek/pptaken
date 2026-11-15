@@ -197,6 +197,28 @@ describe("buildDeckDocument", () => {
     expect(theme).toBeGreaterThan(0);
     expect(stage).toBeGreaterThan(theme);
   });
+
+  it("marks sections with their escaped section name and adds overview and print rules", () => {
+    const deck = tiny();
+    const first = deck.slides[0];
+    if (!first) throw new Error("tiny deck has no slide");
+    const { html } = buildDeckDocument(
+      { ...deck, slides: [{ ...first, section: 'Intro "<x>"' }] },
+      { nonce: NONCE },
+    );
+    expect(html).toContain('data-section="Intro &quot;&lt;x&gt;&quot;"');
+    expect(html).toContain("html[data-pptaken-mode=overview] #pptaken-stage");
+    expect(html).toContain(
+      "html[data-pptaken-mode=print] #pptaken-stage [data-step]{visibility:visible!important}",
+    );
+    expect(html).toContain("@media print{");
+    expect(html).toContain("@page{size:1920px 1080px;margin:0}");
+    expect(html).toContain("break-after:page");
+    const four = buildDeckDocument({ ...deck, aspectRatio: "4:3" }, { nonce: NONCE }).html;
+    expect(four).toContain("@page{size:1440px 1080px;margin:0}");
+    // Without a section, no attribute.
+    expect(buildDeckDocument(deck, { nonce: NONCE }).html).not.toContain("data-section=");
+  });
 });
 
 describe("runtime source", () => {
@@ -205,7 +227,8 @@ describe("runtime source", () => {
     expect(RUNTIME_SOURCE).not.toMatch(/<\/script|<!--/i);
     expect(RUNTIME_SOURCE).not.toMatch(/\b(import|export)\b\s*[{*"']/);
     expect(RUNTIME_SOURCE).not.toMatch(/\beval\b|innerHTML|new Function/);
-    expect(Buffer.byteLength(RUNTIME_SOURCE)).toBeLessThan(6 * 1024);
+    // F1 was about 5 KB; F3 (overview layout, select, mode ack) must stay under 9 KB.
+    expect(Buffer.byteLength(RUNTIME_SOURCE)).toBeLessThan(9 * 1024);
     // It parses as a script.
     expect(() => new Function(RUNTIME_SOURCE)).not.toThrow();
   });

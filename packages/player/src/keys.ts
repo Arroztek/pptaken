@@ -4,27 +4,32 @@
 
 /**
  * Closed set of key codes that the runtime forwards to the shell. They are logical names derived from
- * `KeyboardEvent.key` (layout aware), not physical `KeyboardEvent.code` values.
+ * `KeyboardEvent.key` (layout aware), not physical `KeyboardEvent.code` values. The runtime does not need the
+ * list itself, so the array (`KEY_CODES`) lives in `protocol.ts`, which checks it against this type.
  */
-export const KEY_CODES = [
-  "ArrowRight",
-  "ArrowLeft",
-  "ArrowUp",
-  "ArrowDown",
-  "PageDown",
-  "PageUp",
-  "Space",
-  "ShiftSpace",
-  "Enter",
-  "Backspace",
-  "Home",
-  "End",
-  "KeyB",
-  "Period",
-  "KeyF",
-] as const;
-
-export type KeyCode = (typeof KEY_CODES)[number];
+export type KeyCode =
+  | "ArrowRight"
+  | "ArrowLeft"
+  | "ArrowUp"
+  | "ArrowDown"
+  | "PageDown"
+  | "PageUp"
+  | "Space"
+  | "ShiftSpace"
+  | "Enter"
+  | "Backspace"
+  | "Home"
+  | "End"
+  | "KeyB"
+  | "Period"
+  | "KeyF"
+  | "KeyO"
+  | "KeyS"
+  | "KeyP"
+  | "KeyT"
+  | "ShiftKeyR"
+  | "Escape"
+  | "Question";
 
 /** The subset of `KeyboardEvent` that the mapping reads. */
 export interface KeyLike {
@@ -38,13 +43,16 @@ export interface KeyLike {
 
 /**
  * Maps a keyboard event to a key code, or `null` when the player must ignore it. Keys with Ctrl, Alt or Meta are
- * always ignored (they belong to the browser and the OS); Shift is ignored too, except Shift+Space (previous).
+ * always ignored (they belong to the browser and the OS). Shift is ignored too, except Shift+Space (previous),
+ * Shift+R (reset the presenter clock) and `?` (which needs Shift on most layouts).
  */
 export function keyCodeOf(event: KeyLike): KeyCode | null {
   if (event.ctrlKey || event.altKey || event.metaKey || event.isComposing === true) return null;
-  if (event.key === " " || event.key === "Spacebar") return event.shiftKey ? "ShiftSpace" : "Space";
-  if (event.shiftKey) return null;
-  switch (event.key) {
+  const k = event.key;
+  if (k === " " || k === "Spacebar") return event.shiftKey ? "ShiftSpace" : "Space";
+  if (k === "?") return "Question";
+  if (event.shiftKey) return k === "R" || k === "r" ? "ShiftKeyR" : null;
+  switch (k) {
     case "ArrowRight":
     case "ArrowLeft":
     case "ArrowUp":
@@ -55,16 +63,21 @@ export function keyCodeOf(event: KeyLike): KeyCode | null {
     case "Backspace":
     case "Home":
     case "End":
-      return event.key;
-    case "b":
-    case "B":
-      return "KeyB";
+    case "Escape":
+      return k;
     case ".":
       return "Period";
-    case "f":
-    case "F":
-      return "KeyF";
     default:
-      return null;
+      return LETTERS.get(k.toLowerCase()) ?? null;
   }
 }
+
+/** Letter keys, case-insensitive (Caps Lock on still works). */
+const LETTERS = new Map<string, KeyCode>([
+  ["b", "KeyB"],
+  ["f", "KeyF"],
+  ["o", "KeyO"],
+  ["s", "KeyS"],
+  ["p", "KeyP"],
+  ["t", "KeyT"],
+]);

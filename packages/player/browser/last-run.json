@@ -1,12 +1,12 @@
 {
-  "date": "2026-11-14T13:07:36.024Z",
+  "date": "2026-11-15T15:41:55.612Z",
   "origins": {
-    "shell": "http://localhost:45047",
-    "content": "http://127.0.0.1:45048"
+    "shell": "http://localhost:14995",
+    "content": "http://127.0.0.1:14996"
   },
   "engines": {
     "chromium": {
-      "passed": 357,
+      "passed": 407,
       "failed": 0,
       "failures": [],
       "notes": [],
@@ -14,36 +14,58 @@
         {
           "label": "burst",
           "presses": 140,
-          "elapsedMs": 137,
-          "frames": 28,
+          "elapsedMs": 168,
+          "frames": 29,
           "p50": 16.7,
-          "p95": 16.7,
+          "p95": 16.8,
           "max": 16.8
         },
         {
           "label": "paced",
           "presses": 120,
-          "elapsedMs": 3380,
+          "elapsedMs": 3400,
           "frames": 222,
           "p50": 16.7,
-          "p95": 16.7,
+          "p95": 16.8,
           "max": 16.8
         }
-      ]
+      ],
+      "overview200": {
+        "openToReadyMs": 55,
+        "firstTwoFramesMs": 17.4,
+        "scrollCold": {
+          "height": 5964,
+          "p50": 16.7,
+          "p95": 16.7,
+          "max": 16.8
+        },
+        "scrollWarm": {
+          "height": 5964,
+          "p50": 16.7,
+          "p95": 16.8,
+          "max": 16.8
+        },
+        "thirtyArrowDownMs": 38
+      },
+      "pdf": {
+        "pages": 20,
+        "bytes": 173004
+      }
     },
     "firefox": {
-      "passed": 355,
+      "passed": 401,
       "failed": 0,
       "failures": [],
       "notes": [
-        "frame times recorded, not asserted"
+        "frame times recorded, not asserted",
+        "print layout checked; PDF output not verifiable (Playwright pdf is Chromium-only)"
       ],
       "frameTimes": [
         {
           "label": "burst",
           "presses": 140,
-          "elapsedMs": 216,
-          "frames": 32,
+          "elapsedMs": 231,
+          "frames": 34,
           "p50": 16.66,
           "p95": 16.68,
           "max": 16.68
@@ -51,41 +73,76 @@
         {
           "label": "paced",
           "presses": 120,
-          "elapsedMs": 711,
-          "frames": 63,
+          "elapsedMs": 749,
+          "frames": 64,
           "p50": 16.66,
           "p95": 16.68,
           "max": 16.68
         }
-      ]
+      ],
+      "overview200": {
+        "openToReadyMs": 135,
+        "firstTwoFramesMs": 18,
+        "scrollCold": {
+          "height": 5964,
+          "p50": 16.66,
+          "p95": 16.68,
+          "max": 16.68
+        },
+        "scrollWarm": {
+          "height": 5964,
+          "p50": 16.66,
+          "p95": 16.68,
+          "max": 16.68
+        },
+        "thirtyArrowDownMs": 104
+      }
     },
     "webkit": {
-      "passed": 355,
+      "passed": 401,
       "failed": 0,
       "failures": [],
       "notes": [
-        "frame times recorded, not asserted"
+        "frame times recorded, not asserted",
+        "print layout checked; PDF output not verifiable (Playwright pdf is Chromium-only)"
       ],
       "frameTimes": [
         {
           "label": "burst",
           "presses": 140,
-          "elapsedMs": 254,
-          "frames": 38,
+          "elapsedMs": 273,
+          "frames": 39,
           "p50": 15,
           "p95": 17,
-          "max": 17
+          "max": 18
         },
         {
           "label": "paced",
           "presses": 120,
-          "elapsedMs": 3065,
-          "frames": 219,
+          "elapsedMs": 3067,
+          "frames": 218,
           "p50": 15,
           "p95": 17,
           "max": 30
         }
-      ]
+      ],
+      "overview200": {
+        "openToReadyMs": 124,
+        "firstTwoFramesMs": 24,
+        "scrollCold": {
+          "height": 5964,
+          "p50": 16,
+          "p95": 16,
+          "max": 17
+        },
+        "scrollWarm": {
+          "height": 5964,
+          "p50": 16,
+          "p95": 17,
+          "max": 17
+        },
+        "thirtyArrowDownMs": 173
+      }
     }
   }
 }

@@ -14,6 +14,7 @@ import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/cli
 import { chromium, firefox, webkit } from "@playwright/test";
 import { createServer } from "../dist/app.js";
 import { loadConfig } from "../dist/config.js";
+import { checkPresenter } from "./presenter.mjs";
 
 const freePort = () =>
   new Promise((resolve) => {
@@ -126,6 +127,14 @@ try {
       if (!(await visible(secondId)) || (await visible(firstId)))
         throw new Error("ArrowRight did not show slide 2");
       r.checks.push("ArrowRight -> slide 2");
+      await checkPresenter({
+        page,
+        context,
+        content,
+        checks: r.checks,
+        notesOf: (i) =>
+          (/[A-Za-z][A-Za-z ,]{8,}/.exec(talk.slides[i]?.notes ?? "")?.[0] ?? "").slice(0, 20),
+      });
       if (errors.length > 0) throw new Error(`page errors: ${errors.join("; ")}`);
       r.ok = true;
     } catch (error) {

@@ -10,7 +10,7 @@
 import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import http from "node:http";
-import { assetHeaders, buildDeckDocument, contentHeaders } from "../dist/index.js";
+import { assetHeaders, buildDeckDocument, contentHeaders, renderNotes } from "../dist/index.js";
 
 const DIST = new URL("../dist/", import.meta.url);
 
@@ -19,7 +19,40 @@ const ASSET_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">' +
   '<rect width="160" height="160" rx="24" fill="#5746AF"/><circle cx="80" cy="80" r="40" fill="#FFB224"/></svg>';
 
-const shellPage = (contentUrl) => `<!doctype html>
+/** JSON safe to embed in a <script> element. */
+const embed = (value) => JSON.stringify(value).replace(/</g, "\\u003c");
+
+/** Presenter data the way the server builds it (notes rendered to safe HTML, no slide HTML). */
+export const presenterDataOf = (deck) => ({
+  title: deck.title,
+  aspectRatio: deck.aspectRatio === "4:3" ? "4:3" : "16:9",
+  ...(deck.targetMinutes === undefined ? {} : { targetMinutes: deck.targetMinutes }),
+  slides: deck.slides.map((s) => ({
+    id: s.id,
+    title: s.title ?? "",
+    ...(s.section ? { section: s.section } : {}),
+    ...(s.durationHintSec ? { durationHintSec: s.durationHintSec } : {}),
+    notesHtml: renderNotes(s.notes ?? ""),
+  })),
+});
+
+const presenterPage = (contentUrl, key, deck) => `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>presenter browser test</title></head>
+<body><div id="root"></div>
+<script type="module">
+import { createPresenter, parsePresenterData } from "/dist/presenter.js";
+const data = parsePresenterData(${embed(presenterDataOf(deck))});
+window.__data = data;
+window.__presenter = createPresenter(document.getElementById("root"), {
+  contentUrl: ${JSON.stringify(contentUrl)},
+  data,
+  sync: ${JSON.stringify(`pptaken:${key}`)},
+  tickMs: 100,
+});
+window.__presenter.ready.then(() => { window.__presenterReady = true; });
+</script></body></html>`;
+
+const shellPage = (contentUrl, key) => `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>player browser test</title>
 <style>html,body{margin:0;height:100%;background:#000}#host{position:fixed;inset:0}#typing{position:fixed;left:0;top:0;width:8px;height:8px;opacity:0}</style>
 </head><body><input id="typing" aria-label="typing test"><div id="host"></div>
@@ -36,6 +69,8 @@ addEventListener("message", (e) => {
 window.__player = createPlayer(document.getElementById("host"), {
   contentUrl: ${JSON.stringify(contentUrl)},
   showHud: true,
+  presenterUrl: ${JSON.stringify(`/presenter/${key}`)},
+  sync: ${JSON.stringify(`pptaken:${key}`)},
   onReady: (slides) => { t.slides = slides; },
   onChange: (s) => t.changes.push(s),
   onRender: (p) => { t.rendered = p; },
@@ -69,9 +104,17 @@ export async function startServers(deckFor) {
         "content-type": "text/html; charset=utf-8",
         "set-cookie": ["sid=SECRET123; Path=/; HttpOnly; SameSite=Lax", "legacy=1; Path=/"],
       });
-      return res.end(shellPage(`${origins.content}/c/deck/${player[1]}`));
+      return res.end(shellPage(`${origins.content}/c/deck/${player[1]}`, player[1]));
     }
-    const file = /^\/dist\/([a-z-]+\.js)$/.exec(u.pathname);
+    const presenter = /^\/presenter\/([a-z0-9-]+)$/.exec(u.pathname);
+    const entry = presenter ? deckFor(presenter[1]) : null;
+    if (presenter && entry) {
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      return res.end(
+        presenterPage(`${origins.content}/c/deck/${presenter[1]}`, presenter[1], entry.deck),
+      );
+    }
+    const file = /^\/dist\/([a-z0-9-]+\.js)$/.exec(u.pathname);
     if (file) {
       try {
         const body = readFileSync(new URL(file[1], DIST));

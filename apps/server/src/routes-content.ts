@@ -26,7 +26,7 @@ const contentReader: Principal = {
   scopes: new Set(["decks:read"]),
 };
 
-// The player shell modules of @pptaken/player, served as static ES modules to the trusted page.
+// The player shell and presenter modules of @pptaken/player, served as static ES modules to the trusted pages.
 const PLAYER_DIST = dirname(fileURLToPath(import.meta.resolve("@pptaken/player/shell")));
 const PLAYER_FILES = new Set([
   "shell.js",
@@ -34,10 +34,23 @@ const PLAYER_FILES = new Set([
   "navigation.js",
   "protocol.js",
   "messages.js",
+  "i18n.js",
+  "sync.js",
+  "pace.js",
+  "presenter.js",
+  "presenter-data.js",
+]);
+
+/** UI fonts of the presenter view, served on the app origin (the page's CSP allows `font-src 'self'` only). */
+const UI_FONT_FAMILIES = new Map([
+  ["Inter", "inter"],
+  ["JetBrains Mono", "jetbrains-mono"],
 ]);
 
 const PAGE_SCRIPT = `// PPTaken player page: asks the API for the signed content URL and mounts the player shell.
 import { createPlayer } from "./shell.js";
+import { pickLocale } from "./i18n.js";
+import { syncChannelName } from "./sync.js";
 const body = document.body;
 const id = body.dataset.deck;
 const status = document.getElementById("status");
@@ -50,9 +63,12 @@ async function start() {
     contentUrl: url,
     showHud: true,
     title: document.title,
+    locale: pickLocale(navigator.languages),
+    presenterUrl: "/p/" + encodeURIComponent(id) + "/presenter",
+    sync: syncChannelName(id) ?? undefined,
     onReady: (slides) => { status.hidden = true; body.dataset.slides = String(slides.length); body.dataset.state = "ready"; },
     onLoadTimeout: () => { body.dataset.state = "slow"; status.hidden = false; status.textContent = "This presentation is taking too long to load. If you are in an embedded preview, open this page in your regular browser."; },
-    onChange: (s) => { body.dataset.slide = String(s.slide); body.dataset.step = String(s.step); },
+    onChange: (s) => { body.dataset.slide = String(s.slide); body.dataset.step = String(s.step); body.dataset.mode = s.mode; },
     onFault: (f) => { body.dataset.state = "fault"; status.hidden = false; status.textContent = "The presentation stopped: " + f; },
   });
   player.iframe.focus();
@@ -63,7 +79,59 @@ start().catch(() => { body.dataset.state = "error"; status.textContent = "Could 
 const PAGE_CSS =
   "html,body{margin:0;height:100%;background:#000;color:#FAF7F2;font:16px system-ui,sans-serif}#stage{position:fixed;inset:0}#status{position:fixed;left:16px;bottom:16px;color:#8B8FA0}";
 
-function escapeHtml(text: string): string {
+const PRESENTER_SCRIPT = `// PPTaken presenter page: loads the presenter data (notes) and the signed content URL, then mounts the view.
+import { createPresenter, parsePresenterData } from "./presenter.js";
+import { labelsFor, pickLocale } from "./i18n.js";
+import { syncChannelName } from "./sync.js";
+const body = document.body;
+const id = body.dataset.deck;
+const status = document.getElementById("status");
+const locale = pickLocale(navigator.languages);
+const t = labelsFor(locale);
+status.textContent = t.loading;
+async function get(path) {
+  const res = await fetch(path, { credentials: "same-origin" });
+  if (res.status === 401) { location.href = "/login"; throw new Error("signed out"); }
+  if (!res.ok) throw new Error(path + " " + res.status);
+  return res.json();
+}
+async function start() {
+  const base = "/api/v1/decks/" + encodeURIComponent(id);
+  const [raw, { url }] = await Promise.all([get(base + "/presenter"), get(base + "/content-url")]);
+  const data = parsePresenterData(raw);
+  if (!data) throw new Error("presenter data");
+  document.title = t.presenterTitle + " · " + data.title;
+  const presenter = createPresenter(document.getElementById("presenter"), {
+    contentUrl: url,
+    data,
+    locale,
+    sync: syncChannelName(id) ?? undefined,
+    onChange: (s) => { body.dataset.slide = String(s.slide); body.dataset.step = String(s.step); body.dataset.running = String(s.running); },
+  });
+  await presenter.ready;
+  status.hidden = true;
+  body.dataset.state = "ready";
+}
+start().catch(() => { body.dataset.state = "error"; status.textContent = t.loadError; });
+`;
+
+const UNICODE_RANGE =
+  /^U\+[0-9A-Fa-f?]{1,6}(?:-[0-9A-Fa-f]{1,6})?(?:, ?U\+[0-9A-Fa-f?]{1,6}(?:-[0-9A-Fa-f]{1,6})?)*$/;
+
+/** Presenter page CSS: the UI fonts from the app origin (validated values from our own fonts.css). */
+function presenterCss(s: Services): string {
+  const faces = fontFacesOf(s)
+    .filter((f) => UI_FONT_FAMILIES.has(f.family))
+    .filter((f) => /^[1-9][0-9]{2}(?: [1-9][0-9]{2})?$/.test(f.weight))
+    .filter((f) => f.unicodeRange === undefined || UNICODE_RANGE.test(f.unicodeRange))
+    .map(
+      (f) =>
+        `@font-face{font-family:"${f.family}";font-style:normal;font-weight:${f.weight};font-display:swap;src:url(/_player/fonts/${f.file}) format("woff2");${f.unicodeRange ? `unicode-range:${f.unicodeRange};` : ""}}`,
+    );
+  return `${faces.join("\n")}\nhtml,body{margin:0;height:100%;background:#0F1115;color:#F2EFE9;font:16px Inter,system-ui,sans-serif}#status{position:fixed;left:16px;bottom:16px;margin:0;color:#8B8FA0}\n`;
+}
+
+export function escapeHtml(text: string): string {
   return text.replace(/[&<>"']/g, (ch) => `&#${ch.charCodeAt(0)};`);
 }
 
@@ -102,6 +170,20 @@ function subjectOf(token: string): string | null {
 export function playerRoutes(s: Services): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
 
+  app.get("/_player/fonts/:family/:file", (c) => {
+    const family = c.req.param("family");
+    const file = c.req.param("file");
+    if (![...UI_FONT_FAMILIES.values()].includes(family) || !/^[a-z0-9-]{1,80}\.woff2$/.test(file))
+      return notFoundText();
+    const path = join(s.config.fontsDir, family, file);
+    if (!existsSync(path)) return notFoundText();
+    return c.body(readFileSync(path), 200, {
+      "Content-Type": "font/woff2",
+      "Cache-Control": "public, max-age=86400",
+      "X-Content-Type-Options": "nosniff",
+    });
+  });
+
   app.get("/_player/:file", (c) => {
     const file = c.req.param("file");
     const headers = { "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff" };
@@ -113,6 +195,18 @@ export function playerRoutes(s: Services): Hono<AppEnv> {
     }
     if (file === "page.css") {
       return c.body(PAGE_CSS, 200, { ...headers, "Content-Type": "text/css; charset=utf-8" });
+    }
+    if (file === "presenter-page.js") {
+      return c.body(PRESENTER_SCRIPT, 200, {
+        ...headers,
+        "Content-Type": "text/javascript; charset=utf-8",
+      });
+    }
+    if (file === "presenter.css") {
+      return c.body(presenterCss(s), 200, {
+        ...headers,
+        "Content-Type": "text/css; charset=utf-8",
+      });
     }
     if (!PLAYER_FILES.has(file)) return notFoundText();
     const path = join(PLAYER_DIST, file);

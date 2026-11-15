@@ -54,8 +54,25 @@ export interface DeckDocument {
 
 const LANG = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/;
 
-/** Stage rules. Last in the document; `!important` where the theme must not break the player. */
+/** Print rules under a selector prefix that matches `html` (print mode attribute, or `@media print`). */
+function printCss(p: string, width: number): string {
+  return [
+    `${p},${p} body{height:auto!important;overflow:visible!important}`,
+    `${p} #pptaken-stage{position:static!important;transform:none!important;width:${width}px!important;height:auto!important;overflow:visible!important}`,
+    `${p} #pptaken-stage>section[data-slide]{position:relative!important;display:block!important;transform:none!important;break-after:page!important;break-inside:avoid!important}`,
+    `${p} #pptaken-stage [data-step]{visibility:visible!important}`,
+    `${p} #pptaken-overlay{display:none!important}`,
+    `${p} *{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}`,
+  ].join("\n");
+}
+
+/**
+ * Stage rules. Last in the document; `!important` where the theme must not break the player. Overview and print
+ * layouts are keyed on `html[data-pptaken-mode]`, which only the runtime sets (content cannot run script, and
+ * the sanitizer refuses `data-*` attributes other than `data-step`).
+ */
 function stageCss(width: number, height: number): string {
+  const o = "html[data-pptaken-mode=overview]";
   return [
     "html,body{margin:0!important;padding:0!important;width:100%!important;height:100%!important;overflow:hidden!important;background:#000!important}",
     `#pptaken-stage{position:absolute!important;left:0!important;top:0!important;width:${width}px!important;height:${height}px!important;margin:0!important;transform-origin:0 0!important;overflow:hidden!important}`,
@@ -63,6 +80,20 @@ function stageCss(width: number, height: number): string {
     "#pptaken-stage>section[data-slide][hidden]{display:none!important}",
     ":where(#pptaken-stage>section[data-slide]){display:block;box-sizing:border-box;background:#fff;color:#000}",
     "#pptaken-stage [data-step]:not(.pptaken-revealed){visibility:hidden!important}",
+    "#pptaken-overlay{display:none!important}",
+    // Overview: the stage becomes a scrollable grid; the runtime positions each section with an inline transform.
+    `${o} #pptaken-stage{position:fixed!important;inset:0!important;width:auto!important;height:auto!important;transform:none!important;overflow:auto!important}`,
+    `${o} #pptaken-stage>section[data-slide]{display:block!important;transform-origin:0 0!important;cursor:pointer;content-visibility:auto}`,
+    `${o} #pptaken-stage>section[data-slide] *{pointer-events:none!important}`,
+    `${o} #pptaken-stage [data-step]{visibility:visible!important}`,
+    `${o} #pptaken-overlay{display:block!important;position:absolute!important;left:0!important;top:0!important;width:1px!important;margin:0!important;font:14px/20px "JetBrains Mono",ui-monospace,monospace!important;color:#8B8FA0!important}`,
+    `${o} #pptaken-overlay>div{position:absolute!important;display:block!important;margin:0!important;padding:0!important;overflow:hidden!important;white-space:pre!important;text-overflow:ellipsis!important;cursor:pointer;background:none!important;font:inherit!important;color:inherit!important}`,
+    `${o} #pptaken-overlay>.pptaken-sec{color:#F2EFE9!important;font-weight:600!important;letter-spacing:.08em!important;text-transform:uppercase!important}`,
+    `${o} #pptaken-overlay>#pptaken-mark{box-sizing:border-box!important;border:3px solid #A99BFF!important;border-radius:6px!important;pointer-events:none!important}`,
+    // Print: every slide with every step, one canvas per page, backgrounds kept.
+    printCss("html[data-pptaken-mode=print]", width),
+    `@media print{${printCss("html", width)}}`,
+    `@page{size:${width}px ${height}px;margin:0}`,
   ].join("\n");
 }
 
@@ -162,8 +193,9 @@ export function buildDeckDocument(deck: Deck, options: BuildOptions): DeckDocume
     if (ids.has(slide.id)) throw new TypeError(`slides[${index}].id is duplicated`);
     ids.add(slide.id);
     const label = slide.title ? ` aria-label="${escapeHtml(slide.title)}"` : "";
+    const group = slide.section ? ` data-section="${escapeHtml(slide.section)}"` : "";
     sections.push(
-      `<section data-slide="${escapeHtml(slide.id)}" role="group" aria-roledescription="slide"${label} hidden>` +
+      `<section data-slide="${escapeHtml(slide.id)}"${group} role="group" aria-roledescription="slide"${label} hidden>` +
         `${rewriteAssets(slide.html, base, true)}</section>`,
     );
     if (slide.css) {

@@ -6,9 +6,25 @@
 
 import type { KeyCode } from "./keys.js";
 
-export type KeyAction = "next" | "prev" | "first" | "last" | "black" | "fullscreen";
+export type KeyAction =
+  | "next"
+  | "prev"
+  | "first"
+  | "last"
+  | "black"
+  | "fullscreen"
+  | "overview"
+  | "presenter"
+  | "print"
+  | "clock"
+  | "clockReset"
+  | "close"
+  | "help";
 
-/** What each key does. HID clickers send PageDown/PageUp, and `b` or `.` for a black screen. */
+/**
+ * What each key does in present mode. HID clickers send PageDown/PageUp, and `b` or `.` for a black screen.
+ * `clock` and `clockReset` act in the presenter view only; the overview remaps arrows, Enter and Escape.
+ */
 export const KEY_ACTIONS: Readonly<Record<KeyCode, KeyAction>> = {
   ArrowRight: "next",
   ArrowDown: "next",
@@ -25,7 +41,49 @@ export const KEY_ACTIONS: Readonly<Record<KeyCode, KeyAction>> = {
   KeyB: "black",
   Period: "black",
   KeyF: "fullscreen",
+  KeyO: "overview",
+  KeyS: "presenter",
+  KeyP: "print",
+  KeyT: "clock",
+  ShiftKeyR: "clockReset",
+  Escape: "close",
+  Question: "help",
 };
+
+/**
+ * Moves the overview highlight: ArrowLeft/ArrowRight by one slide, ArrowUp/ArrowDown by one row of `columns`,
+ * Home/End to the ends (clamped). Returns `null` for keys the overview does not use for moving.
+ */
+export function overviewMove(
+  count: number,
+  columns: number,
+  index: number,
+  code: KeyCode,
+): number | null {
+  const last = Math.max(count - 1, 0);
+  const at = (i: number) => Math.min(Math.max(i, 0), last);
+  switch (code) {
+    case "ArrowRight":
+    case "PageDown":
+    case "Space":
+      return at(index + 1);
+    case "ArrowLeft":
+    case "PageUp":
+    case "ShiftSpace":
+    case "Backspace":
+      return at(index - 1);
+    case "ArrowDown":
+      return index + columns <= last ? index + columns : index;
+    case "ArrowUp":
+      return index - columns >= 0 ? index - columns : index;
+    case "Home":
+      return 0;
+    case "End":
+      return last;
+    default:
+      return null;
+  }
+}
 
 export interface Position {
   slide: number;

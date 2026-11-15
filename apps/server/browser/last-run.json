@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-11-15T03:15:19.586Z",
+  "startedAt": "2026-11-15T15:43:24.860Z",
   "engines": {
     "chromium": {
       "ok": true,
@@ -7,7 +7,12 @@
         "page 200",
         "ready with 20 slides",
         "slide 1 visible",
-        "ArrowRight -> slide 2"
+        "ArrowRight -> slide 2",
+        "presenter /p/:id/presenter",
+        "presenter follows the main window",
+        "main window follows the presenter (1/2)",
+        "notes shown in the presenter",
+        "notes absent from the content documents"
       ]
     },
     "firefox": {
@@ -16,7 +21,12 @@
         "page 200",
         "ready with 20 slides",
         "slide 1 visible",
-        "ArrowRight -> slide 2"
+        "ArrowRight -> slide 2",
+        "presenter /p/:id/presenter",
+        "presenter follows the main window",
+        "main window follows the presenter (1/2)",
+        "notes shown in the presenter",
+        "notes absent from the content documents"
       ]
     },
     "webkit": {
@@ -25,7 +35,12 @@
         "page 200",
         "ready with 20 slides",
         "slide 1 visible",
-        "ArrowRight -> slide 2"
+        "ArrowRight -> slide 2",
+        "presenter /p/:id/presenter",
+        "presenter follows the main window",
+        "main window follows the presenter (1/2)",
+        "notes shown in the presenter",
+        "notes absent from the content documents"
       ]
     }
   },

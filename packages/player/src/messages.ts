@@ -17,9 +17,21 @@ export const MAX_SLIDES = 200;
 /** Maximum number of steps of one slide. The runtime merges any extra steps into the last one. */
 export const MAX_STEPS = 255;
 
-/** Display modes. Only `present` exists in F1; `overview` and `print` are reserved for F3. */
-export const MODES = ["present"] as const;
+/**
+ * Display modes, set only by the shell: `present` (one slide, steps revealed one by one), `overview` (every slide
+ * as a thumbnail, fully revealed; `goto` moves the highlight) and `print` (every slide with every step, stacked one
+ * canvas per page).
+ */
+export const MODES = ["present", "overview", "print"] as const;
 export type Mode = (typeof MODES)[number];
+
+/**
+ * Columns of the overview grid for a deck of `count` slides. Shared by the runtime (layout) and the shell
+ * (ArrowUp/ArrowDown move by one row), so it depends on the slide count only.
+ */
+export function overviewColumns(count: number): number {
+  return Math.max(Math.min(Math.ceil(Math.sqrt(count * 1.2)), 6, count), 1);
+}
 
 export interface SlideInfo {
   id: string;
@@ -47,11 +59,20 @@ export type ShellMessage = GotoMessage | ModeMessage;
 
 // iframe -> shell
 
-/** Sent once when the runtime has read the document. */
+/** Sent once when the runtime has read the document. `width`/`height`: the logical canvas in CSS pixels. */
 export interface ReadyMessage {
   v: 1;
   type: "ready";
   slides: SlideInfo[];
+  width: number;
+  height: number;
+}
+
+/** A slide clicked in the overview. The shell accepts it only while it has the overview open. */
+export interface SelectMessage {
+  v: 1;
+  type: "select";
+  slide: number;
 }
 
 /** A key pressed while the iframe has focus. */
@@ -69,7 +90,7 @@ export interface StateMessage {
   step: number;
 }
 
-export type ContentMessage = ReadyMessage | KeyMessage | StateMessage;
+export type ContentMessage = ReadyMessage | KeyMessage | StateMessage | SelectMessage;
 
 export type Fields = Record<string, unknown>;
 
