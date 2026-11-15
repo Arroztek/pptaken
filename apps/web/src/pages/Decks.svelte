@@ -13,6 +13,7 @@
   } from "../lib/api";
   import { errorMessage } from "../lib/errors";
   import { debounce, describeWhen } from "../lib/format";
+  import { countOfflineCopies, forgetOfflineCopies } from "../lib/offline";
   import { handleAuthError, prefs, t } from "../lib/state.svelte";
   import { checkImportFile } from "../lib/transfer";
 
@@ -113,8 +114,20 @@
     }
   }
 
+  // Offline copies kept by the player on this device (secure contexts only); a control deletes them.
+  let offlineCopies = $state(0);
+  async function forgetCopies() {
+    await forgetOfflineCopies();
+    offlineCopies = await countOfflineCopies();
+  }
+
   const search = debounce((q: string) => void load(q.trim()), 250);
-  onMount(() => void load(""));
+  onMount(() => {
+    void load("");
+    void countOfflineCopies().then((n) => {
+      offlineCopies = n;
+    });
+  });
   onDestroy(() => search.cancel());
 
   function clearSearch() {
@@ -292,6 +305,12 @@
         </div>
       {/if}
     {/if}
+  {/if}
+  {#if offlineCopies > 0}
+    <p class="offline-copies ppt-muted">
+      <span>{t("decks.offlineCopies", { n: offlineCopies })}</span>
+      <Button variant="ghost" size="sm" onclick={forgetCopies}>{t("decks.offlineForget")}</Button>
+    </p>
   {/if}
 </div>
 

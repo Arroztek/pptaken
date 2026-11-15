@@ -94,6 +94,8 @@ export const webEn = {
     clearSearch: "Clear search",
     examplePrompt:
       "Create a 5-slide presentation about the history of the printing press. Use PPTaken.",
+    offlineCopies: "Offline copies on this device: {n}. They are deleted when you sign out.",
+    offlineForget: "Forget offline copies",
   },
   transfer: {
     exportFor: "Export {title}",

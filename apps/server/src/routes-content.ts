@@ -1,17 +1,25 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Presenting: the trusted player page (/p/:deckId, owner session) and the isolated content routes (/c/…):
 // the deck document built from the stored, already sanitized revision, its assets and the bundled fonts.
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { signToken, verifyToken } from "@pptaken/auth-local";
 import { DEFAULT_WORKSPACE_ID, isDomainError, type Principal } from "@pptaken/core";
-import { assetHeaders, buildDeckDocument, contentHeaders } from "@pptaken/player";
+import {
+  assetHeaders,
+  BUILD_PLACEHOLDER,
+  buildDeckDocument,
+  contentHeaders,
+  RUNTIME_SHA256,
+  SHELL_FILES,
+} from "@pptaken/player";
+import type { Context } from "hono";
 import { Hono } from "hono";
 import type { AppEnv, Services } from "./context.js";
 import { loadFontFaces } from "./fonts.js";
-import { appCsp, contentOrigin, ownOrigin, publicOrigin } from "./http.js";
+import { contentOrigin, ownOrigin, playerCsp, publicOrigin, SERVICE_WORKER_CSP } from "./http.js";
 import { ownerSession } from "./session.js";
 
 /** Lifetime of the token embedded in a document's asset URLs (images on later slides load lazily). */
@@ -27,19 +35,10 @@ const contentReader: Principal = {
 };
 
 // The player shell and presenter modules of @pptaken/player, served as static ES modules to the trusted pages.
+// The same list (plus the generated page files) is what the service worker stores for offline use.
 const PLAYER_DIST = dirname(fileURLToPath(import.meta.resolve("@pptaken/player/shell")));
-const PLAYER_FILES = new Set([
-  "shell.js",
-  "keys.js",
-  "navigation.js",
-  "protocol.js",
-  "messages.js",
-  "i18n.js",
-  "sync.js",
-  "pace.js",
-  "presenter.js",
-  "presenter-data.js",
-]);
+const GENERATED_FILES = new Set(["page.js", "page.css", "presenter-page.js", "presenter.css"]);
+const PLAYER_FILES = new Set<string>(SHELL_FILES.filter((f) => !GENERATED_FILES.has(f)));
 
 /** UI fonts of the presenter view, served on the app origin (the page's CSP allows `font-src 'self'` only). */
 const UI_FONT_FAMILIES = new Map([
@@ -47,30 +46,48 @@ const UI_FONT_FAMILIES = new Map([
   ["JetBrains Mono", "jetbrains-mono"],
 ]);
 
-const PAGE_SCRIPT = `// PPTaken player page: asks the API for the signed content URL and mounts the player shell.
+const PAGE_SCRIPT = `// PPTaken player page: loads the deck (the signed content URL online, the stored offline copy without a
+// network), mounts the player shell and, in secure contexts, asks the service worker to keep an offline copy once
+// the deck is in memory.
 import { createPlayer } from "./shell.js";
 import { pickLocale } from "./i18n.js";
 import { syncChannelName } from "./sync.js";
+import { keepOfflineCopy, loadContent, SignedOutError } from "./offline-client.js";
 const body = document.body;
 const id = body.dataset.deck;
 const status = document.getElementById("status");
 async function start() {
-  const res = await fetch("/api/v1/decks/" + encodeURIComponent(id) + "/content-url", { credentials: "same-origin" });
-  if (res.status === 401) { location.href = "/login"; return; }
-  if (!res.ok) throw new Error("content-url " + res.status);
-  const { url } = await res.json();
+  let source;
+  try {
+    source = await loadContent(id);
+  } catch (error) {
+    if (error instanceof SignedOutError) { location.href = "/login"; return; }
+    throw error;
+  }
+  body.dataset.source = source.fromCopy ? "copy" : "network";
+  let keeping = false;
   const player = createPlayer(document.getElementById("stage"), {
-    contentUrl: url,
+    ...(source.fromCopy ? { contentHtml: source.contentHtml } : { contentUrl: source.contentUrl }),
     showHud: true,
+    indicator: true,
     title: document.title,
     locale: pickLocale(navigator.languages),
     presenterUrl: "/p/" + encodeURIComponent(id) + "/presenter",
     sync: syncChannelName(id) ?? undefined,
     onReady: (slides) => { status.hidden = true; body.dataset.slides = String(slides.length); body.dataset.state = "ready"; },
     onLoadTimeout: () => { body.dataset.state = "slow"; status.hidden = false; status.textContent = "This presentation is taking too long to load. If you are in an embedded preview, open this page in your regular browser."; },
-    onChange: (s) => { body.dataset.slide = String(s.slide); body.dataset.step = String(s.step); body.dataset.mode = s.mode; },
+    onChange: (s) => { body.dataset.slide = String(s.slide); body.dataset.step = String(s.step); body.dataset.mode = s.mode; body.dataset.black = String(s.black); },
     onFault: (f) => { body.dataset.state = "fault"; status.hidden = false; status.textContent = "The presentation stopped: " + f; },
+    onOffline: (o) => {
+      body.dataset.offline = o.state;
+      body.dataset.offlineImages = String(o.images);
+      body.dataset.offlineFonts = String(o.fonts);
+      if (o.state === "loading" || source.fromCopy || keeping) return;
+      keeping = true;
+      keepOfflineCopy(id).then((r) => { body.dataset.offlineCopy = String(r.kept); player.setOfflineCopy(r.kept); });
+    },
   });
+  if (source.fromCopy) player.setOfflineCopy(true);
   player.iframe.focus();
 }
 start().catch(() => { body.dataset.state = "error"; status.textContent = "Could not load the presentation."; });
@@ -79,10 +96,12 @@ start().catch(() => { body.dataset.state = "error"; status.textContent = "Could 
 const PAGE_CSS =
   "html,body{margin:0;height:100%;background:#000;color:#FAF7F2;font:16px system-ui,sans-serif}#stage{position:fixed;inset:0}#status{position:fixed;left:16px;bottom:16px;color:#8B8FA0}";
 
-const PRESENTER_SCRIPT = `// PPTaken presenter page: loads the presenter data (notes) and the signed content URL, then mounts the view.
+const PRESENTER_SCRIPT = `// PPTaken presenter page: loads the presenter data (notes, once, kept in memory) and the deck (signed content
+// URL, or the stored offline copy without a network), then mounts the view.
 import { createPresenter, parsePresenterData } from "./presenter.js";
 import { labelsFor, pickLocale } from "./i18n.js";
 import { syncChannelName } from "./sync.js";
+import { loadContent, offlineCopyStatus, SignedOutError } from "./offline-client.js";
 const body = document.body;
 const id = body.dataset.deck;
 const status = document.getElementById("status");
@@ -91,28 +110,36 @@ const t = labelsFor(locale);
 status.textContent = t.loading;
 async function get(path) {
   const res = await fetch(path, { credentials: "same-origin" });
-  if (res.status === 401) { location.href = "/login"; throw new Error("signed out"); }
+  if (res.status === 401) throw new SignedOutError();
   if (!res.ok) throw new Error(path + " " + res.status);
   return res.json();
 }
 async function start() {
   const base = "/api/v1/decks/" + encodeURIComponent(id);
-  const [raw, { url }] = await Promise.all([get(base + "/presenter"), get(base + "/content-url")]);
+  const [raw, source] = await Promise.all([get(base + "/presenter"), loadContent(id)]);
   const data = parsePresenterData(raw);
   if (!data) throw new Error("presenter data");
   document.title = t.presenterTitle + " · " + data.title;
+  body.dataset.source = source.fromCopy ? "copy" : "network";
   const presenter = createPresenter(document.getElementById("presenter"), {
-    contentUrl: url,
+    ...(source.fromCopy ? { contentHtml: source.contentHtml } : { contentUrl: source.contentUrl }),
     data,
     locale,
     sync: syncChannelName(id) ?? undefined,
-    onChange: (s) => { body.dataset.slide = String(s.slide); body.dataset.step = String(s.step); body.dataset.running = String(s.running); },
+    onChange: (s) => { body.dataset.slide = String(s.slide); body.dataset.step = String(s.step); body.dataset.running = String(s.running); body.dataset.elapsed = String(Math.floor(s.elapsedMs / 1000)); },
+    onOffline: (o) => { body.dataset.offline = o.state; },
   });
+  if (source.fromCopy) presenter.setOfflineCopy(true);
   await presenter.ready;
   status.hidden = true;
   body.dataset.state = "ready";
+  if (!source.fromCopy) offlineCopyStatus(id).then((r) => presenter.setOfflineCopy(r.kept));
 }
-start().catch(() => { body.dataset.state = "error"; status.textContent = t.loadError; });
+start().catch((error) => {
+  if (error instanceof SignedOutError) { location.href = "/login"; return; }
+  body.dataset.state = "error";
+  status.textContent = t.loadError;
+});
 `;
 
 const UNICODE_RANGE =
@@ -140,7 +167,7 @@ function playerPage(deckId: string, title: string): string {
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer"><title>${escapeHtml(title)} · PPTaken</title>
 <link rel="stylesheet" href="/_player/page.css"></head>
-<body data-deck="${escapeHtml(deckId)}" data-state="loading"><div id="stage"></div><p id="status" role="status">Loading…</p>
+<body data-deck="${escapeHtml(deckId)}" data-state="loading" data-offline="loading"><div id="stage"></div><p id="status" role="status">Loading…</p>
 <script type="module" src="/_player/page.js"></script></body></html>`;
 }
 
@@ -217,21 +244,62 @@ export function playerRoutes(s: Services): Hono<AppEnv> {
     });
   });
 
+  // The offline service worker (layer 2). Its scope is `/p/`, the directory it is served from: the narrowest
+  // scope that controls the player and presenter pages. Not private (no deck data in it).
+  app.get("/p/sw.js", (c) =>
+    c.body(serviceWorkerSource(s), 200, {
+      "Content-Type": "text/javascript; charset=utf-8",
+      "Cache-Control": "no-cache",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": SERVICE_WORKER_CSP,
+    }),
+  );
+
   app.get("/p/:deckId", async (c) => {
     const deckId = c.req.param("deckId");
     if (!(await s.auth.isInstalled())) return c.redirect("/welcome", 302);
     if ((await ownerSession(c, s)) === null) return c.redirect("/login", 302);
     const deck = ULID.test(deckId) ? await s.storage.decks.get(DEFAULT_WORKSPACE_ID, deckId) : null;
     if (deck === null || deck.deletedAt !== null) return notFoundText();
-    const frame = contentOrigin(c, s.config);
-    const own = publicOrigin(c, s.config);
     return c.html(playerPage(deckId, deck.title), 200, {
-      "Content-Security-Policy": appCsp(frame === own ? [] : [frame]),
+      "Content-Security-Policy": playerPagePolicy(c, s),
       "Cache-Control": "no-store",
     });
   });
 
   return app;
+}
+
+/** CSP of the player and presenter pages: the app CSP plus the runtime hash and data: fonts (offline srcdoc). */
+export function playerPagePolicy(c: Context, s: Services): string {
+  const frame = contentOrigin(c, s.config);
+  const own = publicOrigin(c, s.config);
+  return playerCsp(frame === own ? [] : [frame], RUNTIME_SHA256);
+}
+
+const swCache = new WeakMap<Services, string>();
+
+/**
+ * The service worker script with its build id: a hash of everything the worker stores for the shell (the worker
+ * itself, the player modules, the page scripts and styles, the runtime). Any change installs a new worker.
+ */
+function serviceWorkerSource(s: Services): string {
+  let source = swCache.get(s);
+  if (source === undefined) {
+    const sw = readFileSync(join(PLAYER_DIST, "sw.js"), "utf8");
+    const hash = createHash("sha256").update(sw).update(RUNTIME_SHA256);
+    for (const file of [...PLAYER_FILES].sort()) {
+      const path = join(PLAYER_DIST, file);
+      if (existsSync(path)) hash.update(readFileSync(path));
+    }
+    hash.update(PAGE_SCRIPT).update(PRESENTER_SCRIPT).update(PAGE_CSS).update(presenterCss(s));
+    source = sw.replace(
+      JSON.stringify(BUILD_PLACEHOLDER),
+      JSON.stringify(hash.digest("hex").slice(0, 16)),
+    );
+    swCache.set(s, source);
+  }
+  return source;
 }
 
 const fontFaceCache = new WeakMap<Services, ReturnType<typeof loadFontFaces>>();

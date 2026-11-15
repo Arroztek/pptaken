@@ -139,6 +139,7 @@ main:focus { outline: none; }
 .toolbar .search .ppt-input { width: 100%; padding-left: 38px; border-radius: var(--ppt-radius-pill); }
 .toolbar .count { margin-left: auto; font-size: var(--ppt-text-sm); color: var(--ppt-text-muted); }
 .load-more { display: flex; justify-content: center; margin-top: var(--ppt-space-8); }
+.offline-copies { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ppt-space-2) var(--ppt-space-4); margin-top: var(--ppt-space-8); }
 
 /* Export dialog and import status (Decks). */
 .export-options { display: grid; gap: var(--ppt-space-6); }

@@ -2,6 +2,7 @@
 <script lang="ts">
   import { IconButton, ThemeToggle } from "@pptaken/ui";
   import { api } from "../lib/api";
+  import { forgetOfflineCopies } from "../lib/offline";
   import { navigate, prefs, route, session, t } from "../lib/state.svelte";
   import BrandLogo from "./BrandLogo.svelte";
   import LangSwitch from "./LangSwitch.svelte";
@@ -17,6 +18,8 @@
 
   async function signOut() {
     signingOut = true;
+    // Offline copies of presentations hold private content: they go with the session.
+    await forgetOfflineCopies();
     try {
       await api.logout();
     } catch {

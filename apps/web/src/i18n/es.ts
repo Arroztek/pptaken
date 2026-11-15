@@ -97,6 +97,8 @@ export const webEs: WebDictionary = {
     clearSearch: "Borrar búsqueda",
     examplePrompt:
       "Crea una presentación de 5 slides sobre la historia de la imprenta. Usa PPTaken.",
+    offlineCopies: "Copias sin conexión en este dispositivo: {n}. Se borran al cerrar sesión.",
+    offlineForget: "Olvidar copias sin conexión",
   },
   transfer: {
     exportFor: "Exportar {title}",

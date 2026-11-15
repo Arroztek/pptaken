@@ -18,6 +18,10 @@
 //   k. print (p): layout in every engine; in Chromium a real PDF via page.pdf, page count and page text checked
 //   l. presenter window (s): sync both ways over BroadcastChannel, previews, notes only there, black, clock, pace
 //   m. pace with the Playwright clock (behind after 20 fake minutes)
+//   n. offline: in-memory preload and indicator, every slide and step with the network cut, overview and black
+//      screen offline, "partial" with a missing asset, the srcdoc delivery path (offline document under the
+//      production page CSP) with the same hostile-content checks, a content navigation fault, and a document
+//      without the no-network CSP refused
 // Results go to browser/last-run.json.
 
 import { execFileSync } from "node:child_process";
@@ -28,7 +32,7 @@ import { chromium, firefox, webkit } from "@playwright/test";
 import { sanitizeDeck } from "@pptaken/sanitizer";
 import { parseDeck } from "@pptaken/schema";
 import * as nav from "../dist/navigation.js";
-import { startServers } from "./server.mjs";
+import { MISSING_ASSET, scriptHash, startServers } from "./server.mjs";
 
 const EXAMPLES = new URL("../../schema/examples/", import.meta.url);
 const ASSET = "5746af00ffb22400fac7f2aa16181d00";
@@ -159,6 +163,16 @@ const big = clean(
   }).deck,
 );
 
+// Offline: one image that the content origin answers with 404 (preload "partial").
+const partial = clean({
+  ...hello,
+  slides: hello.slides.map((s, i) =>
+    i === 1
+      ? { ...s, html: `${s.html}<img src="asset:${MISSING_ASSET}" width="40" height="40" alt="">` }
+      : s,
+  ),
+});
+
 const DECKS = new Map([
   ["talk", { deck: talk }],
   ["big", { deck: big }],
@@ -167,6 +181,12 @@ const DECKS = new Map([
   ["steps", { deck: steps }],
   ["hostile", hostile],
   ["hostile-nav", hostileNav],
+  ["partial", { deck: partial }],
+  // Offline delivery (srcdoc). The page CSP allows the probe's hash: this models a script that got through.
+  ["offline-hostile", { ...hostile, pageHashes: (o) => [scriptHash(PROBE(o))] }],
+  // The same document under the real page CSP: the inherited policy blocks the probe too.
+  ["offline-hostile-strict", hostile],
+  ["offline-nav", hostileNav],
 ]);
 
 const server = await startServers((key) => DECKS.get(key) ?? null);
@@ -1279,6 +1299,345 @@ for (const [name, type] of [
     } finally {
       await ctx.close();
     }
+  });
+
+  // n. Offline.
+  const viewOf = (f) =>
+    f.evaluate(() => {
+      const shown = [...document.querySelectorAll("#pptaken-stage > section")].filter(
+        (s) => getComputedStyle(s).display !== "none",
+      );
+      const s = shown[0];
+      const images = s ? [...s.querySelectorAll("img")] : [];
+      return {
+        shown: shown.map((x) => x.getAttribute("data-slide")),
+        revealed: s
+          ? [...s.querySelectorAll("[data-step]")].filter(
+              (e) => getComputedStyle(e).visibility === "visible",
+            ).length
+          : -1,
+        imagesOk: images.every((i) => i.complete && i.naturalWidth > 0),
+        images: images.length,
+      };
+    });
+  const waitOffline = () =>
+    page.waitForFunction(
+      () => window.__test.offline && window.__test.offline.state !== "loading",
+      null,
+      {
+        timeout: 40_000,
+      },
+    );
+  const cut = async () => {
+    await context.setOffline(true);
+    await context.route("**/*", (r) => r.abort());
+  };
+  const restore = async () => {
+    await context.unroute("**/*");
+    await context.setOffline(false);
+  };
+  /** Every slide and every step forward with keys on the parent page, state and DOM checked after each. */
+  const traverse = async (getFrame, label) => {
+    const slides = await page.evaluate(() => window.__test.slides);
+    await focusParent();
+    await page.keyboard.press("Home");
+    await waitState(0, 0);
+    const bad = [];
+    let images = 0;
+    let p = { slide: 0, step: 0 };
+    for (;;) {
+      const n = nav.next({ slides }, p);
+      if (nav.samePosition(n, p)) break;
+      await page.keyboard.press("ArrowRight");
+      await waitState(n.slide, n.step);
+      const v = await viewOf(getFrame());
+      images += n.step === 0 ? v.images : 0;
+      if (v.shown.join() !== slides[n.slide].id || v.revealed !== n.step || !v.imagesOk)
+        bad.push(`${n.slide}/${n.step}: ${JSON.stringify(v)}`);
+      p = n;
+    }
+    check(
+      `${label}: every slide and step, DOM reveals and images`,
+      bad.length === 0 && p.slide === slides.length - 1,
+      bad.slice(0, 3).join(" | "),
+    );
+    return images;
+  };
+
+  await section("offline-preload", async () => {
+    await open("talk");
+    await waitOffline();
+    const o = await page.evaluate(() => window.__test.offline);
+    check(
+      "preload: ready, the deck's image decoded, no failure",
+      o.state === "ready" && o.images >= 1 && o.failed.length === 0 && o.copy === false,
+      JSON.stringify(o),
+    );
+    const dot = await page.evaluate(() => {
+      const d = document.querySelector("#host [data-offline]");
+      if (!d) return null;
+      const r = d.getBoundingClientRect();
+      return {
+        state: d.getAttribute("data-offline"),
+        w: r.width,
+        h: r.height,
+        right: innerWidth - r.right,
+        top: r.top,
+        label: d.getAttribute("aria-label"),
+        bg: getComputedStyle(d).backgroundColor,
+      };
+    });
+    check(
+      "status dot: 8 px in the top-right corner, green, readable label",
+      dot?.state === "ready" &&
+        dot.w === 8 &&
+        dot.h === 8 &&
+        dot.right === 12 &&
+        dot.top === 12 &&
+        dot.bg === "rgb(61, 214, 140)" &&
+        dot.label === "Ready to present offline.",
+      JSON.stringify(dot),
+    );
+    const hud = await page.evaluate(() =>
+      [...document.querySelectorAll("#host > div[aria-hidden=true]")]
+        .map((d) => d.textContent)
+        .join("|"),
+    );
+    check(
+      "the HUD shows the text when it becomes ready",
+      hud.includes("Ready to present offline."),
+      hud,
+    );
+    await focusParent();
+    await page.keyboard.press("?");
+    const help = await page.evaluate(
+      () => document.querySelector("#host [role=dialog]").textContent,
+    );
+    check(
+      "help overlay shows the offline status",
+      help.includes("Offline: Ready to present offline."),
+      help,
+    );
+    await page.keyboard.press("Escape");
+
+    await cut();
+    try {
+      const images = await traverse(frame, "network cut after ready");
+      check("the image slide was shown offline", images >= 1, String(images));
+      await focusParent();
+      await page.keyboard.press("o");
+      await page.waitForFunction(() => window.__player.getState().mode === "overview");
+      await page.keyboard.press("ArrowLeft");
+      await page.keyboard.press("Enter");
+      const last = talk.slides.length - 1;
+      await page.waitForFunction(
+        (s) => {
+          const st = window.__player.getState();
+          return st.mode === "present" && st.slide === s;
+        },
+        last - 1,
+        { timeout: 4000 },
+      );
+      check("overview: open and select a slide offline", true);
+      await page.keyboard.press("b");
+      const black = await page.evaluate(() => window.__player.getState().black);
+      await page.keyboard.press("b");
+      check(
+        "black screen offline",
+        black && !(await page.evaluate(() => window.__player.getState().black)),
+      );
+    } finally {
+      await restore();
+    }
+  });
+
+  await section("offline-partial", async () => {
+    await open("partial");
+    await waitOffline();
+    const o = await page.evaluate(() => window.__test.offline);
+    check(
+      "a missing asset makes the state partial",
+      o.state === "partial" && o.failed.includes("image-error"),
+      JSON.stringify(o),
+    );
+    const dot = await page.evaluate(() => {
+      const d = document.querySelector("#host [data-offline]");
+      return { bg: getComputedStyle(d).backgroundColor, label: d.getAttribute("aria-label") };
+    });
+    check(
+      "partial dot: warning color and text",
+      dot.bg === "rgb(255, 159, 67)" && dot.label === "Some resources could not be loaded.",
+      JSON.stringify(dot),
+    );
+    await focusParent();
+    await page.keyboard.press("ArrowRight");
+    await waitState(1, 0);
+    check("navigation still works when partial", true);
+  });
+
+  const openOffline = async (key) => {
+    await page.goto("about:blank");
+    await page.goto(`${origins.shell}/offline-player/${key}`);
+  };
+  const srcdocFrame = () => page.frames().find((f) => f.url() === "about:srcdoc");
+
+  await section("offline-srcdoc", async () => {
+    server.hits.length = 0;
+    responses.length = 0;
+    await openOffline("talk");
+    await page.waitForFunction(() => window.__test.slides && window.__test.rendered, null, {
+      timeout: 10_000,
+    });
+    await waitOffline();
+    const o = await page.evaluate(() => window.__test.offline);
+    check(
+      "srcdoc document: runtime runs under the page CSP, preload ready with the inlined image",
+      o.state === "ready" && o.images >= 1,
+      JSON.stringify(o),
+    );
+    check(
+      "srcdoc document has an opaque origin",
+      (await srcdocFrame().evaluate(() => self.origin)) === "null",
+    );
+    await cut();
+    try {
+      await traverse(srcdocFrame, "srcdoc, network cut");
+    } finally {
+      await restore();
+    }
+    check("the srcdoc document made no request", server.hits.length === 0, server.hits.join(" | "));
+    check("no faults", (await page.evaluate(() => window.__test.faults)).length === 0);
+  });
+
+  await section("offline-srcdoc-security", async () => {
+    server.hits.length = 0;
+    // A fresh tab: no transient user activation left over from the keys pressed by the previous sections (the
+    // shell's gate for mode keys from the content relies on it).
+    const tab = await context.newPage();
+    const tabResponses = [];
+    tab.on("response", (r) => tabResponses.push(r.url()));
+    await tab.goto(`${origins.shell}/offline-player/offline-hostile`);
+    await tab.waitForFunction(() => window.__test.probe, null, { timeout: 8000 });
+    await tab.waitForTimeout(1500);
+    const t = await tab.evaluate(() => window.__test);
+    const p = t.probe;
+    check(
+      "srcdoc: no hostile script or handler ran",
+      t.pwned.length === 0,
+      JSON.stringify(t.pwned),
+    );
+    check("srcdoc: content has an opaque origin", p.selfOrigin === "null", p.selfOrigin);
+    // WebKit answers `document.cookie` with "" in a sandboxed srcdoc document instead of throwing: accepted as
+    // long as no cookie of the page shows through (`legacy=1` is readable by scripts there).
+    check(
+      "srcdoc: content cannot read cookies",
+      String(p.cookie).startsWith("blocked:") || p.cookie === "allowed:",
+      p.cookie,
+    );
+    if (p.cookie === "allowed:")
+      engine.notes.push("srcdoc: document.cookie returns '' (no exception)");
+    for (const k of [
+      "localStorage",
+      "parentDocument",
+      "parentLocation",
+      "topNavigation",
+      "eval",
+      "newFunction",
+    ]) {
+      check(`srcdoc: content cannot use ${k}`, String(p[k]).startsWith("blocked:"), p[k]);
+    }
+    check(
+      "srcdoc: window.open is blocked",
+      p.windowOpen === "allowed:null" || String(p.windowOpen).startsWith("blocked:"),
+      p.windowOpen,
+    );
+    check(
+      "srcdoc: fetch and XHR are blocked",
+      JSON.stringify(p.network) === '["rejected","rejected","rejected"]',
+      JSON.stringify(p.network),
+    );
+    check(
+      "srcdoc: no request reached any server",
+      server.hits.length === 0,
+      server.hits.join(" | "),
+    );
+    const api = tabResponses.filter((u) => u.includes("/api/"));
+    check("srcdoc: no response from /api reached the content", api.length === 0, api.join(" | "));
+    const after = await tab.evaluate(() => ({
+      ...window.__player.getState(),
+      printing: document.getElementById("host").hasAttribute("data-pptaken-printing"),
+    }));
+    check(
+      "srcdoc: content cannot select a slide, print or open windows",
+      after.slide === 0 &&
+        after.mode !== "print" &&
+        !after.printing &&
+        context.pages().length === 2,
+      JSON.stringify(after),
+    );
+    // The gate on mode keys from the content (navigator.userActivation) cannot be exercised here: under
+    // Playwright `isActive` is always true, in all three engines (measured), so a forwarded `o` is honoured.
+    if (t.activation.includes(true)) {
+      engine.notes.push(
+        "gated keys from content not testable: userActivation.isActive is always true",
+      );
+    } else {
+      check("srcdoc: content cannot change the mode", after.mode === "present", after.mode);
+    }
+    await tab.close();
+
+    // Under the real page CSP (no probe hash), the inherited policy blocks even a script with the right nonce.
+    await openOffline("offline-hostile-strict");
+    await page.waitForFunction(() => window.__test.slides, null, { timeout: 10_000 });
+    await page.waitForTimeout(1500);
+    const strict = await page.evaluate(() => window.__test);
+    check(
+      "srcdoc: the inherited page CSP blocks a nonced script that is not the runtime",
+      strict.probe === null && strict.pwned.length === 0,
+      JSON.stringify({ probe: strict.probe, pwned: strict.pwned }),
+    );
+
+    server.hits.length = 0;
+    await openOffline("offline-nav");
+    const faulted = await page
+      .waitForFunction(() => window.__test.faults.includes("unexpected-navigation"), null, {
+        timeout: 8000,
+      })
+      .then(
+        () => true,
+        () => false,
+      );
+    check("srcdoc: content navigation is detected as a fault", faulted);
+    check(
+      "srcdoc: the navigation carried no cookie",
+      server.hits.every((h) => h.endsWith("cookies=none")),
+      server.hits.join(" | "),
+    );
+
+    const refused = await page.evaluate(async () => {
+      const { createPlayer } = await import("/dist/shell.js");
+      const host = document.createElement("div");
+      document.body.append(host);
+      const out = [];
+      for (const html of [
+        "<!doctype html><html><head><script>1</script></head></html>",
+        `<!doctype html>\n<html>\n<head>\n<meta http-equiv="Content-Security-Policy" content="default-src *">\n`,
+      ]) {
+        try {
+          createPlayer(host, { contentHtml: html });
+          out.push("accepted");
+        } catch (e) {
+          out.push(e.name);
+        }
+      }
+      host.remove();
+      return out;
+    });
+    check(
+      "a document without the no-network CSP <meta> first is refused",
+      JSON.stringify(refused) === '["TypeError","TypeError"]',
+      JSON.stringify(refused),
+    );
   });
 
   console.log(

@@ -7,12 +7,101 @@
 //                                           headers from `contentHeaders`/`assetHeaders`; no cookies
 // Every other request on either origin is recorded as a hit: content must never cause one.
 
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import http from "node:http";
-import { assetHeaders, buildDeckDocument, contentHeaders, renderNotes } from "../dist/index.js";
+import { crc32, deflateSync } from "node:zlib";
+import {
+  assetHeaders,
+  buildDeckDocument,
+  buildOfflineDocument,
+  contentHeaders,
+  RUNTIME_SHA256,
+  renderNotes,
+} from "../dist/index.js";
 
 const DIST = new URL("../dist/", import.meta.url);
+
+/** An asset id the content origin answers with 404 (the "partial" preload scenario). Not recorded as a hit. */
+export const MISSING_ASSET = "dead0000dead0000dead0000dead0000";
+
+/** A real, decodable 24×24 PNG (offline documents inline raster images only). */
+export function pngBytes(size = 24) {
+  const chunk = (type, data) => {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(data.length);
+    const td = Buffer.concat([Buffer.from(type, "ascii"), data]);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(td));
+    return Buffer.concat([len, td, crc]);
+  };
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(size, 0);
+  ihdr.writeUInt32BE(size, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 2; // RGB
+  const row = Buffer.concat([Buffer.from([0]), Buffer.alloc(size * 3, 0x80)]);
+  const raw = Buffer.concat(Array.from({ length: size }, () => row));
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk("IHDR", ihdr),
+    chunk("IDAT", deflateSync(raw)),
+    chunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+/** CSP hash source of an inline script. */
+export const scriptHash = (source) =>
+  `'sha256-${createHash("sha256").update(source, "utf8").digest("base64")}'`;
+
+/** The production player page CSP (apps/server `playerCsp`), plus optional extra script hashes for tests. */
+const playerPageCsp = (content, extra = []) =>
+  [
+    "default-src 'self'",
+    `script-src 'self' 'sha256-${RUNTIME_SHA256}'${extra.map((h) => ` ${h}`).join("")}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    `frame-src 'self' ${content}`,
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+  ].join("; ");
+
+const offlinePage = (key) => `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>offline player browser test</title>
+<style>html,body{margin:0;height:100%;background:#000}#host{position:fixed;inset:0}#typing{position:fixed;left:0;top:0;width:8px;height:8px;opacity:0}</style>
+</head><body><input id="typing" aria-label="typing test"><div id="host"></div>
+<script type="module" src="/offline-page.js?key=${encodeURIComponent(key)}"></script></body></html>`;
+
+const OFFLINE_PAGE_SCRIPT = `import { createPlayer } from "/dist/shell.js";
+const key = new URL(import.meta.url).searchParams.get("key");
+const t = (window.__test = { changes: [], rendered: null, faults: [], keys: 0, pwned: [], probe: null, slides: null, offline: null, error: null, activation: [] });
+addEventListener("message", (e) => {
+  const d = e.data;
+  if (!d || typeof d !== "object") return;
+  if (d.type === "key") { t.keys++; t.activation.push(navigator.userActivation?.isActive ?? "n/a"); }
+  if (d.pwned) t.pwned.push(String(d.pwned));
+  if (d.probe) t.probe = d.probe;
+});
+const { html } = await (await fetch("/offline-doc/" + encodeURIComponent(key))).json();
+try {
+  window.__player = createPlayer(document.getElementById("host"), {
+    contentHtml: html,
+    showHud: true,
+    indicator: true,
+    onReady: (slides) => { t.slides = slides; },
+    onChange: (s) => t.changes.push(s),
+    onRender: (p) => { t.rendered = p; },
+    onFault: (f) => t.faults.push(f),
+    onOffline: (o) => { t.offline = o; },
+  });
+} catch (error) {
+  t.error = String(error);
+}
+`;
 
 /** A small SVG asset (served for any valid hex id). */
 const ASSET_SVG =
@@ -58,7 +147,7 @@ const shellPage = (contentUrl, key) => `<!doctype html>
 </head><body><input id="typing" aria-label="typing test"><div id="host"></div>
 <script type="module">
 import { createPlayer } from "/dist/shell.js";
-const t = (window.__test = { changes: [], rendered: null, faults: [], keys: 0, pwned: [], probe: null, slides: null });
+const t = (window.__test = { changes: [], rendered: null, faults: [], keys: 0, pwned: [], probe: null, slides: null, offline: null });
 addEventListener("message", (e) => {
   const d = e.data;
   if (!d || typeof d !== "object") return;
@@ -69,17 +158,20 @@ addEventListener("message", (e) => {
 window.__player = createPlayer(document.getElementById("host"), {
   contentUrl: ${JSON.stringify(contentUrl)},
   showHud: true,
+  indicator: true,
   presenterUrl: ${JSON.stringify(`/presenter/${key}`)},
   sync: ${JSON.stringify(`pptaken:${key}`)},
   onReady: (slides) => { t.slides = slides; },
   onChange: (s) => t.changes.push(s),
   onRender: (p) => { t.rendered = p; },
   onFault: (f) => t.faults.push(f),
+  onOffline: (o) => { t.offline = o; },
 });
 </script></body></html>`;
 
 /**
- * @param {(key: string) => { deck: import("@pptaken/schema").Deck; inject?: (html: string, nonce: string, origins: {shell: string, content: string}) => string } | null} deckFor
+ * `pageHashes` (offline page only): extra script hashes for the page CSP, to model a script that got through.
+ * @param {(key: string) => { deck: import("@pptaken/schema").Deck; inject?: (html: string, nonce: string, origins: {shell: string, content: string}) => string; pageHashes?: (origins: {shell: string, content: string}) => string[] } | null} deckFor
  */
 export async function startServers(deckFor) {
   const hits = [];
@@ -114,6 +206,40 @@ export async function startServers(deckFor) {
         presenterPage(`${origins.content}/c/deck/${presenter[1]}`, presenter[1], entry.deck),
       );
     }
+    // Offline delivery path: the same shell mounting an offline document through srcdoc, under the production
+    // player page CSP (a srcdoc frame inherits it).
+    const offline = /^\/offline-player\/([a-z0-9-]+)$/.exec(u.pathname);
+    const offlineEntry = offline ? deckFor(offline[1]) : null;
+    if (offline && offlineEntry) {
+      res.writeHead(200, {
+        "content-type": "text/html; charset=utf-8",
+        "content-security-policy": playerPageCsp(
+          origins.content,
+          offlineEntry.pageHashes?.(origins) ?? [],
+        ),
+        "set-cookie": ["sid=SECRET123; Path=/; HttpOnly; SameSite=Lax", "legacy=1; Path=/"],
+      });
+      return res.end(offlinePage(offline[1]));
+    }
+    if (u.pathname === "/offline-page.js") {
+      res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
+      return res.end(OFFLINE_PAGE_SCRIPT);
+    }
+    const offlineDoc = /^\/offline-doc\/([a-z0-9-]+)$/.exec(u.pathname);
+    const docEntry = offlineDoc ? deckFor(offlineDoc[1]) : null;
+    if (offlineDoc && docEntry) {
+      const nonce = randomBytes(18).toString("base64");
+      const assets = new Map();
+      const refs = JSON.stringify(docEntry.deck).matchAll(/asset:([0-9a-f]{16,64})/g);
+      for (const [, hex] of refs) {
+        if (hex !== MISSING_ASSET)
+          assets.set(hex, { mediaType: "image/png", base64: pngBytes().toString("base64") });
+      }
+      let { html } = buildOfflineDocument(docEntry.deck, { nonce, assets });
+      if (docEntry.inject) html = docEntry.inject(html, nonce, origins);
+      res.writeHead(200, { "content-type": "application/json" });
+      return res.end(JSON.stringify({ html }));
+    }
     const file = /^\/dist\/([a-z0-9-]+\.js)$/.exec(u.pathname);
     if (file) {
       try {
@@ -141,6 +267,10 @@ export async function startServers(deckFor) {
       if (entry.inject) html = entry.inject(html, nonce, origins);
       res.writeHead(200, contentHeaders(options));
       return res.end(html);
+    }
+    if (u.pathname === `/c/asset/${MISSING_ASSET}`) {
+      res.writeHead(404, { ...assetHeaders(), "content-type": "text/plain" });
+      return res.end("missing");
     }
     if (/^\/c\/asset\/[0-9a-f]{16,64}$/.test(u.pathname) && u.search === "") {
       res.writeHead(200, { ...assetHeaders(), "content-type": "image/svg+xml" });

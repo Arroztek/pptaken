@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-11-15T15:43:24.860Z",
+  "startedAt": "2026-11-15T17:06:12.320Z",
   "engines": {
     "chromium": {
       "ok": true,
@@ -12,8 +12,32 @@
         "presenter follows the main window",
         "main window follows the presenter (1/2)",
         "notes shown in the presenter",
-        "notes absent from the content documents"
-      ]
+        "notes absent from the content documents",
+        "ready offline: service-worker (1 images, 6 fonts), copy true",
+        "player page CSP allows only the runtime hash and data: fonts in addition",
+        "presenter ready offline: service-worker",
+        "offline: all 20 slides and every step, images shown",
+        "offline: overview opened, slide selected",
+        "offline: black screen on and off",
+        "offline: presenter notes, next preview, clock and sync",
+        "layer 2: presenter opened offline: true",
+        "layer 2: player reloaded offline: true",
+        "layer 2: offline reload navigates; srcdoc content is opaque and has no network",
+        "layer 2: a deck never opened says so: true",
+        "partial: a missing asset shows partial, navigation works",
+        "cache: 31 entries, no token, content or auth URL",
+        "logout: the worker deleted the offline copies; nothing is served offline"
+      ],
+      "offline": {
+        "layer1": "service-worker (1 images, 6 fonts)",
+        "layer2Copy": true,
+        "layer2CutBy": "server stopped + setOffline + route abort",
+        "presenterAfterCut": true,
+        "reload": true,
+        "neverOpened": true,
+        "controlled": true,
+        "logoutClears": true
+      }
     },
     "firefox": {
       "ok": true,
@@ -26,8 +50,32 @@
         "presenter follows the main window",
         "main window follows the presenter (1/2)",
         "notes shown in the presenter",
-        "notes absent from the content documents"
-      ]
+        "notes absent from the content documents",
+        "ready offline: service-worker (1 images, 6 fonts), copy true",
+        "player page CSP allows only the runtime hash and data: fonts in addition",
+        "presenter ready offline: service-worker",
+        "offline: all 20 slides and every step, images shown",
+        "offline: overview opened, slide selected",
+        "offline: black screen on and off",
+        "offline: presenter notes, next preview, clock and sync",
+        "layer 2: presenter opened offline: true",
+        "layer 2: player reloaded offline: true",
+        "layer 2: offline reload navigates; srcdoc content is opaque and has no network",
+        "layer 2: a deck never opened says so: true",
+        "partial: a missing asset shows partial, navigation works",
+        "cache: 31 entries, no token, content or auth URL",
+        "logout: the worker deleted the offline copies; nothing is served offline"
+      ],
+      "offline": {
+        "layer1": "service-worker (1 images, 6 fonts)",
+        "layer2Copy": true,
+        "layer2CutBy": "server stopped + route abort",
+        "presenterAfterCut": true,
+        "reload": true,
+        "neverOpened": true,
+        "controlled": true,
+        "logoutClears": true
+      }
     },
     "webkit": {
       "ok": true,
@@ -40,8 +88,32 @@
         "presenter follows the main window",
         "main window follows the presenter (1/2)",
         "notes shown in the presenter",
-        "notes absent from the content documents"
-      ]
+        "notes absent from the content documents",
+        "ready offline: service-worker (1 images, 6 fonts), copy true",
+        "player page CSP allows only the runtime hash and data: fonts in addition",
+        "presenter ready offline: service-worker",
+        "offline: all 20 slides and every step, images shown",
+        "offline: overview opened, slide selected",
+        "offline: black screen on and off",
+        "offline: presenter notes, next preview, clock and sync",
+        "layer 2: presenter opened offline: true",
+        "layer 2: player reloaded offline: true",
+        "layer 2: offline reload navigates; srcdoc content is opaque and has no network",
+        "layer 2: a deck never opened says so: true",
+        "partial: a missing asset shows partial, navigation works",
+        "cache: 31 entries, no token, content or auth URL",
+        "logout: the worker deleted the offline copies; nothing is served offline"
+      ],
+      "offline": {
+        "layer1": "service-worker (1 images, 6 fonts)",
+        "layer2Copy": true,
+        "layer2CutBy": "server stopped + setOffline",
+        "presenterAfterCut": true,
+        "reload": true,
+        "neverOpened": true,
+        "controlled": true,
+        "logoutClears": true
+      }
     }
   },
   "ok": true
