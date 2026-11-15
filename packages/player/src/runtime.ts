@@ -2,7 +2,8 @@
 // The PPTaken runtime: the only script inside the sandboxed content iframe (authorized by the CSP nonce).
 // It shows one slide at a time, reveals steps, scales the logical canvas to the iframe with a black letterbox,
 // lays out the overview grid, forwards keys to the shell and talks to it only through the validated postMessage
-// protocol. Print mode is pure CSS (from the builder); the runtime only switches the mode attribute.
+// protocol. Print mode is pure CSS (from the builder); the runtime only switches the mode attribute. After `ready`
+// it preloads every image and font of the deck (offline layer 1) and reports the result once (`preload`).
 //
 // Built by `scripts/build-runtime.mjs` into a single IIFE together with `keys.ts` and `messages.ts`, and
 // embedded in the deck document by the builder. Rules: no eval, no innerHTML, no inline handlers, and no reads of
@@ -12,10 +13,12 @@
 import { keyCodeOf } from "./keys.js";
 import {
   type ContentMessage,
+  MAX_PRELOAD_FAILED,
   MAX_STEPS,
   type Mode,
   overviewColumns,
   PROTOCOL_VERSION,
+  type PreloadFailure,
   parseShellMessage,
 } from "./messages.js";
 
@@ -32,6 +35,12 @@ const win = window;
 const doc = document;
 const root = doc.documentElement;
 const shell = win.parent;
+const fontSet = doc.fonts;
+const sheets = doc.styleSheets;
+/** Preload budget: whatever has not loaded by then is reported as a timeout (presenting never waits for it). */
+const PRELOAD_MS = 30_000;
+/** Decoded images, kept referenced so the browser keeps them in its memory cache for the whole talk. */
+const kept: HTMLImageElement[] = [];
 
 interface SlideView {
   section: HTMLElement;
@@ -206,6 +215,74 @@ function show(slide: number, step: number, report: boolean): void {
   if (report) post({ v: PROTOCOL_VERSION, type: "state", slide, step: revealed });
 }
 
+/** Adds every `url(...)` of a CSS text to `into`, except same-document references (`url(#id)`). */
+function urlsOf(text: string | null, into: Set<string>): void {
+  for (const m of (text ?? "").matchAll(/url\(\s*(["']?)(.*?)\1\s*\)/g)) {
+    if (m[2] && m[2][0] !== "#") into.add(m[2]);
+  }
+}
+
+/**
+ * Layer 1 of offline presenting: decodes every image of every slide (hidden ones too, and CSS backgrounds) and
+ * loads every declared font face, then reports once with `preload`. Never blocks presenting.
+ */
+async function preload(): Promise<void> {
+  const urls = new Set<string>();
+  for (const sheet of sheets) {
+    let rules: CSSRuleList;
+    try {
+      rules = sheet.cssRules;
+    } catch {
+      continue;
+    }
+    for (const rule of rules) if (!(rule instanceof CSSFontFaceRule)) urlsOf(rule.cssText, urls);
+  }
+  for (const e of stage?.querySelectorAll("img,image,[style]") ?? []) {
+    if (e instanceof HTMLImageElement) {
+      if (e.src) urls.add(e.src);
+    } else if (e.localName === "image") {
+      const href = e.getAttribute("href") ?? e.getAttribute("xlink:href");
+      if (href) urls.add(href);
+    }
+    urlsOf(e.getAttribute("style"), urls);
+  }
+  const failed: PreloadFailure[] = [];
+  const pending = { image: 0, font: 0 };
+  const done = { image: 0, font: 0 };
+  let over = false;
+  const track = (job: Promise<unknown>, kind: "image" | "font"): Promise<void> => {
+    pending[kind]++;
+    const settle = (ok: boolean) => () => {
+      if (over) return;
+      pending[kind]--;
+      if (ok) done[kind]++;
+      else failed.push(`${kind}-error`);
+    };
+    return job.then(settle(true), settle(false));
+  };
+  const jobs: Promise<void>[] = [];
+  for (const url of urls) {
+    const img = new Image();
+    kept.push(img);
+    img.src = url;
+    jobs.push(track(img.decode(), "image"));
+  }
+  for (const face of fontSet) jobs.push(track(face.load(), "font"));
+  await Promise.race([Promise.all(jobs), new Promise((r) => setTimeout(r, PRELOAD_MS))]);
+  over = true;
+  for (const kind of ["image", "font"] as const) {
+    for (let i = 0; i < pending[kind]; i++) failed.push(`${kind}-timeout`);
+  }
+  post({
+    v: PROTOCOL_VERSION,
+    type: "preload",
+    ok: failed.length === 0,
+    images: done.image,
+    fonts: done.font,
+    failed: failed.slice(0, MAX_PRELOAD_FAILED),
+  });
+}
+
 function init(): void {
   stage = doc.getElementById(STAGE_ID);
   if (!stage) return;
@@ -227,6 +304,7 @@ function init(): void {
     width,
     height,
   });
+  void preload();
 }
 
 win.addEventListener("message", (event) => {

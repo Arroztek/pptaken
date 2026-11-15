@@ -3,21 +3,33 @@
 // mounts the deck document in a sandboxed iframe (opaque origin) and drives it through the validated postMessage
 // protocol. No persistent chrome: a black host, the content, and on-demand layers (slide counter, key help).
 // Optional: a presenter window kept in sync over a BroadcastChannel, and printing (one page per slide).
+// Offline: the content reports its in-memory preload (`preload`); the shell keeps the indicator state (an 8 px
+// dot when `indicator` is on, the text on demand) and can mount an offline deck document through `srcdoc`.
 
 import { type Labels, type Locale, labelsFor } from "./i18n.js";
 import { type KeyCode, keyCodeOf } from "./keys.js";
 import * as nav from "./navigation.js";
 import { KEY_ACTIONS, type KeyAction } from "./navigation.js";
 import {
+  isOfflineDocument,
+  OFFLINE_DOT,
+  OFFLINE_LABEL,
+  type OfflineStatus,
+  offlineStatus,
+} from "./offline.js";
+import {
   type ContentMessage,
   type Mode,
   overviewColumns,
   PROTOCOL_VERSION,
+  type PreloadMessage,
   parseContentMessage,
   type ShellMessage,
   type SlideInfo,
 } from "./protocol.js";
 import { openSync, type Sync } from "./sync.js";
+
+export type { OfflineState, OfflineStatus } from "./offline.js";
 
 export interface PlayerState {
   /** 0-based slide index. */
@@ -40,8 +52,21 @@ export type PlayerFault = "unexpected-navigation";
 export type KeySource = "page" | "frame";
 
 export interface PlayerOptions {
-  /** URL of the deck document (the content route, ideally on a separate cookie-less origin). http(s) only. */
-  contentUrl: string;
+  /**
+   * URL of the deck document (the content route, ideally on a separate cookie-less origin). http(s) only. Exactly
+   * one of `contentUrl` and `contentHtml` is required.
+   */
+  contentUrl?: string | undefined;
+  /**
+   * An offline deck document (`buildOfflineDocument`), mounted with `srcdoc` in the same sandboxed iframe. It must
+   * start with the no-network CSP `<meta>` (checked, fail closed). The page's own CSP also applies to it (a srcdoc
+   * frame inherits it), so the page must allow the runtime's hash and `data:` fonts.
+   */
+  contentHtml?: string | undefined;
+  /** Show the 8 px offline status dot in the top-right corner (outside the canvas). Default `false`. */
+  indicator?: boolean;
+  /** Called whenever the offline status changes (preload report, offline copy). */
+  onOffline?(status: OfflineStatus): void;
   /** Initial position (0-based slide). The URL hash wins when `hash` is enabled and present. */
   initial?: nav.Position;
   /** Keep the state in the URL hash `#/<slide 1-based>/<step>`. Default `true`. */
@@ -108,6 +133,10 @@ export interface Player {
   getState(): PlayerState | null;
   /** The logical canvas size, or `null` until the deck is ready. */
   getCanvas(): { width: number; height: number } | null;
+  /** The offline status (indicator state, preload counts, failures, offline copy). */
+  getOffline(): OfflineStatus;
+  /** Tells the shell whether an offline copy of this deck is stored (layer 2); upgrades `ready`. */
+  setOfflineCopy(on: boolean): void;
   /** The iframe element (for focus management and tests). */
   readonly iframe: HTMLIFrameElement;
   /** Resolves when the deck document has reported its slides. */
@@ -162,7 +191,17 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
   const doc = host.ownerDocument;
   const win = doc.defaultView;
   if (!win) throw new TypeError("host must be attached to a window");
-  const src = checkedHttpUrl(options.contentUrl, doc.baseURI, "contentUrl").href;
+  if ((options.contentUrl === undefined) === (options.contentHtml === undefined)) {
+    throw new TypeError("pass exactly one of contentUrl and contentHtml");
+  }
+  let src: string | null = null;
+  if (options.contentUrl !== undefined) {
+    src = checkedHttpUrl(options.contentUrl, doc.baseURI, "contentUrl").href;
+  } else if (!isOfflineDocument(options.contentHtml)) {
+    throw new TypeError(
+      "contentHtml is not an offline deck document (no-network CSP <meta> first)",
+    );
+  }
   let presenterUrl: string | null = null;
   if (options.presenterUrl !== undefined) {
     const p = checkedHttpUrl(options.presenterUrl, doc.baseURI, "presenterUrl");
@@ -191,6 +230,9 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
   let endPrint: (() => void) | null = null;
   let ack: (() => void) | null = null;
   let presenterWindow: Window | null = null;
+  let preload: PreloadMessage | null = null;
+  let offlineCopy = false;
+  let offline = offlineStatus(null, false);
   let hudTimer: ReturnType<typeof setTimeout> | undefined;
   let hashTimer: ReturnType<typeof setTimeout> | undefined;
   let resolveReady: (slides: readonly SlideInfo[]) => void = () => {};
@@ -215,6 +257,15 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
   curtain.setAttribute("aria-hidden", "true");
   curtain.style.cssText = "position:absolute;inset:0;background:#000;display:none";
 
+  // Offline status dot: 8 px, top-right corner of the letterbox, hidden with the black screen. Text on demand.
+  let dot: HTMLDivElement | null = null;
+  if (options.indicator) {
+    dot = doc.createElement("div");
+    dot.setAttribute("role", "img");
+    dot.style.cssText =
+      "position:absolute;top:12px;right:12px;width:8px;height:8px;border-radius:50%;pointer-events:none";
+  }
+
   let hud: HTMLDivElement | null = null;
   if (options.showHud) {
     hud = doc.createElement("div");
@@ -227,6 +278,7 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
 
   // Key help: neutral gray mono over translucent black, only while asked for.
   let helpBox: HTMLDivElement | null = null;
+  let helpStatus: HTMLDivElement | null = null;
   let helpOn = false;
   if (useHelp) {
     helpBox = doc.createElement("div");
@@ -249,7 +301,9 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
       k.style.cssText = "padding:2px 24px 2px 0;white-space:nowrap;color:#F2EFE9";
       row.insertCell().textContent = what;
     }
-    helpBox.append(title, table);
+    helpStatus = doc.createElement("div");
+    helpStatus.style.cssText = "margin-top:12px";
+    helpBox.append(title, table, helpStatus);
   }
 
   const send = (message: ShellMessage): void => {
@@ -272,14 +326,35 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
     };
   };
 
-  const flashHud = (): void => {
-    if (!hud || !slides || mode !== "present") return;
-    hud.textContent = `${position.slide + 1} / ${slides.length}`;
+  const showHudText = (text: string): void => {
+    if (!hud) return;
+    hud.textContent = text;
     hud.style.opacity = "1";
     clearTimeout(hudTimer);
     hudTimer = setTimeout(() => {
       if (hud) hud.style.opacity = "0";
     }, HUD_MS);
+  };
+
+  const flashHud = (): void => {
+    if (!slides || mode !== "present") return;
+    showHudText(`${position.slide + 1} / ${slides.length}`);
+  };
+
+  /** Recomputes the offline status; updates the dot and help text, and tells the page when the state changes. */
+  const renderOffline = (): void => {
+    const previous = offline;
+    offline = offlineStatus(preload, offlineCopy);
+    const text = labels[OFFLINE_LABEL[offline.state]];
+    if (dot) {
+      dot.style.background = OFFLINE_DOT[offline.state];
+      dot.setAttribute("aria-label", text);
+      dot.setAttribute("data-offline", offline.state);
+    }
+    if (helpStatus) helpStatus.textContent = `${labels.offlineTitle}: ${text}`;
+    if (previous.state === offline.state && previous.copy === offline.copy) return;
+    if (previous.state === "loading" && mode === "present" && !faulted) showHudText(text);
+    options.onOffline?.(offline);
   };
 
   // Browsers rate-limit history.replaceState (WebKit throws after 100 calls in 30 s), and a presenter can press
@@ -332,6 +407,7 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
     if (value === blackOn) return;
     blackOn = value;
     curtain.style.display = blackOn ? "block" : "none";
+    if (dot) dot.style.visibility = blackOn ? "hidden" : "visible"; // a black screen is all black
     if (!remote) sync?.send({ v: PROTOCOL_VERSION, type: "black", on: blackOn });
     notify();
   };
@@ -545,6 +621,7 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
   const fault = (reason: PlayerFault): void => {
     if (faulted) return;
     faulted = true;
+    iframe.removeAttribute("srcdoc"); // srcdoc wins over src: drop it first
     iframe.src = "about:blank";
     options.onFault?.(reason);
   };
@@ -578,6 +655,11 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
       case "select":
         // Only meaningful while the shell has the overview open; otherwise the content asked for it: ignore.
         return choose(message.slide);
+      case "preload":
+        // Once, after `ready`. It only drives the indicator: navigation never waits for it.
+        if (!slides || preload) return;
+        preload = message;
+        return renderOffline();
     }
   };
 
@@ -632,10 +714,13 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
     win.addEventListener("pagehide", writeHash);
   }
   iframe.addEventListener("load", onLoad);
-  iframe.src = src;
+  if (src !== null) iframe.src = src;
+  else iframe.srcdoc = options.contentHtml ?? "";
   host.append(iframe, curtain);
   if (hud) host.append(hud);
   if (helpBox) host.append(helpBox);
+  if (dot) host.append(dot);
+  renderOffline();
 
   // The content should report ready quickly. If it does not, tell the page once; nothing is blanked.
   const loadTimeoutMs = options.loadTimeoutMs ?? 10_000;
@@ -661,6 +746,12 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
     help: showHelp,
     getState: state,
     getCanvas: () => (canvas ? { ...canvas } : null),
+    getOffline: () => ({ ...offline, failed: [...offline.failed] }),
+    setOfflineCopy: (on) => {
+      if (on === offlineCopy || faulted) return;
+      offlineCopy = on;
+      renderOffline();
+    },
     iframe,
     ready,
     destroy: () => {
@@ -679,6 +770,7 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
       if (doc.fullscreenElement === host) void doc.exitFullscreen().catch(() => {});
       iframe.remove();
       curtain.remove();
+      dot?.remove();
       hud?.remove();
       helpBox?.remove();
       slides = null;

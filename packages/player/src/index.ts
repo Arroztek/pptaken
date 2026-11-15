@@ -32,6 +32,29 @@ export {
   type Position,
 } from "./navigation.js";
 export { NOTES_MAX_INPUT, NOTES_TAGS, renderInline, renderNotes } from "./notes.js";
+export {
+  isOfflineDocument,
+  OFFLINE_DOCUMENT_CSP,
+  OFFLINE_STATES,
+  type OfflineState,
+  type OfflineStatus,
+  offlineStateOf,
+  offlineStatus,
+} from "./offline.js";
+export {
+  BUILD_PLACEHOLDER,
+  CACHE_PREFIX,
+  SHELL_FILES,
+  SW_SCOPE,
+  SW_URL,
+} from "./offline-cache.js";
+export {
+  buildOfflineDocument,
+  type OfflineAsset,
+  type OfflineDocument,
+  type OfflineDocumentOptions,
+  type OfflineFont,
+} from "./offline-document.js";
 export * as pace from "./pace.js";
 export {
   type PresenterData,
@@ -45,13 +68,18 @@ export {
   KEY_CODES,
   type KeyMessage,
   MAX_CANVAS,
+  MAX_PRELOAD_COUNT,
+  MAX_PRELOAD_FAILED,
   MAX_SLIDES,
   MAX_STEPS,
   MODES,
   type Mode,
   type ModeMessage,
   overviewColumns,
+  PRELOAD_FAILURES,
   PROTOCOL_VERSION,
+  type PreloadFailure,
+  type PreloadMessage,
   parseContentMessage,
   parseShellMessage,
   type ReadyMessage,
@@ -61,7 +89,7 @@ export {
   type SlideInfo,
   type StateMessage,
 } from "./protocol.js";
-export { RUNTIME_SOURCE } from "./runtime-source.js";
+export { RUNTIME_SHA256, RUNTIME_SOURCE } from "./runtime-source.js";
 export {
   createPlayer,
   type KeySource,

@@ -43,6 +43,13 @@ const en = {
   black: "The audience screen is black.",
   loading: "Loading…",
   loadError: "Could not load the presenter view.",
+  offlineTitle: "Offline",
+  offlineLoading: "Preparing to present offline…",
+  offlineReady: "Ready to present offline.",
+  offlinePartial: "Some resources could not be loaded.",
+  offlineCopy: "Ready to present offline. A copy is saved on this device.",
+  offlineUnavailable:
+    "This presentation is not available offline. Open it once with a connection to keep a copy on this device.",
 } as const;
 
 export type LabelKey = keyof typeof en;
@@ -87,6 +94,13 @@ const es: Labels = {
   black: "La pantalla del público está en negro.",
   loading: "Cargando…",
   loadError: "No se pudo cargar la vista del presentador.",
+  offlineTitle: "Sin conexión",
+  offlineLoading: "Preparando para presentar sin conexión…",
+  offlineReady: "Lista para presentar sin conexión.",
+  offlinePartial: "Algunos recursos no se pudieron cargar.",
+  offlineCopy: "Lista para presentar sin conexión. Hay una copia guardada en este dispositivo.",
+  offlineUnavailable:
+    "Esta presentación no está disponible sin conexión. Ábrela una vez con conexión para guardar una copia en este dispositivo.",
 };
 
 export const LABELS: Readonly<Record<Locale, Labels>> = { en, es };

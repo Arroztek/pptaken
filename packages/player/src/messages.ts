@@ -90,7 +90,39 @@ export interface StateMessage {
   step: number;
 }
 
-export type ContentMessage = ReadyMessage | KeyMessage | StateMessage | SelectMessage;
+/** What a preload failure can be. A closed set: no URL or other content-controlled text ever travels. */
+export const PRELOAD_FAILURES = [
+  "image-error",
+  "image-timeout",
+  "font-error",
+  "font-timeout",
+] as const;
+export type PreloadFailure = (typeof PRELOAD_FAILURES)[number];
+/** At most this many entries in `failed` (the runtime stops listing after it; `ok` stays false). */
+export const MAX_PRELOAD_FAILED = 16;
+/** Largest `images` / `fonts` count accepted in `preload`. */
+export const MAX_PRELOAD_COUNT = 10_000;
+
+/**
+ * Sent once after `ready`, when every image of every slide has been decoded and every declared font face has
+ * loaded (or failed, or the preload budget ran out). `images` and `fonts` count the resources now in memory;
+ * `ok` is true exactly when `failed` is empty.
+ */
+export interface PreloadMessage {
+  v: 1;
+  type: "preload";
+  ok: boolean;
+  images: number;
+  fonts: number;
+  failed: PreloadFailure[];
+}
+
+export type ContentMessage =
+  | ReadyMessage
+  | KeyMessage
+  | StateMessage
+  | SelectMessage
+  | PreloadMessage;
 
 export type Fields = Record<string, unknown>;
 

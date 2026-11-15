@@ -40,14 +40,26 @@
     "./notes": {
       "types": "./dist/notes.d.ts",
       "default": "./dist/notes.js"
+    },
+    "./offline": {
+      "types": "./dist/offline.d.ts",
+      "default": "./dist/offline.js"
+    },
+    "./offline-cache": {
+      "types": "./dist/offline-cache.d.ts",
+      "default": "./dist/offline-cache.js"
+    },
+    "./offline-client": {
+      "types": "./dist/offline-client.d.ts",
+      "default": "./dist/offline-client.js"
     }
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json && tsc -p tsconfig.runtime.json && node scripts/build-runtime.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.runtime.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.runtime.json && tsc -p tsconfig.sw.json && node scripts/build-runtime.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.runtime.json --noEmit && tsc -p tsconfig.sw.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "test": "vitest run",
     "test:browser": "pnpm run build && node browser/run.mjs"
   },

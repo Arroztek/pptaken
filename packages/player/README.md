@@ -1,9 +1,10 @@
 # @pptaken/player
 
 The PPTaken presentation player engine: a server-side deck document builder with the content-route headers, a
-tiny in-iframe runtime (about 8.2 KB, under the 9 KB budget), a validated `postMessage` protocol, the trusted shell
+tiny in-iframe runtime (about 10.0 KB, under the 11 KB budget), a validated `postMessage` protocol, the trusted shell
 (`createPlayer`), the presenter view (`createPresenter`), window sync over `BroadcastChannel`, the presenter
-clock/pace logic and the speaker notes renderer. Framework-free TypeScript. License: Apache-2.0.
+clock/pace logic, the speaker notes renderer, and offline presenting (in-memory preload with an indicator, an
+offline deck document builder and a service worker). Framework-free TypeScript. License: Apache-2.0.
 
 Specification, serving requirements, decisions and open questions: [`docs/spec/player.md`](../../docs/spec/player.md).
 
@@ -21,7 +22,9 @@ only).
 | `@pptaken/player` | server (and shared) | builder, headers, protocol, navigation, `renderNotes`, `parsePresenterData`, pace, sync |
 | `@pptaken/player/shell` | browser | `createPlayer` (no builder, no schema) |
 | `@pptaken/player/presenter` | browser | `createPresenter`, `setNotesHtml`, `PRESENTER_CSS` |
-| `@pptaken/player/sync`, `/pace`, `/notes`, `/protocol`, `/navigation` | either | the pure pieces |
+| `@pptaken/player/offline-client` | browser | `loadContent`, `keepOfflineCopy`, `offlineCopyStatus` (pages) |
+| `@pptaken/player/sync`, `/pace`, `/notes`, `/protocol`, `/navigation`, `/offline`, `/offline-cache` | either | the pure pieces |
+| `dist/sw.js` | browser | the service worker (served by the server at `/p/sw.js`) |
 
 ## Modes and keys
 
@@ -63,3 +66,8 @@ the network, and cannot select, switch modes, print or open windows), overview (
 `select` validation, 200-slide performance), key help, print layout, presenter window sync both ways, notes only in
 the presenter, previews, clock and pace (real time and Playwright's fake clock). The real PDF (page count = 20,
 text on every page) is checked in Chromium only: Playwright exposes `page.pdf()` there only.
+
+Offline: the runtime preloads every image and font face and reports it; the dot and its texts are checked, and every
+slide and step is walked with the network cut, both on the content route and on the offline (srcdoc) delivery
+path, where the hostile-content checks run again under the production page CSP. How each engine treats the
+sandboxed frame and service workers: [spike S4](../../docs/spikes/S4-offline.md).

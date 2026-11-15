@@ -2,6 +2,7 @@
 // Document builder, CSP and headers. Tests run against the build (`dist`). The sanitizer is a dev dependency
 // used only here, to build the example decks the way the server will.
 
+import { createHash } from "node:crypto";
 import { readdirSync, readFileSync } from "node:fs";
 import { sanitizeDeck } from "@pptaken/sanitizer";
 import { type Deck, parseDeck } from "@pptaken/schema";
@@ -11,6 +12,7 @@ import {
   buildDeckDocument,
   contentHeaders,
   contentSecurityPolicy,
+  RUNTIME_SHA256,
   RUNTIME_SOURCE,
 } from "../dist/index.js";
 
@@ -227,10 +229,15 @@ describe("runtime source", () => {
     expect(RUNTIME_SOURCE).not.toMatch(/<\/script|<!--/i);
     expect(RUNTIME_SOURCE).not.toMatch(/\b(import|export)\b\s*[{*"']/);
     expect(RUNTIME_SOURCE).not.toMatch(/\beval\b|innerHTML|new Function/);
-    // F1 was about 5 KB; F3 (overview layout, select, mode ack) must stay under 9 KB.
-    expect(Buffer.byteLength(RUNTIME_SOURCE)).toBeLessThan(9 * 1024);
+    // F1 was about 5 KB; F3 (overview layout, select, mode ack, offline preload) must stay under 11 KB.
+    expect(Buffer.byteLength(RUNTIME_SOURCE)).toBeLessThan(11 * 1024);
     // It parses as a script.
     expect(() => new Function(RUNTIME_SOURCE)).not.toThrow();
+  });
+
+  it("comes with its CSP hash", () => {
+    const hash = createHash("sha256").update(RUNTIME_SOURCE, "utf8").digest("base64");
+    expect(RUNTIME_SHA256).toBe(hash);
   });
 });
 

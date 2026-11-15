@@ -14,6 +14,7 @@ import type { KeyCode } from "./keys.js";
 import { keyCodeOf } from "./keys.js";
 import * as nav from "./navigation.js";
 import { KEY_ACTIONS } from "./navigation.js";
+import { OFFLINE_DOT, OFFLINE_LABEL, type OfflineStatus } from "./offline.js";
 import {
   attribute,
   buildPlan,
@@ -39,8 +40,12 @@ export type { PresenterData, PresenterSlide } from "./presenter-data.js";
 export { parsePresenterData } from "./presenter-data.js";
 
 export interface PresenterOptions {
-  /** URL of the deck document (the same content route as the main player). */
-  contentUrl: string;
+  /** URL of the deck document (the same content route as the main player). One of this and `contentHtml`. */
+  contentUrl?: string | undefined;
+  /** The offline deck document instead of `contentUrl` (see `PlayerOptions.contentHtml`). */
+  contentHtml?: string | undefined;
+  /** Called when the offline status of the previews changes (the header shows it as text). */
+  onOffline?(status: OfflineStatus): void;
   /** Presenter data, already validated with `parsePresenterData`. */
   data: PresenterData;
   /** BroadcastChannel name shared with the main player (`syncChannelName(deckId)`). */
@@ -76,6 +81,10 @@ export interface Presenter {
   /** Reset the clock and the time per slide (`Shift+R`). */
   resetClock(): void;
   getState(): PresenterState | null;
+  /** Offline status of the current-slide preview, plus the offline-copy flag. */
+  getOffline(): OfflineStatus;
+  /** Tells the view whether an offline copy of the deck is stored (layer 2). */
+  setOfflineCopy(on: boolean): void;
   readonly current: Player;
   readonly upcoming: Player;
   readonly ready: Promise<void>;
@@ -166,6 +175,8 @@ export const PRESENTER_CSS = `
 .pp-sections tr[data-state=current]{background:rgba(169,155,255,.14)}
 .pp-sections tr[data-state=upcoming]{color:#A3A9B8}
 .pp-black{position:fixed;left:24px;bottom:24px;margin:0;padding:8px 12px;border-radius:6px;background:#000;color:#F2EFE9;border:1px solid #8B8FA0}
+.pp-offline{display:flex;align-items:center;gap:8px;color:#A3A9B8;font-size:.875rem}
+.pp-offline i{flex:none;width:8px;height:8px;border-radius:50%}
 @media (max-width:800px){.pp-main{grid-template-columns:1fr;overflow:auto}}
 `;
 
@@ -215,6 +226,11 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
   const targetEl = el(doc, "span", "pp-target");
   const statusEl = el(doc, "span", "pp-status");
   clockBox.append(elapsedEl, targetEl, statusEl);
+  const offlineEl = el(doc, "div", "pp-offline");
+  offlineEl.setAttribute("role", "status");
+  const offlineDot = el(doc, "i");
+  const offlineText = el(doc, "span");
+  offlineEl.append(offlineDot, offlineText);
   const actions = el(doc, "div", "pp-actions");
   const button = (label: string, fn: () => void): HTMLButtonElement => {
     const b = el(doc, "button", "", label);
@@ -249,7 +265,7 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
     notesEl,
   );
   main.append(left, right);
-  bar.append(pos, clockBox, actions);
+  bar.append(pos, clockBox, offlineEl, actions);
   shell.append(bar, main, blackEl);
   root.replaceChildren(shell);
   const showPace = hasPace(plan) || plan.sections.some((s) => s.name !== null);
@@ -270,17 +286,31 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
     handleKey(code);
     return true;
   };
+  const renderOffline = (s: OfflineStatus): void => {
+    offlineDot.style.background = OFFLINE_DOT[s.state];
+    offlineText.textContent = t[OFFLINE_LABEL[s.state]];
+    offlineEl.dataset.offline = s.state;
+  };
   const common = {
     contentUrl: options.contentUrl,
+    contentHtml: options.contentHtml,
     hash: false,
     keyboard: false,
     help: false,
     loadTimeoutMs: 0,
     onKey,
   };
-  const current = createPlayer(nowHost, { ...common, title: `${t.current}: ${data.title}` });
+  const current = createPlayer(nowHost, {
+    ...common,
+    title: `${t.current}: ${data.title}`,
+    onOffline: (s) => {
+      renderOffline(s);
+      options.onOffline?.(s);
+    },
+  });
   const upcoming = createPlayer(nextHost, { ...common, title: `${t.next}: ${data.title}` });
   for (const p of [current, upcoming]) p.iframe.tabIndex = -1;
+  renderOffline(current.getOffline());
 
   const elapsedMs = (): number => clockElapsed(clock, now());
 
@@ -487,6 +517,8 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
     toggleClock,
     resetClock,
     getState: snapshot,
+    getOffline: () => current.getOffline(),
+    setOfflineCopy: (on) => current.setOfflineCopy(on),
     current,
     upcoming,
     ready,

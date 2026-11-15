@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist/.sw",
+    "rootDir": "src",
+    "lib": ["ES2023", "WebWorker"],
+    "declaration": false,
+    "sourceMap": false,
+    "removeComments": true
+  },
+  "include": ["src/sw.ts", "src/offline-cache.ts"]
+}

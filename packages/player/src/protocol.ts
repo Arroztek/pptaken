@@ -6,6 +6,7 @@
 //   shell -> iframe   goto {slide, step}      mode {mode: "present" | "overview" | "print"}
 //   iframe -> shell   ready {slides: [{id, steps}], width, height}   key {code}   state {slide, step}
 //                     select {slide}   (a slide clicked in the overview)
+//                     preload {ok, images, fonts, failed}   (once, after ready: what is in memory)
 //
 // All messages carry `v: 1` and `type`. Slides are 0-based indexes; `step` is the number of revealed steps.
 
@@ -15,8 +16,12 @@ import {
   envelope,
   exactObject,
   isBoundedInt,
+  MAX_PRELOAD_COUNT,
+  MAX_PRELOAD_FAILED,
   MAX_SLIDES,
   MAX_STEPS,
+  PRELOAD_FAILURES,
+  type PreloadFailure,
   type SlideInfo,
   typeOf,
 } from "./messages.js";
@@ -26,13 +31,18 @@ export {
   type GotoMessage,
   isBoundedInt,
   type KeyMessage,
+  MAX_PRELOAD_COUNT,
+  MAX_PRELOAD_FAILED,
   MAX_SLIDES,
   MAX_STEPS,
   MODES,
   type Mode,
   type ModeMessage,
   overviewColumns,
+  PRELOAD_FAILURES,
   PROTOCOL_VERSION,
+  type PreloadFailure,
+  type PreloadMessage,
   parseShellMessage,
   type ReadyMessage,
   type SelectMessage,
@@ -119,7 +129,26 @@ export function parseContentMessage(data: unknown): ContentMessage | null {
       if (!m || !isBoundedInt(m.slide, MAX_SLIDES - 1)) return null;
       return { v: 1, type: "select", slide: m.slide };
     }
+    case "preload": {
+      const m = envelope(data, "preload", ["ok", "images", "fonts", "failed"]);
+      if (!m || typeof m.ok !== "boolean") return null;
+      if (!isBoundedInt(m.images, MAX_PRELOAD_COUNT) || !isBoundedInt(m.fonts, MAX_PRELOAD_COUNT))
+        return null;
+      const failed = parseFailures(m.failed);
+      if (!failed || m.ok !== (failed.length === 0)) return null;
+      return { v: 1, type: "preload", ok: m.ok, images: m.images, fonts: m.fonts, failed };
+    }
     default:
       return null;
   }
+}
+
+function parseFailures(value: unknown): PreloadFailure[] | null {
+  if (!Array.isArray(value) || value.length > MAX_PRELOAD_FAILED) return null;
+  const out: PreloadFailure[] = [];
+  for (const item of value) {
+    if (!(PRELOAD_FAILURES as readonly unknown[]).includes(item)) return null;
+    out.push(item as PreloadFailure);
+  }
+  return out;
 }
