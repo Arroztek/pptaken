@@ -91,6 +91,51 @@ export interface SchemaMigrationsTable {
   applied_at: number;
 }
 
+// Tables of migration 0002_auth, used by the auth store adapter (src/auth.ts).
+export interface AuthOwnerTable {
+  workspace_id: string;
+  id: string;
+  password_hash: string;
+  created_at: number;
+  updated_at: number;
+}
+
+export interface AuthSessionTable {
+  workspace_id: string;
+  id_hash: string;
+  owner_id: string;
+  created_at: number;
+  last_seen_at: number;
+  expires_at: number;
+}
+
+export interface ApiTokenTable {
+  workspace_id: string;
+  id: string;
+  name: string;
+  token_hash: string;
+  scopes: string;
+  created_at: number;
+  expires_at: number | null;
+  last_used_at: number | null;
+  revoked_at: number | null;
+}
+
+export interface AuthSettingTable {
+  workspace_id: string;
+  key: string;
+  value: string;
+  updated_at: number;
+}
+
+export interface McpActivityTable {
+  workspace_id: string;
+  last_call_at: number;
+  last_tool: string | null;
+  client_name: string | null;
+  token_id: string | null;
+}
+
 /** Typed view of the database for Kysely. */
 export interface Database {
   deck: DeckTable;
@@ -100,6 +145,11 @@ export interface Database {
   audit_log: AuditLogTable;
   idempotency_key: IdempotencyKeyTable;
   schema_migrations: SchemaMigrationsTable;
+  auth_owner: AuthOwnerTable;
+  auth_session: AuthSessionTable;
+  api_token: ApiTokenTable;
+  auth_setting: AuthSettingTable;
+  mcp_activity: McpActivityTable;
 }
 
 type Db = Kysely<Database>;

@@ -103,11 +103,19 @@ export class SqliteStorage implements UnitOfWork {
   }
 
   async transaction<T>(work: (tx: Repositories) => Promise<T>): Promise<T> {
+    return this.withTransaction((conn) => work(createRepositories(conn)));
+  }
+
+  /**
+   * Runs `work` inside `BEGIN IMMEDIATE … COMMIT` with a Kysely instance bound to the transaction, for adapters
+   * that own their tables (for example the auth store). Same rules as {@link transaction}.
+   */
+  async withTransaction<T>(work: (db: Kysely<Schema>) => Promise<T>): Promise<T> {
     return this.kysely.connection().execute(async (conn) => {
       await this.beginImmediate(conn);
       let result: T;
       try {
-        result = await work(createRepositories(conn));
+        result = await work(conn);
       } catch (error) {
         try {
           await sql`ROLLBACK`.execute(conn);

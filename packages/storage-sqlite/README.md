@@ -45,6 +45,15 @@ const store = openSqliteStorage({ filename: "/data/pptaken.db" }); // migrates a
   `PRAGMA defer_foreign_keys = ON`. Add a test like `test/migrations.test.ts` "upgrades a database created by
   0001 that holds data" for every new migration.
 
+## Auth tables
+
+Migration `0002_auth.sql` adds `auth_owner` (one per workspace, enforced by a unique index), `auth_session`,
+`api_token` (unique `token_hash`), `auth_setting` (the install code's HMAC) and `mcp_activity`.
+`createSqliteAuthStore(storage)` (`src/auth.ts`) implements the `AuthStore` port of `@pptaken/auth-local` on the
+same connection; this package does not import auth-local (the records mirror its types and the server checks the
+match at compile time). `completeSetup` runs in `storage.withTransaction(work)`, a new `BEGIN IMMEDIATE` helper that
+`transaction` now also uses. The adapter passes `runAuthStoreContract` (`test/auth.test.ts`).
+
 ## Tests
 
 `pnpm --filter @pptaken/storage-sqlite test`: the full storage contract (on `:memory:` and on a WAL file), core

@@ -2,6 +2,14 @@
 // @pptaken/storage-sqlite: the core's repository ports on SQLite (better-sqlite3 + Kysely).
 
 export {
+  createSqliteAuthStore,
+  type SqliteApiTokenRecord,
+  type SqliteAuthStore,
+  type SqliteMcpActivityRecord,
+  type SqliteOwnerRecord,
+  type SqliteSessionRecord,
+} from "./auth.js";
+export {
   backupTo,
   loadMigrations,
   MIGRATIONS_DIR,

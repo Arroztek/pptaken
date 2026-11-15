@@ -53,11 +53,16 @@ describe("migrations", () => {
     await storage.close();
     expect(tables(file)).toEqual(
       [
+        "api_token",
         "asset",
         "audit_log",
+        "auth_owner",
+        "auth_session",
+        "auth_setting",
         "deck",
         "deck_asset",
         "idempotency_key",
+        "mcp_activity",
         "revision",
         "schema_migrations",
       ].sort(),
@@ -113,6 +118,28 @@ describe("migrations", () => {
     expect(schemaVersion(copy)).toBe(1);
     expect(copy.prepare("SELECT title FROM deck").all()).toEqual([{ title: "Before upgrade" }]);
     copy.close();
+  });
+
+  it("upgrades a 0001 database with data to 0002_auth (shipped migrations)", async () => {
+    tmp = tempDir();
+    const file = join(tmp.dir, "auth-upgrade.db");
+    const v1 = openSqliteStorage({ filename: file, migrations: shipped.slice(0, 1) });
+    const t = createTestCore({ store: v1 });
+    await t.core.createPresentation(agentPrincipal(), {
+      title: "Kept",
+      slides: makeSlideInputs(1),
+    });
+    await v1.close();
+    const current = openSqliteStorage({ filename: file });
+    expect(current.migration).toMatchObject({ from: 1, to: shipped.length });
+    expect(current.migration.applied).toContain(2);
+    const list = await createTestCore({ store: current }).core.listPresentations(
+      agentPrincipal(),
+      {},
+    );
+    expect(list.items.map((d) => d.title)).toEqual(["Kept"]);
+    await current.close();
+    expect(tables(file)).toContain("api_token");
   });
 
   it("refuses to open a database from a newer schema", async () => {
