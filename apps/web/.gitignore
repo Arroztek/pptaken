@@ -1,0 +1,3 @@
+# Screenshot review output of `pnpm test:browser` (about 80 full-page PNGs; regenerated on every run).
+test/.screenshots/
+test-results/

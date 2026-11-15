@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Vite bundles the app; this config only type-checks (svelte-check).
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "noEmit": true,
+    "declaration": false,
+    "sourceMap": false,
+    "allowJs": true,
+    "checkJs": false,
+    // Svelte props pass `undefined` for omitted optional attributes; exact optional types fight that.
+    "exactOptionalPropertyTypes": false,
+    "types": ["node", "svelte"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.svelte", "test/**/*.ts", "*.config.ts"]
+}
