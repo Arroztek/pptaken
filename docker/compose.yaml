@@ -1,4 +1,8 @@
-# PPTaken, one service. Start: docker compose -f docker/compose.yaml up -d
+# PPTaken, one service. This file publishes NO host port, so it is safe behind Dokploy, Coolify or Traefik
+# (the platform routes to container port 8080 over the internal Docker network).
+#
+# Standalone, with plain commands (publishes 127.0.0.1:8080 by default):
+#   docker compose -f docker/compose.yaml -f docker/compose.standalone.yaml up -d --build
 # Then read the install code: docker compose -f docker/compose.yaml logs pptaken
 services:
   pptaken:
@@ -12,8 +16,8 @@ services:
       PPTAKEN_PUBLIC_URL: ${PPTAKEN_PUBLIC_URL:-http://localhost:8080}
       # Set to "true" only behind a reverse proxy you control (X-Forwarded-For / X-Forwarded-Proto).
       PPTAKEN_TRUST_PROXY: ${PPTAKEN_TRUST_PROXY:-false}
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     volumes:
       - pptaken-data:/data
     read_only: true

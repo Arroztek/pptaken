@@ -1,0 +1,8 @@
+# Override for running PPTaken without a reverse proxy platform.
+# Usage: docker compose -f docker/compose.yaml -f docker/compose.standalone.yaml up -d --build
+# Bound to localhost by default so it is not exposed to the internet by accident. To serve other machines on
+# the network, set PPTAKEN_BIND=0.0.0.0 (and prefer HTTPS in front of it). Change the port with PPTAKEN_PORT.
+services:
+  pptaken:
+    ports:
+      - "${PPTAKEN_BIND:-127.0.0.1}:${PPTAKEN_PORT:-8080}:8080"
