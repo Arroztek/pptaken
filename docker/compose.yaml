@@ -16,6 +16,15 @@ services:
       PPTAKEN_PUBLIC_URL: ${PPTAKEN_PUBLIC_URL:-http://localhost:8080}
       # Set to "true" only behind a reverse proxy you control (X-Forwarded-For / X-Forwarded-Proto).
       PPTAKEN_TRUST_PROXY: ${PPTAKEN_TRUST_PROXY:-false}
+      # Optional. Listed so values set in the Dokploy/Coolify UI reach the container (empty = built-in default).
+      PPTAKEN_CONTENT_URL: ${PPTAKEN_CONTENT_URL:-}
+      PPTAKEN_ALLOWED_HOSTS: ${PPTAKEN_ALLOWED_HOSTS:-}
+      PPTAKEN_LANG: ${PPTAKEN_LANG:-}
+      PPTAKEN_LOG_LEVEL: ${PPTAKEN_LOG_LEVEL:-}
+      PPTAKEN_SECRET_KEY: ${PPTAKEN_SECRET_KEY:-}
+      PPTAKEN_MAX_API_BODY_KB: ${PPTAKEN_MAX_API_BODY_KB:-}
+      PPTAKEN_MAX_MCP_BODY_MB: ${PPTAKEN_MAX_MCP_BODY_MB:-}
+      PPTAKEN_MAX_IMPORT_MB: ${PPTAKEN_MAX_IMPORT_MB:-}
     expose:
       - "8080"
     volumes:

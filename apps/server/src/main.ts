@@ -45,7 +45,10 @@ async function runServer(config: ServerConfig): Promise<void> {
     },
   );
   const http = server as unknown as import("node:http").Server;
-  http.headersTimeout = 30_000;
+  // Longer than a reverse proxy's idle backend connection (Traefik keeps them ~90 s) avoids rare 502s;
+  // headersTimeout must stay above keepAliveTimeout.
+  http.keepAliveTimeout = 95_000;
+  http.headersTimeout = 100_000;
   http.requestTimeout = 60_000;
   // Remote control: /ws on the same port (WebSocket upgrades bypass Hono; see realtime.ts).
   pptaken.attach(http);
