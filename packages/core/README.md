@@ -76,6 +76,7 @@ nested transaction, and do no slow I/O (blob writes happen before the transactio
 | `listAuditLog` | **owner** | panel | Newest first, cursor, `target` filter |
 | `exportPresentation` | `decks:read` + **owner** | panel download | The deck of a revision (notes only with `includeNotes: true`) and the bytes of the assets it references; audited. Data only: the server makes the HTML file or the `.pkn` archive (`@pptaken/export`) |
 | `importPresentation` | `decks:write` + **owner** | panel upload | Creates a **new** presentation from `{ deck, assets }`: `parseDeck`, re-sanitize, re-validate; each asset checked like `addAsset` (signature, declared type, SHA-256, limits); only referenced assets are kept (`UNUSED_ASSET` warning for the others, `UNKNOWN_ASSET_REF` for references without a file); one transaction; audited |
+| `importPptx` | `decks:write` + **owner** | panel upload | Converts a PowerPoint file with the `convertPptx` port (`CoreDeps`; the server wires `@pptaken/import-pptx` in a worker) and stores the result through the same path as `importPresentation`; the converter's `PPTX_*` warnings come first, with `path`/`slideId`/`name`; audited as `presentation.import_pptx`. Without a converter: `UNSUPPORTED_MEDIA` |
 
 All writes (successful or not) are audited: successes inside their transaction (best effort: an audit failure
 never fails the write), failures afterwards with `result: "denied"` (scope/actor errors) or `"error"`.

@@ -2,7 +2,14 @@
 // The composition-friendly facade: `createCore(deps)` binds every use case to its ports.
 import { type CoreConfig, type CoreConfigInput, resolveConfig } from "./config.js";
 import { validationError } from "./errors.js";
-import type { AuditEntry, BlobStore, Clock, IdGenerator, UnitOfWork } from "./ports.js";
+import type {
+  AuditEntry,
+  BlobStore,
+  Clock,
+  IdGenerator,
+  PptxConverter,
+  UnitOfWork,
+} from "./ports.js";
 import { type CallContext, type Principal, requireOwner } from "./principal.js";
 import { isUlid } from "./ulid.js";
 import {
@@ -31,6 +38,7 @@ import {
   type ImportPresentationResult,
   importPresentation,
 } from "./usecases/portability.js";
+import { type ImportPptxInput, type ImportPptxResult, importPptx } from "./usecases/pptx.js";
 import {
   type CreatePresentationInput,
   type CreatePresentationResult,
@@ -69,6 +77,8 @@ export interface CoreDeps {
   clock: Clock;
   ids: IdGenerator;
   config?: CoreConfigInput;
+  /** PowerPoint converter for `importPptx` (optional: without it, PowerPoint import is reported as unavailable). */
+  convertPptx?: PptxConverter;
 }
 
 /**
@@ -192,6 +202,8 @@ export interface Core {
     input: ImportPresentationInput,
     call?: CallContext,
   ): Promise<ImportPresentationResult>;
+  /** Owner only (`decks:write`). Creates a new presentation from a PowerPoint file (needs `convertPptx`). */
+  importPptx(p: Principal, input: ImportPptxInput, call?: CallContext): Promise<ImportPptxResult>;
 
   /** Owner only. Newest first. */
   listAuditLog(
@@ -230,6 +242,7 @@ export function createCore(deps: CoreDeps): Core {
     collectOrphanBlobs: (p, i, c) => collectOrphanBlobs(ctx, p, i, c),
     exportPresentation: (p, i, c) => exportPresentation(ctx, p, i, c),
     importPresentation: (p, i, c) => importPresentation(ctx, p, i, c),
+    importPptx: (p, i, c) => importPptx(ctx, deps.convertPptx, p, i, c),
     listAuditLog: (p, i, c) =>
       runRead(c, async () => {
         requireOwner(p, "read the audit log");

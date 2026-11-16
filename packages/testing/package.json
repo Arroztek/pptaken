@@ -8,6 +8,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./pptx": {
+      "types": "./dist/pptx.d.ts",
+      "default": "./dist/pptx.js"
     }
   },
   "files": [
@@ -20,7 +24,8 @@
   },
   "dependencies": {
     "@pptaken/core": "workspace:*",
-    "@pptaken/schema": "workspace:*"
+    "@pptaken/schema": "workspace:*",
+    "@pptaken/zip": "workspace:*"
   },
   "peerDependencies": {
     "vitest": "^5.1.0"

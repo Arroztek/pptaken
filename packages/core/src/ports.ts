@@ -268,6 +268,36 @@ export interface BlobStore {
 }
 
 // ---------------------------------------------------------------------------------------------------------------
+// Converters
+
+/** Limits a converter must respect (the core's own, so its output is not refused afterwards). */
+export interface ConverterLimits {
+  maxSlides: number;
+  maxAssetBytes: number;
+  maxAssetsPerDeck: number;
+  maxAssetBytesPerDeck: number;
+  maxImagePixels: number;
+}
+
+/** What a PowerPoint converter returns. Every field is untrusted and checked again by the core. */
+export interface PptxConversionOutput {
+  /** A `pptaken.deck` envelope. */
+  deck: unknown;
+  assets: { sha256?: string; mediaType: string; bytes: Uint8Array }[];
+  warnings: { code: string; message: string; slide?: number; feature?: string }[];
+}
+
+/**
+ * Converts a PowerPoint file. Implementations must not touch storage, must run hostile input in isolation (time
+ * and memory limits) and must throw only `DomainError` (`VALIDATION_ERROR`, `UNSUPPORTED_MEDIA`, `LIMIT_EXCEEDED`)
+ * for files that cannot be imported. `@pptaken/import-pptx` provides one; the server wires it.
+ */
+export type PptxConverter = (
+  bytes: Uint8Array,
+  limits: ConverterLimits,
+) => Promise<PptxConversionOutput>;
+
+// ---------------------------------------------------------------------------------------------------------------
 // Time and identifiers
 
 export interface Clock {

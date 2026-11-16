@@ -21,7 +21,8 @@
   },
   "dependencies": {
     "@pptaken/player": "workspace:*",
-    "@pptaken/schema": "workspace:*"
+    "@pptaken/schema": "workspace:*",
+    "@pptaken/zip": "workspace:*"
   },
   "devDependencies": {
     "@pptaken/sanitizer": "workspace:*",

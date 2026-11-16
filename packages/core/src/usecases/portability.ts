@@ -37,8 +37,17 @@ const SHA256_HEX = /^[0-9a-f]{64}$/;
 
 /** Warnings of export and import: the core's, plus the asset bookkeeping ones. */
 export interface PortabilityWarning extends Omit<CoreWarning, "code"> {
-  code: CoreWarningCode | "UNUSED_ASSET" | "MISSING_ASSET";
+  code: CoreWarningCode | "UNUSED_ASSET" | "MISSING_ASSET" | PptxWarningCode;
 }
+
+/** Warning codes of the PowerPoint converter (`@pptaken/import-pptx`), passed through by `importPptx`. */
+export type PptxWarningCode =
+  | "PPTX_FEATURE_DROPPED"
+  | "PPTX_FEATURE_SIMPLIFIED"
+  | "PPTX_IMAGE_DROPPED"
+  | "PPTX_FONT_REPLACED"
+  | "PPTX_CANVAS_ADJUSTED"
+  | "PPTX_CONTENT_TRUNCATED";
 
 export interface ExportPresentationInput {
   presentationId: string;
@@ -294,120 +303,151 @@ export async function importPresentation(
     requireScope(principal, "decks:write");
     requireOwner(principal, "import a presentation");
     const input = requireObject(rawInput);
-    const limits = ctx.config.limits;
-
-    let deckInput = input.deck;
-    if (input.title !== undefined) {
-      const title = requireString(input.title, "title", LIMITS.maxTitleLength);
-      if (typeof deckInput === "object" && deckInput !== null && !Array.isArray(deckInput)) {
-        deckInput = { ...(deckInput as Record<string, unknown>), title };
-      }
-    }
-    const parsed = validateDeck(deckInput, limits.maxSlides, "deck.");
-
-    const rawAssets = input.assets ?? [];
-    if (!Array.isArray(rawAssets))
-      throw validationError("assets must be an array", { path: "assets" });
-    if (rawAssets.length > limits.maxAssetsPerDeck) {
-      throw limitExceeded("Too many assets", limits.maxAssetsPerDeck, rawAssets.length, {
-        path: "assets",
-        hint: `A presentation can have at most ${limits.maxAssetsPerDeck} assets.`,
-      });
-    }
-    const verified = new Map<string, VerifiedAsset>();
-    rawAssets.forEach((raw, i) => {
-      const asset = verifyAsset(ctx, raw, `assets[${i}]`);
-      verified.set(asset.sha256, asset);
+    return storeImported(ctx, principal, call, input, {
+      action: "presentation.import",
+      summary: "Imported",
+      warnings: [],
+      detail: {},
     });
-    const hashes = [...verified.keys()];
+  });
+}
 
-    // Re-sanitize exactly like a new presentation; UNKNOWN_ASSET_REF flags references without a file.
-    const { deck, warnings: coreWarnings } = sanitizeAndCheck(parsed, limits.maxSlides, hashes);
-    const warnings: PortabilityWarning[] = [...coreWarnings];
-    const used = new Set<string>();
-    for (const { text } of assetTexts(deck)) {
-      for (const ref of assetRefsOf(text)) {
-        const hash = resolveRef(ref, hashes);
-        if (hash !== null) used.add(hash);
-      }
+/** How {@link storeImported} records an import. */
+export interface ImportRecord {
+  action: string;
+  /** Start of the revision summary ("Imported", "Imported from PowerPoint"). */
+  summary: string;
+  /** Warnings of an earlier stage (a converter), listed before the core's. */
+  warnings: PortabilityWarning[];
+  /** Extra audit facts (small, JSON-safe, never content). */
+  detail: Record<string, unknown>;
+}
+
+/**
+ * The shared second half of every import: validates, re-sanitizes and re-validates the deck, verifies the assets,
+ * enforces the limits and writes a new presentation in one transaction. The caller has checked the principal.
+ */
+export async function storeImported(
+  ctx: Ctx,
+  principal: Principal,
+  call: CallContext | undefined,
+  input: Record<string, unknown>,
+  record: ImportRecord,
+): Promise<ImportPresentationResult> {
+  const limits = ctx.config.limits;
+
+  let deckInput = input.deck;
+  if (input.title !== undefined) {
+    const title = requireString(input.title, "title", LIMITS.maxTitleLength);
+    if (typeof deckInput === "object" && deckInput !== null && !Array.isArray(deckInput)) {
+      deckInput = { ...(deckInput as Record<string, unknown>), title };
     }
-    for (const hash of hashes) {
-      if (!used.has(hash)) {
-        warnings.push({
-          code: "UNUSED_ASSET",
-          message: `asset:${hash.slice(0, 16)}… is not used by any slide; it was not imported`,
-        });
-      }
+  }
+  const parsed = validateDeck(deckInput, limits.maxSlides, "deck.");
+
+  const rawAssets = input.assets ?? [];
+  if (!Array.isArray(rawAssets))
+    throw validationError("assets must be an array", { path: "assets" });
+  if (rawAssets.length > limits.maxAssetsPerDeck) {
+    throw limitExceeded("Too many assets", limits.maxAssetsPerDeck, rawAssets.length, {
+      path: "assets",
+      hint: `A presentation can have at most ${limits.maxAssetsPerDeck} assets.`,
+    });
+  }
+  const verified = new Map<string, VerifiedAsset>();
+  rawAssets.forEach((raw, i) => {
+    const asset = verifyAsset(ctx, raw, `assets[${i}]`);
+    verified.set(asset.sha256, asset);
+  });
+  const hashes = [...verified.keys()];
+
+  // Re-sanitize exactly like a new presentation; UNKNOWN_ASSET_REF flags references without a file.
+  const { deck, warnings: coreWarnings } = sanitizeAndCheck(parsed, limits.maxSlides, hashes);
+  const warnings: PortabilityWarning[] = [...record.warnings, ...coreWarnings];
+  const used = new Set<string>();
+  for (const { text } of assetTexts(deck)) {
+    for (const ref of assetRefsOf(text)) {
+      const hash = resolveRef(ref, hashes);
+      if (hash !== null) used.add(hash);
     }
-    const kept = [...used].sort().map((h) => verified.get(h) as VerifiedAsset);
-    const total = kept.reduce((n, a) => n + a.bytes.length, 0);
-    if (total > limits.maxAssetBytesPerDeck) {
-      throw limitExceeded("Total asset size", limits.maxAssetBytesPerDeck, total, {
-        path: "assets",
-        unit: "bytes",
-        hint: "Compress the images (WebP or AVIF are much smaller) before exporting again.",
+  }
+  for (const hash of hashes) {
+    if (!used.has(hash)) {
+      warnings.push({
+        code: "UNUSED_ASSET",
+        message: `asset:${hash.slice(0, 16)}… is not used by any slide; it was not imported`,
       });
     }
+  }
+  const kept = [...used].sort().map((h) => verified.get(h) as VerifiedAsset);
+  const total = kept.reduce((n, a) => n + a.bytes.length, 0);
+  if (total > limits.maxAssetBytesPerDeck) {
+    throw limitExceeded("Total asset size", limits.maxAssetBytesPerDeck, total, {
+      path: "assets",
+      unit: "bytes",
+      hint: "Compress the images (WebP or AVIF are much smaller) before exporting again.",
+    });
+  }
 
-    // Blobs first (content-addressed, idempotent); the orphan collector removes them if the transaction fails.
+  // Blobs first (content-addressed, idempotent); the orphan collector removes them if the transaction fails.
+  for (const asset of kept) {
+    const stored = await ctx.blobs.put(asset.bytes, { maxBytes: limits.maxAssetBytes });
+    if (stored.sha256 !== asset.sha256) {
+      throw internalError(new Error("BlobStore returned a different hash"), call?.requestId);
+    }
+  }
+
+  const ws = principal.workspaceId;
+  return ctx.store.transaction(async (tx) => {
+    const now = ctx.clock.now();
+    const id = ctx.ids.ulid();
+    await tx.decks.insert({
+      workspaceId: ws,
+      id,
+      title: deck.title,
+      lang: deck.lang ?? null,
+      currentRevision: 1,
+      slideCount: deck.slides.length,
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+      createdBy: actorRef(principal),
+    });
+    await tx.revisions.insert({
+      workspaceId: ws,
+      deckId: id,
+      number: 1,
+      document: deck,
+      title: deck.title,
+      slideCount: deck.slides.length,
+      summary: `${record.summary} with ${deck.slides.length} slide(s)`,
+      createdAt: now,
+      createdBy: actorRef(principal),
+    });
     for (const asset of kept) {
-      const stored = await ctx.blobs.put(asset.bytes, { maxBytes: limits.maxAssetBytes });
-      if (stored.sha256 !== asset.sha256) {
-        throw internalError(new Error("BlobStore returned a different hash"), call?.requestId);
-      }
+      await tx.assets.insertIfAbsent({
+        workspaceId: ws,
+        sha256: asset.sha256,
+        mediaType: asset.mediaType,
+        bytes: asset.bytes.length,
+        width: asset.width,
+        height: asset.height,
+        createdAt: now,
+      });
+      await tx.assets.link(ws, id, asset.sha256, now);
     }
-
-    const ws = principal.workspaceId;
-    return ctx.store.transaction(async (tx) => {
-      const now = ctx.clock.now();
-      const id = ctx.ids.ulid();
-      await tx.decks.insert({
-        workspaceId: ws,
-        id,
-        title: deck.title,
-        lang: deck.lang ?? null,
-        currentRevision: 1,
-        slideCount: deck.slides.length,
-        createdAt: now,
-        updatedAt: now,
-        deletedAt: null,
-        createdBy: actorRef(principal),
-      });
-      await tx.revisions.insert({
-        workspaceId: ws,
-        deckId: id,
-        number: 1,
-        document: deck,
-        title: deck.title,
-        slideCount: deck.slides.length,
-        summary: `Imported with ${deck.slides.length} slide(s)`,
-        createdAt: now,
-        createdBy: actorRef(principal),
-      });
-      for (const asset of kept) {
-        await tx.assets.insertIfAbsent({
-          workspaceId: ws,
-          sha256: asset.sha256,
-          mediaType: asset.mediaType,
-          bytes: asset.bytes.length,
-          width: asset.width,
-          height: asset.height,
-          createdAt: now,
-        });
-        await tx.assets.link(ws, id, asset.sha256, now);
-      }
-      await audit(ctx, tx, principal, call, "presentation.import", `deck:${id}`, "ok", {
-        revision: 1,
-        slides: deck.slides.length,
-        assets: kept.length,
-      });
-      return {
-        presentationId: id,
-        revision: 1,
-        slideCount: deck.slides.length,
-        assetCount: kept.length,
-        warnings,
-      };
+    await audit(ctx, tx, principal, call, record.action, `deck:${id}`, "ok", {
+      revision: 1,
+      slides: deck.slides.length,
+      assets: kept.length,
+      ...record.detail,
     });
+    return {
+      presentationId: id,
+      revision: 1,
+      slideCount: deck.slides.length,
+      assetCount: kept.length,
+      warnings,
+    };
   });
 }

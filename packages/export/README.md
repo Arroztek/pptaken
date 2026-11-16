@@ -21,7 +21,7 @@ pnpm --filter @pptaken/export test:browser   # builds, then opens exported files
 | `exportHtml({ deck, assets?, includeNotes?, fonts?, counter?, generator? })` | `{ html, filename, bytes, includesNotes, embeddedFonts, warnings }`. `deck` must be the stored (sanitized) deck; `assets` is a `Map<sha256, { mediaType, bytes }>`; `fonts` are bundled WOFF2 faces (only the families the deck uses are embedded). Warnings: `MISSING_ASSET`, `UNSUPPORTED_ASSET`, `FONT_SKIPPED`, `LARGE_FILE` (above 25 MB). |
 | `writeArchive({ deck, assets, includeNotes = true, generator, exportedAt? })` | `{ bytes, filename, manifest }`. Verifies every asset's SHA-256. |
 | `readArchive(bytes, limits?)` | `{ manifest, deck: unknown, assets }` or `ArchiveError` (`code` + safe English message). The deck and the assets are still untrusted: pass them to the core's `importPresentation`. |
-| `writeZip(entries)` / `readZip(bytes, limits)` | The ZIP layer (`ZipError`). |
+| `writeZip(entries)` / `readZip(bytes, limits)` / `openZip(bytes, limits)` | The ZIP layer (`ZipError`), re-exported from [`@pptaken/zip`](../zip/README.md). |
 | `exportFilenames(title, ext)`, `slugify`, `unicodeStem` | Safe file names (ASCII slug and a Unicode name for RFC 6266 `filename*`). |
 
 ## The HTML file

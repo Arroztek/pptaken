@@ -74,6 +74,7 @@ export type {
   BlobPutResult,
   BlobStore,
   Clock,
+  ConverterLimits,
   DeckHeadUpdate,
   DeckListQuery,
   DeckRecord,
@@ -81,6 +82,8 @@ export type {
   IdempotencyRecord,
   IdempotencyRepository,
   IdGenerator,
+  PptxConversionOutput,
+  PptxConverter,
   Repositories,
   RevisionRecord,
   RevisionRepository,
@@ -116,7 +119,9 @@ export type {
   ImportPresentationInput,
   ImportPresentationResult,
   PortabilityWarning,
+  PptxWarningCode,
 } from "./usecases/portability.js";
+export type { ImportPptxInput, ImportPptxResult } from "./usecases/pptx.js";
 export {
   type CreatePresentationInput,
   type CreatePresentationResult,

@@ -11,6 +11,7 @@ import {
   type DeckRecord,
   type IdGenerator,
   ownerPrincipal,
+  type PptxConverter,
   type Principal,
   type RevisionRecord,
   SCOPES,
@@ -24,7 +25,7 @@ import { createTestIdGenerator, ManualClock, MemoryBlobStore, MemoryUnitOfWork }
 
 export const TEST_WORKSPACE = "default";
 
-/** `n` slides with ids `s1`… and a little HTML each (one numbered step). */
+/** `n` slides with ids `s1`â€¦ and a little HTML each (one numbered step). */
 export function makeSlides(n: number, prefix = "s"): Slide[] {
   return Array.from({ length: n }, (_, i) => ({
     id: `${prefix}${i + 1}`,
@@ -151,6 +152,8 @@ export function createTestCore(
     clock?: Clock;
     /** Seed of the deterministic id generator; give each core sharing a database its own seed. */
     seed?: number;
+    /** PowerPoint converter for `importPptx`. */
+    convertPptx?: PptxConverter;
   } = {},
 ): TestCore {
   const clock = (options.clock as ManualClock | undefined) ?? new ManualClock();
@@ -163,6 +166,7 @@ export function createTestCore(
     clock,
     ids,
     ...(options.config === undefined ? {} : { config: options.config }),
+    ...(options.convertPptx === undefined ? {} : { convertPptx: options.convertPptx }),
   });
   return { core, store, blobs, clock, ids };
 }

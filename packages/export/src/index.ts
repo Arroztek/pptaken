@@ -42,6 +42,8 @@ export {
 } from "./html.js";
 export {
   crc32,
+  type OpenedZip,
+  openZip,
   readZip,
   unsafeNameReason,
   writeZip,
