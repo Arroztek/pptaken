@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Pure routing decisions: given the path and what we know about the instance, render a page or redirect.
 
-export type Page = "setup" | "connect" | "login" | "decks" | "tokens" | "notFound";
+export type Page = "setup" | "connect" | "login" | "decks" | "tokens" | "oauthConsent" | "notFound";
 
 export interface RouteContext {
   installed: boolean;
@@ -16,6 +16,18 @@ export const APP_PATHS = ["/", "/welcome", "/login", "/decks", "/tokens"] as con
 /** Pages that need a session; `next` may only point at one of these (no open redirects). */
 const PROTECTED: readonly string[] = ["/decks", "/tokens", "/welcome"];
 
+/**
+ * The OAuth consent page of a pending connection request (ADR-0018): `/connect/<32 base64url characters>`. It is
+ * a protected page too, so signing in can return to it (internal path only).
+ */
+export const CONSENT_PATH = /^\/connect\/[A-Za-z0-9_-]{32}$/;
+
+/** The request id of a consent path, or null. */
+export function consentRequestId(path: string): string | null {
+  const clean = normalizePath(path);
+  return CONSENT_PATH.test(clean) ? (clean.split("/")[2] ?? null) : null;
+}
+
 export function normalizePath(path: string): string {
   const clean = path.split(/[?#]/)[0] ?? "/";
   if (clean.length > 1 && clean.endsWith("/")) return clean.replace(/\/+$/, "") || "/";
@@ -23,13 +35,14 @@ export function normalizePath(path: string): string {
 }
 
 export function isAppPath(path: string): boolean {
-  return (APP_PATHS as readonly string[]).includes(normalizePath(path));
+  const clean = normalizePath(path);
+  return (APP_PATHS as readonly string[]).includes(clean) || CONSENT_PATH.test(clean);
 }
 
 /** Only same-app protected paths are valid `next` targets. Anything else goes to the list. */
 export function safeNext(next: string | null | undefined): string {
   if (!next) return "/decks";
-  return PROTECTED.includes(next) ? next : "/decks";
+  return PROTECTED.includes(next) || CONSENT_PATH.test(next) ? next : "/decks";
 }
 
 export function loginUrl(next: string): string {
@@ -60,6 +73,11 @@ export function decide(rawPath: string, search: string, ctx: RouteContext): Deci
       if (!ctx.signedIn) return redirect(loginUrl(path));
       return render(path === "/decks" ? "decks" : "tokens");
     default:
+      if (CONSENT_PATH.test(path)) {
+        if (!ctx.installed) return redirect("/welcome");
+        if (!ctx.signedIn) return redirect(loginUrl(path));
+        return render("oauthConsent");
+      }
       return render("notFound");
   }
 }

@@ -16,6 +16,7 @@
     login: () => import("./pages/Login.svelte"),
     decks: () => import("./pages/Decks.svelte"),
     tokens: () => import("./pages/Tokens.svelte"),
+    oauthConsent: () => import("./pages/OAuthConsent.svelte"),
     notFound: () => import("./pages/NotFound.svelte"),
   };
   const titles: Record<Page, Key> = {
@@ -24,6 +25,7 @@
     login: "login.pageTitle",
     decks: "decks.title",
     tokens: "tokens.title",
+    oauthConsent: "consent.pageTitle",
     notFound: "notFound.pageTitle",
   };
 

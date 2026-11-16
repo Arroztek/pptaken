@@ -41,6 +41,24 @@ describe("decide", () => {
     });
   });
 
+  it("guards the OAuth consent page and returns to it after sign-in", () => {
+    const path = "/connect/abcdefghijklmnopqrstuvwxyzABCDEF";
+    expect(decide(path, "", inn)).toEqual({ kind: "render", page: "oauthConsent" });
+    expect(decide(path, "", out)).toEqual({
+      kind: "redirect",
+      to: `/login?next=${encodeURIComponent(path)}`,
+    });
+    expect(decide(path, "", fresh)).toEqual({ kind: "redirect", to: "/welcome" });
+    expect(decide("/login", `?next=${encodeURIComponent(path)}`, inn)).toEqual({
+      kind: "redirect",
+      to: path,
+    });
+    expect(decide("/connect/short", "", inn)).toEqual({ kind: "render", page: "notFound" });
+    expect(safeNext("/connect/abcdefghijklmnopqrstuvwxyzABCDEF/x")).toBe("/decks");
+    expect(safeNext("//evil.test/connect/abcdefghijklmnopqrstuvwxyzABCDEF")).toBe("/decks");
+    expect(isAppPath(path)).toBe(true);
+  });
+
   it("renders not found for unknown paths", () => {
     expect(decide("/nope", "", inn)).toEqual({ kind: "render", page: "notFound" });
   });

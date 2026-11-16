@@ -156,7 +156,38 @@ const importResult = object({
   warnings: arrayOf(importWarning),
 });
 
+const oauthRequest = object({
+  id: str,
+  client: object({
+    id: str,
+    kind: oneOf(["cimd", "dcr"] as const),
+    name: nullable(str),
+    idHost: nullable(str),
+  }),
+  redirectUri: str,
+  redirectHost: str,
+  redirectKind: oneOf(["claude", "loopback", "web"] as const),
+  scopes: arrayOf(str),
+  expiresAt: isoDate,
+});
+const oauthDecision = object({ redirectUrl: str });
+const connectedApp = object({
+  id: str,
+  clientId: str,
+  clientKind: nullable(oneOf(["cimd", "dcr"] as const)),
+  clientName: nullable(str),
+  redirectHost: str,
+  scopes: arrayOf(str),
+  createdAt: isoDate,
+  lastUsedAt: nullable(isoDate),
+  expiresAt: isoDate,
+});
+const connectedApps = object({ apps: arrayOf(connectedApp) });
+const passwordChanged = object({ disconnectedApps: count });
+
 export type SetupStatus = Infer<typeof setupStatus>;
+export type OAuthRequest = Infer<typeof oauthRequest>;
+export type ConnectedApp = Infer<typeof connectedApp>;
 export type Token = Infer<typeof token>;
 export type TokenListItem = Infer<typeof tokenListItem>;
 export type CreatedToken = Infer<typeof createdToken>;
@@ -203,6 +234,21 @@ export interface ApiClient {
   listDecks(params?: { cursor?: string | null; q?: string }): Promise<DeckPage>;
   /** Uploads a .pptaken archive as the raw body (application/zip); the server creates a new presentation. */
   importDeck(file: Blob): Promise<ImportResult>;
+  /** A pending OAuth connection request (the consent page). */
+  oauthRequest(id: string): Promise<OAuthRequest>;
+  /** Approves (with the scopes kept) or denies it; returns where to send the browser. */
+  decideOAuthRequest(
+    id: string,
+    decision: "approve" | "deny",
+    scopes?: readonly string[],
+  ): Promise<string>;
+  listConnectedApps(): Promise<ConnectedApp[]>;
+  disconnectApp(id: string): Promise<void>;
+  changePassword(input: {
+    currentPassword: string;
+    newPassword: string;
+    disconnectApps: boolean;
+  }): Promise<{ disconnectedApps: number }>;
 }
 
 export function createApi(
@@ -293,6 +339,24 @@ export function createApi(
       const qs = query.toString();
       return request("GET", `/decks${qs ? `?${qs}` : ""}`, deckPage);
     },
+    oauthRequest: (id) => request("GET", `/oauth/requests/${encodeURIComponent(id)}`, oauthRequest),
+    async decideOAuthRequest(id, decision, scopes) {
+      const body = scopes === undefined ? { decision } : { decision, scopes: [...scopes] };
+      const r = await request(
+        "POST",
+        `/oauth/requests/${encodeURIComponent(id)}`,
+        oauthDecision,
+        body,
+      );
+      return r.redirectUrl;
+    },
+    async listConnectedApps() {
+      return (await request("GET", "/oauth/apps", connectedApps)).apps;
+    },
+    async disconnectApp(id) {
+      await request("DELETE", `/oauth/apps/${encodeURIComponent(id)}`, null);
+    },
+    changePassword: (input) => request("POST", "/auth/password", passwordChanged, input),
     importDeck: (file) =>
       request("POST", "/decks/import", importResult, undefined, {
         body: file,
