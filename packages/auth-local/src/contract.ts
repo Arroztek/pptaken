@@ -5,6 +5,8 @@
 import { describe, expect, it } from "vitest";
 import type { ApiTokenRecord, AuthStore, OwnerRecord } from "./store.js";
 
+export { type OAuthStoreHarness, runOAuthStoreContract } from "./oauth-contract.js";
+
 export interface AuthStoreHarness {
   store: AuthStore;
   cleanup?: () => Promise<void> | void;

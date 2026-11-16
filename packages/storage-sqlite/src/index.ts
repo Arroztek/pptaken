@@ -22,5 +22,13 @@ export {
   SchemaTooNewError,
   schemaVersion,
 } from "./migrations.js";
+export {
+  createSqliteOAuthStore,
+  type SqliteOAuthClientRecord,
+  type SqliteOAuthCodeRecord,
+  type SqliteOAuthGrantRecord,
+  type SqliteOAuthStore,
+  type SqliteOAuthTokenRecord,
+} from "./oauth.js";
 export { createRepositories, type Database } from "./repositories.js";
 export { openSqliteStorage, SqliteStorage, type SqliteStorageOptions } from "./storage.js";

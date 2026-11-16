@@ -170,6 +170,56 @@ export interface LiveDeviceTable {
   expires_at: number;
 }
 
+// Tables of migration 0004_oauth, used by the OAuth store adapter (src/oauth.ts).
+export interface OAuthClientsTable {
+  workspace_id: string;
+  id: string;
+  kind: string;
+  name: string | null;
+  redirect_uris: string;
+  metadata: string;
+  created_at: number;
+}
+
+export interface OAuthGrantsTable {
+  workspace_id: string;
+  id: string;
+  client_id: string;
+  client_name: string | null;
+  redirect_uri: string;
+  scopes: string;
+  resource: string;
+  created_at: number;
+  last_used_at: number | null;
+  expires_at: number;
+  revoked_at: number | null;
+}
+
+export interface OAuthCodesTable {
+  code_hash: string;
+  workspace_id: string;
+  grant_id: string;
+  client_id: string;
+  redirect_uri: string;
+  code_challenge: string;
+  resource: string;
+  scopes: string;
+  created_at: number;
+  expires_at: number;
+  used_at: number | null;
+}
+
+export interface OAuthTokensTable {
+  token_hash: string;
+  workspace_id: string;
+  grant_id: string;
+  kind: string;
+  created_at: number;
+  expires_at: number;
+  replaced_by: string | null;
+  rotated_at: number | null;
+}
+
 /** Typed view of the database for Kysely. */
 export interface Database {
   deck: DeckTable;
@@ -187,6 +237,10 @@ export interface Database {
   live_session: LiveSessionTable;
   live_pairing: LivePairingTable;
   live_device: LiveDeviceTable;
+  oauth_clients: OAuthClientsTable;
+  oauth_grants: OAuthGrantsTable;
+  oauth_codes: OAuthCodesTable;
+  oauth_tokens: OAuthTokensTable;
 }
 
 type Db = Kysely<Database>;

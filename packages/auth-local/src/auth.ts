@@ -10,6 +10,8 @@ import {
   type Scope,
 } from "@pptaken/core";
 import { constantTimeEqual, deriveKey, hmacHex } from "./crypto.js";
+import type { OAuthService } from "./oauth.js";
+import { OAUTH_ACCESS_PREFIX } from "./oauth-primitives.js";
 import {
   checkPasswordPolicy,
   DEFAULT_SCRYPT_PARAMS,
@@ -77,7 +79,13 @@ export interface AuthRequest {
 
 export type Authenticated =
   | { kind: "session"; principal: Principal; ownerId: string; refreshed: boolean }
-  | { kind: "token"; principal: Principal; token: TokenView };
+  | {
+      kind: "token";
+      principal: Principal;
+      /** For OAuth access tokens: a view of the grant (id = grant id, name = client name). */
+      token: TokenView;
+      via: "api_token" | "oauth";
+    };
 
 /** The port the HTTP layer uses (architecture §9): resolve a request to a principal, or to nobody. */
 export interface AuthProvider {
@@ -111,6 +119,8 @@ export interface LocalAuthOptions {
   /** Password hashing cost (tests use cheaper parameters). */
   scrypt?: ScryptParams;
   sessionTtlMs?: number;
+  /** The OAuth authorization server (ADR-0018): `ppto_` access tokens and grant revocation. */
+  oauth?: OAuthService;
 }
 
 function toView(t: ApiTokenRecord): TokenView {
@@ -140,6 +150,7 @@ export class LocalAuth implements AuthProvider {
   private readonly ids: { ulid(): string };
   private readonly scryptParams: ScryptParams;
   private readonly sessionTtlMs: number;
+  private readonly oauth: OAuthService | undefined;
 
   constructor(options: LocalAuthOptions) {
     if (options.secret.length < 32) throw new RangeError("The instance secret must be 256 bits");
@@ -150,6 +161,7 @@ export class LocalAuth implements AuthProvider {
     this.ids = options.ids;
     this.scryptParams = options.scrypt ?? DEFAULT_SCRYPT_PARAMS;
     this.sessionTtlMs = options.sessionTtlMs ?? SESSION_TTL_MS;
+    this.oauth = options.oauth;
   }
 
   get workspaceId(): string {
@@ -283,8 +295,12 @@ export class LocalAuth implements AuthProvider {
     return { ownerId: owner.id, sessionId: await this.createSession(owner.id) };
   }
 
-  /** Sets a new password (CLI `pptaken reset-password`) and signs out every session. */
-  async resetPassword(password: unknown): Promise<void> {
+  /**
+   * Sets a new password (CLI `pptaken reset-password`), signs out every session and disconnects every OAuth
+   * application (ADR-0018: a reset means the owner may have lost control, so every grant goes too). Returns the
+   * number of applications disconnected.
+   */
+  async resetPassword(password: unknown): Promise<number> {
     const owner = await this.store.getOwner(this.ws);
     if (owner === null)
       throw new AuthError("SETUP_REQUIRED", "Nobody has set up this instance yet");
@@ -298,6 +314,41 @@ export class LocalAuth implements AuthProvider {
       this.clock.now(),
     );
     await this.store.deleteAllSessions(this.ws);
+    return (await this.oauth?.revokeAllGrants()) ?? 0;
+  }
+
+  /**
+   * Changes the password from the panel: checks the current one, signs out every session and returns a fresh one
+   * for the caller. With `disconnectApps`, every OAuth application is disconnected too.
+   */
+  async changePassword(input: {
+    currentPassword: unknown;
+    newPassword: unknown;
+    disconnectApps?: boolean;
+  }): Promise<{ sessionId: string; disconnected: number }> {
+    const owner = await this.store.getOwner(this.ws);
+    if (owner === null)
+      throw new AuthError("SETUP_REQUIRED", "Nobody has set up this instance yet");
+    const current = input.currentPassword;
+    const ok =
+      typeof current === "string" &&
+      current.length > 0 &&
+      current.length <= MAX_PASSWORD_LENGTH &&
+      (await verifyPassword(current, owner.passwordHash));
+    if (!ok) throw new AuthError("UNAUTHENTICATED", "Wrong password");
+    const policy = checkPasswordPolicy(input.newPassword);
+    if (!policy.ok)
+      throw new AuthError("VALIDATION_ERROR", "The password does not meet the policy", policy.hint);
+    await this.store.setOwnerPassword(
+      this.ws,
+      owner.id,
+      await hashPassword(input.newPassword as string, this.scryptParams),
+      this.clock.now(),
+    );
+    await this.store.deleteAllSessions(this.ws);
+    const disconnected =
+      input.disconnectApps === true ? ((await this.oauth?.revokeAllGrants()) ?? 0) : 0;
+    return { sessionId: await this.createSession(owner.id), disconnected };
   }
 
   // -------------------------------------------------------------------------------------------------------------
@@ -440,12 +491,44 @@ export class LocalAuth implements AuthProvider {
     }
   }
 
-  /** Resolves `Authorization: Bearer ppt_…` to an agent principal with the token's scopes. */
+  /**
+   * Resolves `Authorization: Bearer …` to an agent principal. Dispatches by prefix: `ppt_` API tokens anywhere;
+   * `ppto_` OAuth access tokens only when `resource` names the audience they were issued for (`/mcp`), so
+   * callers that pass no resource (the panel API) never accept them.
+   */
   async authenticateBearer(
     authorization: string | null | undefined,
+    options: { resource?: string } = {},
   ): Promise<Authenticated | null> {
     const secret = bearerTokenOf(authorization);
-    if (secret === null || !isApiTokenFormat(secret)) return null;
+    if (secret === null) return null;
+    if (secret.startsWith(OAUTH_ACCESS_PREFIX)) {
+      if (this.oauth === undefined || options.resource === undefined) return null;
+      const access = await this.oauth.authenticateAccessToken(secret, options.resource);
+      if (access === null) return null;
+      const g = access.grant;
+      return {
+        kind: "token",
+        via: "oauth",
+        principal: {
+          actor: "agent",
+          workspaceId: this.ws,
+          scopes: new Set<Scope>(access.scopes),
+          // The grant id: stable across refreshes, so rate limits and the audit log follow the connection.
+          tokenId: g.id,
+        },
+        token: {
+          id: g.id,
+          name: g.clientName ?? g.clientId,
+          scopes: [...access.scopes],
+          createdAt: g.createdAt,
+          expiresAt: access.expiresAt,
+          lastUsedAt: g.lastUsedAt,
+          revokedAt: null,
+        },
+      };
+    }
+    if (!isApiTokenFormat(secret)) return null;
     const hash = hashSecret(secret);
     const token = await this.store.getTokenByHash(hash);
     if (token === null || !constantTimeEqual(token.tokenHash, hash)) return null;
@@ -463,7 +546,7 @@ export class LocalAuth implements AuthProvider {
       scopes: new Set(view.scopes),
       tokenId: token.id,
     };
-    return { kind: "token", principal, token: view };
+    return { kind: "token", via: "api_token", principal, token: view };
   }
 
   /**
