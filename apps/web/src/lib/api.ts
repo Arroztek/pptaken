@@ -149,6 +149,8 @@ const importWarning = object({
   message: str,
   path: optionalNull(str),
   slideId: optionalNull(str),
+  /** What was affected (`chart`, `font:Calibri`...), for PowerPoint imports. */
+  name: optionalNull(str),
 });
 const importResult = object({
   deck: object({ id: str, title: str }),
@@ -201,6 +203,88 @@ export type ExportFormat = "html" | "pptaken";
 /** Largest archive the server accepts by default (PPTAKEN_MAX_IMPORT_MB). */
 export const MAX_IMPORT_MB = 100;
 
+/** What an import uploads: a PPTaken archive or a PowerPoint file. */
+export type ImportKind = "archive" | "pptx";
+
+export const PPTX_MEDIA_TYPE =
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+
+const IMPORT_TARGETS: Record<ImportKind, { path: string; type: string }> = {
+  archive: { path: "/decks/import", type: "application/zip" },
+  pptx: { path: "/decks/import-pptx", type: PPTX_MEDIA_TYPE },
+};
+
+/** Upload progress: bytes sent (`fraction` 0..1), then the server's work (`fraction` null). */
+export interface ImportProgress {
+  phase: "upload" | "process";
+  fraction: number | null;
+}
+
+/** The parts of XMLHttpRequest the uploader uses (a fake in unit tests). */
+export interface UploadRequest {
+  open(method: string, url: string): void;
+  setRequestHeader(name: string, value: string): void;
+  getResponseHeader(name: string): string | null;
+  send(body: Blob): void;
+  readonly status: number;
+  readonly responseText: string;
+  onload: (() => void) | null;
+  onerror: (() => void) | null;
+  upload: {
+    onprogress: ((e: { loaded: number; total: number; lengthComputable: boolean }) => void) | null;
+    onload: (() => void) | null;
+  };
+}
+
+/**
+ * Uploads an import with upload progress (fetch cannot report it). Same contract as the API client: CSRF header,
+ * same-origin cookies, validated response, `ApiError` on failure.
+ */
+export function uploadImport(
+  file: Blob,
+  kind: ImportKind,
+  onProgress: (progress: ImportProgress) => void = () => {},
+  makeRequest: () => UploadRequest = () => new XMLHttpRequest() as unknown as UploadRequest,
+  base = "/api/v1",
+): Promise<ImportResult> {
+  const target = IMPORT_TARGETS[kind];
+  return new Promise((resolve, reject) => {
+    const xhr = makeRequest();
+    xhr.open("POST", `${base}${target.path}`);
+    xhr.setRequestHeader("Accept", "application/json");
+    xhr.setRequestHeader("Content-Type", target.type);
+    xhr.setRequestHeader("X-PPTaken-CSRF", "1");
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && e.total > 0) {
+        onProgress({ phase: "upload", fraction: Math.min(1, e.loaded / e.total) });
+      }
+    };
+    xhr.upload.onload = () => onProgress({ phase: "process", fraction: null });
+    xhr.onerror = () => reject(new ApiError("NETWORK", 0, "Network error"));
+    xhr.onload = () => {
+      let json: unknown = null;
+      try {
+        json = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+      } catch {
+        json = null;
+      }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(toApiError(xhr.status, json, xhr.getResponseHeader("Retry-After")));
+        return;
+      }
+      try {
+        resolve(parse(importResult, json));
+      } catch (e) {
+        reject(
+          new ApiError("BAD_RESPONSE", xhr.status, e instanceof Error ? e.message : "Bad response"),
+        );
+      }
+    };
+    onProgress({ phase: "upload", fraction: 0 });
+    xhr.send(file);
+  });
+}
+
 /**
  * Same-origin URL of an export download, used as a plain `<a href download>` (the session cookie goes along).
  * HTML leaves the speaker notes out unless asked; the .pkn archive keeps them.
@@ -234,6 +318,8 @@ export interface ApiClient {
   listDecks(params?: { cursor?: string | null; q?: string }): Promise<DeckPage>;
   /** Uploads a .pkn archive as the raw body (application/zip); the server creates a new presentation. */
   importDeck(file: Blob): Promise<ImportResult>;
+  /** Uploads a PowerPoint .pptx as the raw body; the server converts it into a new presentation. */
+  importPptx(file: Blob): Promise<ImportResult>;
   /** A pending OAuth connection request (the consent page). */
   oauthRequest(id: string): Promise<OAuthRequest>;
   /** Approves (with the scopes kept) or denies it; returns where to send the browser. */
@@ -361,6 +447,11 @@ export function createApi(
       request("POST", "/decks/import", importResult, undefined, {
         body: file,
         type: "application/zip",
+      }),
+    importPptx: (file) =>
+      request("POST", "/decks/import-pptx", importResult, undefined, {
+        body: file,
+        type: PPTX_MEDIA_TYPE,
       }),
   };
 }

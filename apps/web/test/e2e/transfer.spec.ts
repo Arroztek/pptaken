@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Export menu and import button of the presentation list, against the mock server.
+import type { Page } from "@playwright/test";
 import { expect, signIn, test } from "./fixtures";
+
+/** Opens the import dialog and its file picker (the dialog explains what can be imported first). */
+async function openImport(page: Page) {
+  await page.getByRole("button", { name: "Import", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Import a presentation" });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Choose a file" }).click();
+}
 
 test.describe("export", () => {
   test.use({ mockOptions: { installed: true, decks: 3 } });
@@ -62,7 +71,7 @@ test.describe("import", () => {
     await page.goto(`${mock.url}/decks`);
     await expect(page.locator("article.ppt-deck")).toHaveCount(2);
     const chooser = page.waitForEvent("filechooser");
-    await page.getByRole("button", { name: "Import" }).click();
+    await openImport(page);
     await (await chooser).setFiles({
       name: "talk.pkn",
       mimeType: "",
@@ -85,7 +94,7 @@ test.describe("import", () => {
     await signIn(page, mock);
     await page.goto(`${mock.url}/decks`);
     let chooser = page.waitForEvent("filechooser");
-    await page.getByRole("button", { name: "Import" }).click();
+    await openImport(page);
     await (await chooser).setFiles({
       name: "bad.pkn",
       mimeType: "",
@@ -96,14 +105,14 @@ test.describe("import", () => {
     await expect(alert).toContainText("manifest.json is missing");
 
     chooser = page.waitForEvent("filechooser");
-    await page.getByRole("button", { name: "Import" }).click();
+    await openImport(page);
     await (await chooser).setFiles({
       name: "slides.html",
       mimeType: "text/html",
       buffer: Buffer.from("x"),
     });
     await expect(page.getByRole("alert")).toContainText(
-      "Choose a .pkn file exported from PPTaken.",
+      "Choose a .pkn file exported from PPTaken or a PowerPoint .pptx file.",
     );
     expect(mock.state.imports).toHaveLength(1); // the HTML file never left the browser
   });
@@ -115,6 +124,12 @@ test.describe("import", () => {
     await page.reload();
     const chooser = page.waitForEvent("filechooser");
     await page.getByRole("button", { name: "Importar" }).click();
+    await expect(
+      page.getByText(
+        "Archivos .ppt antiguos: ábrelos en PowerPoint y guárdalos como .pptx primero.",
+      ),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Elegir un archivo" }).click();
     await (await chooser).setFiles({
       name: "charla.pkn",
       mimeType: "",
@@ -122,5 +137,68 @@ test.describe("import", () => {
     });
     await expect(page.getByText("“Imported deck 1” importada.")).toBeVisible();
     await expect(page.getByText("Todo llegó tal como estaba.")).toBeVisible();
+  });
+});
+
+test.describe("PowerPoint import", () => {
+  test.use({ mockOptions: { installed: true, decks: 1 } });
+
+  test("explains what comes along, uploads the .pptx and summarizes the warnings by group", async ({
+    page,
+    mock,
+  }) => {
+    await signIn(page, mock);
+    await page.goto(`${mock.url}/decks`);
+    await page.getByRole("button", { name: "Import", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Import a presentation" });
+    await expect(dialog.getByText(/Not carried over: charts, SmartArt, video/)).toBeVisible();
+    await expect(
+      dialog.getByText("Old .ppt files: open them in PowerPoint and save them as .pptx first."),
+    ).toBeVisible();
+    const chooser = page.waitForEvent("filechooser");
+    await dialog.getByRole("button", { name: "Choose a file" }).click();
+    await (await chooser).setFiles({
+      name: "Quarterly review.pptx",
+      mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      buffer: Buffer.from("PK slides"),
+    });
+    await expect(page.getByText("Imported “Quarterly review”.")).toBeVisible();
+    await expect(page.getByText("3 things were adjusted on the way in:")).toBeVisible();
+    // Groups: the first is open, the others collapsed until clicked.
+    const dropped = page.locator("details", { hasText: "Not carried over (2)" });
+    await expect(dropped.getByText(/Slide 4: charts are not imported/)).toBeVisible();
+    const fonts = page.locator("details", { hasText: "Fonts replaced (1)" });
+    await expect(fonts.getByText(/Calibri/)).toBeHidden();
+    await fonts.locator("summary").click();
+    await expect(fonts.getByText(/Calibri/)).toBeVisible();
+    await expect(page.getByRole("link", { name: "Open the presentation" })).toHaveAttribute(
+      "href",
+      "/p/deck_pptx_1",
+    );
+    await expect(page.locator("article.ppt-deck").first()).toContainText("Quarterly review");
+    const post = mock.state.log.find((r) => r.method === "POST" && r.path === "/decks/import-pptx");
+    expect(post?.csrf).toBe("1");
+  });
+
+  test("refuses .ppt files before uploading and shows the server's reason for others", async ({
+    page,
+    mock,
+  }) => {
+    await signIn(page, mock);
+    await page.goto(`${mock.url}/decks`);
+    let chooser = page.waitForEvent("filechooser");
+    await openImport(page);
+    await (await chooser).setFiles({ name: "old.ppt", mimeType: "", buffer: Buffer.from("x") });
+    await expect(page.getByRole("alert")).toContainText("This is an old PowerPoint file (.ppt).");
+    expect(mock.state.imports).toHaveLength(0);
+
+    chooser = page.waitForEvent("filechooser");
+    await openImport(page);
+    await (await chooser).setFiles({
+      name: "renamed.pptx",
+      mimeType: "",
+      buffer: Buffer.from("LEGACY"),
+    });
+    await expect(page.getByRole("alert")).toContainText("PowerPoint 97-2003");
   });
 });

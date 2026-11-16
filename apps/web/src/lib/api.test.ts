@@ -1,6 +1,16 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from "vitest";
-import { ApiError, createApi, type FetchLike, parseRetryAfter, toApiError } from "./api";
+import {
+  ApiError,
+  createApi,
+  type FetchLike,
+  type ImportProgress,
+  PPTX_MEDIA_TYPE,
+  parseRetryAfter,
+  toApiError,
+  type UploadRequest,
+  uploadImport,
+} from "./api";
 
 interface Call {
   url: string;
@@ -227,7 +237,9 @@ describe("export and import", () => {
     expect(result).toEqual({
       deck: { id: "d1", title: "Imported" },
       assetCount: 1,
-      warnings: [{ code: "UNUSED_ASSET", message: "not used", path: null, slideId: null }],
+      warnings: [
+        { code: "UNUSED_ASSET", message: "not used", path: null, slideId: null, name: null },
+      ],
     });
     const call = calls[0];
     expect(call?.url).toBe("/api/v1/decks/import");
@@ -248,6 +260,133 @@ describe("export and import", () => {
     await expect(api.importDeck(new Blob(["x"]))).rejects.toMatchObject({
       code: "VALIDATION_ERROR",
       message: "Not a valid .pkn archive: manifest.json is missing",
+    });
+  });
+});
+
+describe("PowerPoint import", () => {
+  const result = {
+    deck: { id: "d2", title: "Slides", lang: "en", slideCount: 3, revision: 1 },
+    assetCount: 2,
+    warnings: [
+      {
+        code: "PPTX_FEATURE_DROPPED",
+        message: "Slide 2: charts are not imported",
+        path: "slides[1]",
+        slideId: "slide-2",
+        name: "chart",
+      },
+    ],
+  };
+
+  it("posts the .pptx with its media type to the PowerPoint route", async () => {
+    const { calls, api } = fakeFetch(201, result);
+    const out = await api.importPptx(new Blob(["PK"]));
+    expect(out.warnings[0]).toMatchObject({ slideId: "slide-2", name: "chart" });
+    expect(calls[0]?.url).toBe("/api/v1/decks/import-pptx");
+    const headers = calls[0]?.init.headers as Record<string, string>;
+    expect(headers["Content-Type"]).toBe(PPTX_MEDIA_TYPE);
+    expect(headers["X-PPTaken-CSRF"]).toBe("1");
+  });
+
+  /** A scripted XMLHttpRequest: reports upload progress, then answers. */
+  function fakeXhr(status: number, body: unknown, headers: Record<string, string> = {}) {
+    const sent: { method?: string; url?: string; headers: Record<string, string>; body?: Blob } = {
+      headers: {},
+    };
+    const xhr: UploadRequest = {
+      status: 0,
+      responseText: "",
+      onload: null,
+      onerror: null,
+      upload: { onprogress: null, onload: null },
+      open(method, url) {
+        sent.method = method;
+        sent.url = url;
+      },
+      setRequestHeader(name, value) {
+        sent.headers[name] = value;
+      },
+      getResponseHeader: (name) => headers[name] ?? null,
+      send(file) {
+        sent.body = file;
+        queueMicrotask(() => {
+          xhr.upload.onprogress?.({ loaded: 50, total: 100, lengthComputable: true });
+          xhr.upload.onprogress?.({ loaded: 100, total: 100, lengthComputable: true });
+          xhr.upload.onload?.();
+          Object.assign(xhr, { status, responseText: JSON.stringify(body) });
+          xhr.onload?.();
+        });
+      },
+    };
+    return { xhr, sent };
+  }
+
+  it("uploads with progress, then reports the server phase", async () => {
+    const { xhr, sent } = fakeXhr(201, result);
+    const seen: ImportProgress[] = [];
+    const file = new Blob(["PK"]);
+    const out = await uploadImport(
+      file,
+      "pptx",
+      (p) => seen.push(p),
+      () => xhr,
+    );
+    expect(out.deck.id).toBe("d2");
+    expect(sent).toMatchObject({ method: "POST", url: "/api/v1/decks/import-pptx", body: file });
+    expect(sent.headers["Content-Type"]).toBe(PPTX_MEDIA_TYPE);
+    expect(sent.headers["X-PPTaken-CSRF"]).toBe("1");
+    expect(seen).toEqual([
+      { phase: "upload", fraction: 0 },
+      { phase: "upload", fraction: 0.5 },
+      { phase: "upload", fraction: 1 },
+      { phase: "process", fraction: null },
+    ]);
+    const archive = fakeXhr(201, result);
+    await uploadImport(
+      file,
+      "archive",
+      () => {},
+      () => archive.xhr,
+    );
+    expect(archive.sent.url).toBe("/api/v1/decks/import");
+    expect(archive.sent.headers["Content-Type"]).toBe("application/zip");
+  });
+
+  it("turns refusals into ApiErrors with the server's message and hint", async () => {
+    const { xhr } = fakeXhr(400, {
+      error: {
+        code: "VALIDATION_ERROR",
+        message: "This is a PowerPoint 97-2003 (.ppt) file, which cannot be imported",
+        hint: "Save it as .pptx",
+      },
+    });
+    await expect(
+      uploadImport(
+        new Blob(["x"]),
+        "pptx",
+        () => {},
+        () => xhr,
+      ),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      hint: "Save it as .pptx",
+    });
+    const limited = fakeXhr(
+      429,
+      { error: { code: "RATE_LIMITED", message: "Too many imports" } },
+      { "Retry-After": "30" },
+    );
+    await expect(
+      uploadImport(
+        new Blob(["x"]),
+        "pptx",
+        () => {},
+        () => limited.xhr,
+      ),
+    ).rejects.toMatchObject({
+      code: "RATE_LIMITED",
+      retryAfter: 30,
     });
   });
 });

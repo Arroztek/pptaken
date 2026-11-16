@@ -151,6 +151,13 @@ main:focus { outline: none; }
 .import-status .spin { animation: ppt-spin 0.9s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .import-status .spin { animation: none; } }
 .import-warnings { margin: var(--ppt-space-2) 0 0; padding-left: 1.2em; font-size: var(--ppt-text-sm); }
+.import-progress { display: grid; gap: var(--ppt-space-2); margin: 0 0 var(--ppt-space-4); max-width: 480px; }
+.import-progress .import-status { margin: 0; }
+.import-progress__bar { width: 100%; height: 6px; accent-color: var(--ppt-interactive); }
+.import-groups { display: grid; gap: var(--ppt-space-2); margin-top: var(--ppt-space-2); }
+.import-group summary { cursor: pointer; font-size: var(--ppt-text-sm); font-weight: var(--ppt-weight-semibold); }
+.import-group .import-warnings { max-height: 240px; overflow: auto; }
+.import-open { margin: var(--ppt-space-3) 0 0; }
 .page > .ppt-notice { margin-bottom: var(--ppt-space-4); }
 
 /* Neutral title card: decks have no thumbnails in F2. Sized with cqw like the reference slides. */

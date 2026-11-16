@@ -8,14 +8,18 @@
     api,
     type DeckSummary,
     exportUrl,
+    type ImportKind,
+    type ImportProgress,
     type ImportResult,
     MAX_IMPORT_MB,
+    uploadImport,
   } from "../lib/api";
   import { errorMessage } from "../lib/errors";
   import { debounce, describeWhen } from "../lib/format";
   import { countOfflineCopies, forgetOfflineCopies } from "../lib/offline";
   import { handleAuthError, prefs, t } from "../lib/state.svelte";
-  import { checkImportFile } from "../lib/transfer";
+  import { checkImportFile, groupWarnings, IMPORT_ACCEPT, importKindOf } from "../lib/transfer";
+  import type { Key } from "../lib/translate";
 
   // Export: one dialog for the deck whose menu was opened.
   let exportDeck = $state<DeckSummary | null>(null);
@@ -27,11 +31,20 @@
     exportOpen = true;
   }
 
-  // Import: a hidden file input behind a button; one upload at a time.
+  // Import: a dialog explains what can be imported, then a hidden file input; one upload at a time.
   let fileInput: HTMLInputElement | undefined = $state();
+  let importOpen = $state(false);
   let importing = $state<string | null>(null);
+  let importingKind = $state<ImportKind>("archive");
+  let progress = $state<ImportProgress | null>(null);
   let imported = $state<ImportResult | null>(null);
   let importError = $state<{ title: string; text: string } | null>(null);
+  const warningGroups = $derived(imported ? groupWarnings(imported.warnings) : []);
+
+  function chooseFile() {
+    importOpen = false;
+    fileInput?.click();
+  }
 
   async function importFile(file: File) {
     imported = null;
@@ -40,13 +53,22 @@
     if (problem !== null) {
       importError = {
         title: t("transfer.importFailed", { name: file.name }),
-        text: problem === "tooLarge" ? t("transfer.tooLarge", { n: MAX_IMPORT_MB }) : t("transfer.wrongType"),
+        text:
+          problem === "tooLarge"
+            ? t("transfer.tooLarge", { n: MAX_IMPORT_MB })
+            : problem === "legacyPpt"
+              ? t("transfer.legacyPpt")
+              : t("transfer.wrongType"),
       };
       return;
     }
     importing = file.name;
+    importingKind = importKindOf(file.name) ?? "archive";
+    progress = { phase: "upload", fraction: 0 };
     try {
-      imported = await api.importDeck(file);
+      imported = await uploadImport(file, importingKind, (p) => {
+        progress = p;
+      });
       query = "";
       search.cancel();
       await load("");
@@ -54,10 +76,15 @@
       if (handleAuthError(e)) return;
       // The server explains what is wrong with the archive (English); other codes get the usual message.
       const detail =
-        e instanceof ApiError && e.code === "VALIDATION_ERROR" && e.message ? e.message : errorMessage(e, t);
+        e instanceof ApiError && e.code === "VALIDATION_ERROR" && e.message
+          ? e.hint
+            ? `${e.message}. ${e.hint}`
+            : e.message
+          : errorMessage(e, t);
       importError = { title: t("transfer.importFailed", { name: file.name }), text: detail };
     } finally {
       importing = null;
+      progress = null;
     }
   }
 
@@ -170,7 +197,7 @@
       bind:this={fileInput}
       class="ppt-sr-only"
       type="file"
-      accept=".pkn,application/zip"
+      accept={IMPORT_ACCEPT}
       tabindex="-1"
       aria-hidden="true"
       onchange={onFileChosen}
@@ -178,10 +205,22 @@
   </div>
 
   {#if importing}
-    <p class="ppt-muted import-status" role="status">
-      <Icon name="circle-notch" size={16} class="spin" />
-      {t("transfer.importing", { name: importing })}
-    </p>
+    <div class="import-progress" role="status">
+      <p class="ppt-muted import-status">
+        <Icon name="circle-notch" size={16} class="spin" />
+        {progress?.phase === "process"
+          ? importingKind === "pptx"
+            ? t("transfer.converting", { name: importing })
+            : t("transfer.importing", { name: importing })
+          : t("transfer.uploading", { name: importing })}
+      </p>
+      <progress
+        class="import-progress__bar"
+        max="1"
+        value={progress?.phase === "upload" && progress.fraction !== null ? progress.fraction : undefined}
+        aria-label={t("transfer.uploading", { name: importing })}
+      ></progress>
+    </div>
   {/if}
   {#if importError}
     <Notice tone="danger" title={importError.title} text={importError.text} ondismiss={() => (importError = null)} />
@@ -197,13 +236,25 @@
           : t("transfer.importedAdjusted", { n: imported.warnings.length })}
       ondismiss={() => (imported = null)}
     >
-      {#if imported.warnings.length > 0}
-        <ul class="import-warnings">
-          {#each imported.warnings.slice(0, 10) as warning, i (i)}
-            <li>{warning.message}</li>
+      {#if warningGroups.length > 0}
+        <div class="import-groups">
+          {#each warningGroups as group, i (group.group)}
+            <details class="import-group" open={i === 0}>
+              <summary>{t(`transfer.groups.${group.group}` as Key)} ({group.items.length})</summary>
+              <ul class="import-warnings">
+                {#each group.items.slice(0, 100) as warning, j (j)}
+                  <li>{warning.message}</li>
+                {/each}
+              </ul>
+            </details>
           {/each}
-        </ul>
+        </div>
       {/if}
+      <p class="import-open">
+        <a class="ppt-btn ppt-btn--secondary ppt-btn--sm" href="/p/{encodeURIComponent(imported.deck.id)}" target="_blank" rel="noopener"
+          >{t("transfer.openDeck")}</a
+        >
+      </p>
     </Notice>
   {/if}
 
@@ -316,8 +367,25 @@
 </div>
 
 {#snippet importButton(variant: "secondary" | "ghost")}
-  <Button {variant} loading={importing !== null} onclick={() => fileInput?.click()}>{t("transfer.import")}</Button>
+  <Button {variant} loading={importing !== null} onclick={() => (importOpen = true)}>{t("transfer.import")}</Button>
 {/snippet}
+
+<Dialog bind:open={importOpen} title={t("transfer.importTitle")}>
+  <div class="export-options">
+    <section class="export-option">
+      <p>{t("transfer.importText")}</p>
+    </section>
+    <section class="export-option" aria-labelledby="import-pptx-title">
+      <h3 class="export-option__title" id="import-pptx-title">{t("transfer.pptxTitle")}</h3>
+      <p class="ppt-muted">{t("transfer.pptxText")}</p>
+      <p class="ppt-muted">{t("transfer.pptxNotCarried")}</p>
+      <p class="ppt-muted">{t("transfer.pptxLegacy")}</p>
+    </section>
+    <div>
+      <Button variant="primary" onclick={chooseFile}>{t("transfer.chooseFile")}</Button>
+    </div>
+  </div>
+</Dialog>
 
 <Dialog bind:open={exportOpen} title={exportDeck ? t("transfer.exportTitle", { title: exportDeck.title }) : ""}>
   {#if exportDeck}

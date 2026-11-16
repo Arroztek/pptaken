@@ -353,6 +353,59 @@ async function handleApi(state, req, res, url) {
     return send(res, 201, { deck, assetCount: 0, warnings });
   }
 
+  // PowerPoint import: a body containing LEGACY is refused like a .ppt file; otherwise warnings of every group.
+  if (method === "POST" && path === "/decks/import-pptx") {
+    const type = (req.headers["content-type"] ?? "").split(";")[0];
+    if (type !== "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
+      return fail(res, 400, "VALIDATION_ERROR", "The request body must be a .pptx file");
+    }
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    const text = Buffer.concat(chunks).toString("latin1");
+    state.imports.push(text.length);
+    if (text.includes("LEGACY")) {
+      return fail(
+        res,
+        400,
+        "VALIDATION_ERROR",
+        "This is a PowerPoint 97-2003 (.ppt) file, which cannot be imported",
+        { hint: "Open it in PowerPoint and save it as .pptx, then import that file." },
+      );
+    }
+    const deck = {
+      id: `deck_pptx_${state.imports.length}`,
+      title: "Quarterly review",
+      lang: "en",
+      slideCount: 12,
+      revision: 1,
+      updatedAt: new Date().toISOString(),
+      createdBy: "owner",
+    };
+    state.decks.unshift(deck);
+    const warnings = [
+      {
+        code: "PPTX_FEATURE_DROPPED",
+        message: "Slide 4: charts are not imported; an empty box marks where they were",
+        path: "slides[3]",
+        slideId: "slide-4",
+        name: "chart",
+      },
+      {
+        code: "PPTX_FEATURE_DROPPED",
+        message: "Slide 7: the slide transition is not kept",
+        path: "slides[6]",
+        slideId: "slide-7",
+        name: "transition",
+      },
+      {
+        code: "PPTX_FONT_REPLACED",
+        message: 'The font "Calibri" was replaced by Inter; line breaks may differ',
+        name: "font:Calibri",
+      },
+    ];
+    return send(res, 201, { deck, assetCount: 4, warnings });
+  }
+
   const one = path.match(/^\/decks\/([^/]+)$/);
   if (method === "GET" && one) {
     const deck = state.decks.find((d) => d.id === decodeURIComponent(one[1]));
