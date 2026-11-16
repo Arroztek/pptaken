@@ -100,6 +100,7 @@ export { RUNTIME_SHA256, RUNTIME_SOURCE } from "./runtime-source.js";
 export {
   createPlayer,
   type KeySource,
+  keyHelpRows,
   type Player,
   type PlayerFault,
   type PlayerOptions,

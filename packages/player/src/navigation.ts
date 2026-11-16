@@ -149,6 +149,12 @@ export function samePosition(a: Position, b: Position): boolean {
   return a.slide === b.slide && a.step === b.step;
 }
 
+/** True at the end of the talk: the last slide with all its steps revealed (`next` stays put). */
+export function isEnd(shape: DeckShape, position: Position): boolean {
+  if (shape.slides.length === 0) return false;
+  return samePosition(clamp(shape, position), last(shape));
+}
+
 const HASH = /^#\/([0-9]{1,6})(?:\/([0-9]{1,6}))?\/?$/;
 
 /**

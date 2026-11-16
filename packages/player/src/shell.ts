@@ -182,7 +182,11 @@ function nextFrame(win: Window): Promise<void> {
   return new Promise((resolve) => win.requestAnimationFrame(() => resolve()));
 }
 
-function helpRows(t: Labels, presenter: boolean, remote: boolean): [string, string][] {
+/**
+ * Rows of the key help overlay: `[keys, what]`. With a presenter window, its own keys are listed too (clock,
+ * reset, and Esc to finish at the end of the talk).
+ */
+export function keyHelpRows(t: Labels, presenter: boolean, remote: boolean): [string, string][] {
   const rows: [string, string][] = [
     ["→ Space PgDn Enter", t.helpNext],
     ["← Backspace PgUp", t.helpPrev],
@@ -191,7 +195,13 @@ function helpRows(t: Labels, presenter: boolean, remote: boolean): [string, stri
     ["F", t.helpFullscreen],
     ["O", t.helpOverview],
   ];
-  if (presenter) rows.push(["S", t.helpPresenter]);
+  if (presenter)
+    rows.push(
+      ["S", t.helpPresenter],
+      ["T", t.helpClock],
+      ["Shift+R", t.helpClockReset],
+      ["Esc", t.helpFinish],
+    );
   if (remote) rows.push(["R", t.helpRemote], ["K", t.helpKick]);
   rows.push(["P", t.helpPrint], ["?", t.helpHelp], ["Esc", t.helpClose]);
   return rows;
@@ -304,7 +314,7 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
     title.style.cssText = "margin-bottom:8px;letter-spacing:.08em;text-transform:uppercase";
     const table = doc.createElement("table");
     table.style.cssText = "border-collapse:collapse;font:inherit;color:inherit";
-    for (const [keys, what] of helpRows(
+    for (const [keys, what] of keyHelpRows(
       labels,
       presenterUrl !== null,
       options.remoteKeys === true,

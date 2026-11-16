@@ -1,12 +1,12 @@
 {
-  "date": "2026-11-15T21:30:10.641Z",
+  "date": "2026-11-16T03:02:45.892Z",
   "origins": {
-    "shell": "http://localhost:30329",
-    "content": "http://127.0.0.1:30330"
+    "shell": "http://localhost:60296",
+    "content": "http://127.0.0.1:60297"
   },
   "engines": {
     "chromium": {
-      "passed": 441,
+      "passed": 452,
       "failed": 0,
       "failures": [],
       "notes": [
@@ -16,8 +16,8 @@
         {
           "label": "burst",
           "presses": 140,
-          "elapsedMs": 318,
-          "frames": 38,
+          "elapsedMs": 245,
+          "frames": 33,
           "p50": 16.7,
           "p95": 16.7,
           "max": 16.8
@@ -25,16 +25,16 @@
         {
           "label": "paced",
           "presses": 120,
-          "elapsedMs": 3490,
-          "frames": 230,
+          "elapsedMs": 3421,
+          "frames": 224,
           "p50": 16.7,
           "p95": 16.8,
           "max": 16.8
         }
       ],
       "overview200": {
-        "openToReadyMs": 89,
-        "firstTwoFramesMs": 32.2,
+        "openToReadyMs": 85,
+        "firstTwoFramesMs": 21.6,
         "scrollCold": {
           "height": 5964,
           "p50": 16.7,
@@ -44,10 +44,10 @@
         "scrollWarm": {
           "height": 5964,
           "p50": 16.7,
-          "p95": 16.7,
+          "p95": 16.8,
           "max": 16.8
         },
-        "thirtyArrowDownMs": 63
+        "thirtyArrowDownMs": 97
       },
       "pdf": {
         "pages": 20,
@@ -55,7 +55,7 @@
       }
     },
     "firefox": {
-      "passed": 435,
+      "passed": 446,
       "failed": 0,
       "failures": [],
       "notes": [
@@ -67,8 +67,8 @@
         {
           "label": "burst",
           "presses": 140,
-          "elapsedMs": 364,
-          "frames": 41,
+          "elapsedMs": 276,
+          "frames": 37,
           "p50": 16.66,
           "p95": 16.68,
           "max": 16.68
@@ -76,16 +76,16 @@
         {
           "label": "paced",
           "presses": 120,
-          "elapsedMs": 1206,
-          "frames": 91,
+          "elapsedMs": 958,
+          "frames": 76,
           "p50": 16.66,
           "p95": 16.68,
           "max": 16.68
         }
       ],
       "overview200": {
-        "openToReadyMs": 173,
-        "firstTwoFramesMs": 28,
+        "openToReadyMs": 146,
+        "firstTwoFramesMs": 30,
         "scrollCold": {
           "height": 5964,
           "p50": 16.66,
@@ -98,41 +98,42 @@
           "p95": 16.68,
           "max": 16.68
         },
-        "thirtyArrowDownMs": 205
+        "thirtyArrowDownMs": 144
       }
     },
     "webkit": {
-      "passed": 436,
+      "passed": 446,
       "failed": 0,
       "failures": [],
       "notes": [
         "frame times recorded, not asserted",
         "print layout checked; PDF output not verifiable (Playwright pdf is Chromium-only)",
-        "srcdoc: document.cookie returns '' (no exception)"
+        "srcdoc: document.cookie returns '' (no exception)",
+        "gated keys from content not testable: userActivation.isActive is always true"
       ],
       "frameTimes": [
         {
           "label": "burst",
           "presses": 140,
-          "elapsedMs": 530,
-          "frames": 53,
-          "p50": 16,
+          "elapsedMs": 397,
+          "frames": 46,
+          "p50": 15,
           "p95": 18,
           "max": 30
         },
         {
           "label": "paced",
           "presses": 120,
-          "elapsedMs": 3114,
-          "frames": 221,
+          "elapsedMs": 3103,
+          "frames": 222,
           "p50": 15,
           "p95": 17,
           "max": 30
         }
       ],
       "overview200": {
-        "openToReadyMs": 165,
-        "firstTwoFramesMs": 19,
+        "openToReadyMs": 130,
+        "firstTwoFramesMs": 31,
         "scrollCold": {
           "height": 5964,
           "p50": 16,
@@ -142,10 +143,10 @@
         "scrollWarm": {
           "height": 5964,
           "p50": 16,
-          "p95": 29,
-          "max": 32
+          "p95": 17,
+          "max": 33
         },
-        "thirtyArrowDownMs": 244
+        "thirtyArrowDownMs": 365
       }
     }
   }

@@ -57,6 +57,15 @@ export interface PresenterOptions {
   tickMs?: number;
   /** Handle keys on the page. Default `true`. */
   keyboard?: boolean;
+  /**
+   * Same-origin URL of the owner panel (for example `/decks`). When set, the bar shows a "Back to panel" link that
+   * opens it in a new tab (`rel="noopener noreferrer"`). Pass it only when the viewer is the signed-in owner.
+   */
+  panelUrl?: string | undefined;
+  /**
+   * Called by `finish()` after the black screen is sent, before the window tries to close itself. Default: none.
+   */
+  onFinish?(): void;
   onChange?(state: PresenterState): void;
 }
 
@@ -66,6 +75,10 @@ export interface PresenterState {
   slideCount: number;
   stepCount: number;
   black: boolean;
+  /** At the last slide with all its steps revealed: the end cue is shown and Esc finishes. */
+  atEnd: boolean;
+  /** `finish()` was called. */
+  finished: boolean;
   running: boolean;
   elapsedMs: number;
   pace: Pace | null;
@@ -80,6 +93,11 @@ export interface Presenter {
   toggleClock(): void;
   /** Reset the clock and the time per slide (`Shift+R`). */
   resetClock(): void;
+  /**
+   * Ends the talk (the Finish button, or Esc on the last slide and step): turns the audience screen black over the
+   * sync channel and closes this window. If the browser does not let the page close itself, a message says so.
+   */
+  finish(): void;
   getState(): PresenterState | null;
   /** Offline status of the current-slide preview, plus the offline-copy flag. */
   getOffline(): OfflineStatus;
@@ -177,7 +195,12 @@ export const PRESENTER_CSS = `
 .pp-black{position:fixed;left:24px;bottom:24px;margin:0;padding:8px 12px;border-radius:6px;background:#000;color:#F2EFE9;border:1px solid #8B8FA0}
 .pp-offline{display:flex;align-items:center;gap:8px;color:#A3A9B8;font-size:.875rem}
 .pp-offline i{flex:none;width:8px;height:8px;border-radius:50%}
+.pp-endcue{margin:0;color:#A3A9B8;font:500 .875rem/1.3 "JetBrains Mono",ui-monospace,monospace}
+.pp-panel{color:#A3A9B8;font-size:.875rem;text-decoration:underline;text-underline-offset:3px}
+.pp-panel:hover{color:#F2EFE9}
+.pp-finished{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);max-width:calc(100% - 48px);margin:0;padding:16px 20px;border-radius:6px;background:#181B22;color:#F2EFE9;border:1px solid #8B8FA0;text-align:center}
 @media (max-width:800px){.pp-main{grid-template-columns:1fr;overflow:auto}}
+@media print{.pp-endcue,.pp-panel,.pp-finished{display:none!important}}
 `;
 
 function el<K extends keyof HTMLElementTagNameMap>(
@@ -254,6 +277,24 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
   const blackEl = el(doc, "p", "pp-black", t.black);
   blackEl.hidden = true;
   blackEl.setAttribute("role", "status");
+  // End cue: a discreet line in the bar at the last slide and step (never on the audience screen).
+  const endCue = el(doc, "p", "pp-endcue", t.endCue);
+  endCue.setAttribute("data-pptaken-end-cue", "");
+  endCue.setAttribute("role", "status");
+  endCue.hidden = true;
+  const finishedEl = el(doc, "p", "pp-finished", t.finished);
+  finishedEl.setAttribute("role", "status");
+  finishedEl.hidden = true;
+  let panelLink: HTMLAnchorElement | null = null;
+  if (options.panelUrl !== undefined) {
+    const url = new URL(options.panelUrl, doc.baseURI);
+    if (url.origin !== win.location.origin) throw new TypeError("panelUrl must be same-origin");
+    panelLink = el(doc, "a", "pp-panel", t.backToPanel);
+    panelLink.href = url.href;
+    panelLink.target = "_blank";
+    panelLink.rel = "noopener noreferrer";
+    panelLink.setAttribute("data-pptaken-panel-link", "");
+  }
   const ratio = data.aspectRatio === "4:3" ? "4 / 3" : "16 / 9";
   for (const f of [nowHost, nextHost, endEl]) f.style.aspectRatio = ratio;
   left.append(el(doc, "h2", "pp-label", t.current), nowHost, paceLabel, table);
@@ -265,8 +306,9 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
     notesEl,
   );
   main.append(left, right);
-  bar.append(pos, clockBox, offlineEl, actions);
-  shell.append(bar, main, blackEl);
+  bar.append(pos, endCue, clockBox, offlineEl, actions);
+  if (panelLink) bar.append(panelLink);
+  shell.append(bar, main, blackEl, finishedEl);
   root.replaceChildren(shell);
   const showPace = hasPace(plan) || plan.sections.some((s) => s.name !== null);
   paceLabel.hidden = !showPace;
@@ -278,6 +320,9 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
   let clock: ClockState = clockIdle();
   let times: SlideTimes = slideTimes(count, 0);
   let black = false;
+  let atEnd = false;
+  let finished = false;
+  let closeTimer: ReturnType<typeof setTimeout> | undefined;
   let remote = false;
   let notesFor = -1;
   let sync: Sync | null = null;
@@ -324,6 +369,8 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
       slideCount: slides.length,
       stepCount: slides[position.slide]?.steps ?? 0,
       black,
+      atEnd,
+      finished,
       running: clock.running,
       elapsedMs: ms,
       pace: paceAt(plan, position.slide, ms / 1000),
@@ -397,9 +444,10 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
     position = p;
     current.goto(p.slide, p.step);
     const n = nav.next(shape, p);
-    const atEnd = nav.samePosition(n, p);
+    atEnd = nav.isEnd(shape, p);
     nextHost.hidden = atEnd;
     endEl.hidden = !atEnd;
+    endCue.hidden = !atEnd;
     if (!atEnd) upcoming.goto(n.slide, n.step);
     if (!remote) sync?.send({ v: PROTOCOL_VERSION, type: "nav", slide: p.slide, step: p.step });
     render();
@@ -427,6 +475,28 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
     if (slides) apply(fn({ slides }, position));
   };
 
+  // Finish: black on the audience screen (over the sync channel), then close this window. The close waits a
+  // moment so the `black` message leaves first. A window the user opened by hand cannot close itself: say so.
+  const finish = (): void => {
+    if (finished) return;
+    finished = true;
+    shell.dataset.finished = "true";
+    if (!black) setBlack(true);
+    else if (!remote) sync?.send({ v: PROTOCOL_VERSION, type: "black", on: true });
+    options.onFinish?.();
+    render();
+    closeTimer = setTimeout(() => {
+      try {
+        win.close();
+      } catch {
+        // Not allowed: the message below explains what to do.
+      }
+      closeTimer = setTimeout(() => {
+        if (!win.closed) finishedEl.hidden = false;
+      }, 300);
+    }, 150);
+  };
+
   function handleKey(code: KeyCode): void {
     switch (KEY_ACTIONS[code]) {
       case "next":
@@ -447,6 +517,10 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
         if (doc.fullscreenElement) void doc.exitFullscreen().catch(() => {});
         else void root.requestFullscreen().catch(() => {});
         return;
+      case "close":
+        // Esc finishes only at the end of the talk, where the cue says so; elsewhere it does nothing.
+        if (atEnd) finish();
+        return;
       default:
         return;
     }
@@ -456,6 +530,7 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
   button(t.nextButton, () => move(nav.next));
   const clockButton = button(t.start, toggleClock);
   button(t.reset, resetClock);
+  button(t.finish, finish).setAttribute("data-pptaken-finish", "");
 
   const onKeyDown = (event: KeyboardEvent): void => {
     if (event.defaultPrevented) return;
@@ -516,6 +591,7 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
     prev: () => move(nav.prev),
     toggleClock,
     resetClock,
+    finish,
     getState: snapshot,
     getOffline: () => current.getOffline(),
     setOfflineCopy: (on) => current.setOfflineCopy(on),
@@ -524,6 +600,7 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
     ready,
     destroy: () => {
       clearInterval(timer);
+      clearTimeout(closeTimer);
       sync?.close();
       doc.removeEventListener("keydown", onKeyDown);
       current.destroy();

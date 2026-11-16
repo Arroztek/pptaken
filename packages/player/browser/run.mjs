@@ -1032,6 +1032,13 @@ for (const [name, type] of [
         ),
       JSON.stringify(shown),
     );
+    check(
+      "the key help lists the presenter keys (clock, reset, finish)",
+      ["Start / pause the clock", "Reset the clock", "Finish, on the last slide"].every((k) =>
+        shown.text.includes(k),
+      ),
+      shown.text,
+    );
     await page.keyboard.press("ArrowRight");
     await waitState(1, 0);
     check("keys still work with the help open", true);
@@ -1252,7 +1259,108 @@ for (const [name, type] of [
     await same(15, 0);
     const status = await popup.evaluate(() => document.querySelector(".pp-status").dataset.status);
     check("pace shows ahead on slide 16 after a few seconds", status === "ahead", status);
-    await popup.close();
+
+    // End of the talk: a discreet cue in the presenter view only; Esc there finishes; never on the audience side.
+    const cue = () =>
+      popup.evaluate(() => {
+        const el = document.querySelector("[data-pptaken-end-cue]");
+        return el
+          ? { hidden: el.hidden, shown: el.offsetParent !== null, text: el.textContent }
+          : null;
+      });
+    const before = await cue();
+    check("no end cue before the last slide", before && before.hidden && !before.shown);
+    await popup.bringToFront();
+    await popup.keyboard.press("Escape");
+    await popup.waitForTimeout(300);
+    check(
+      "Esc before the end does not finish",
+      !popup.isClosed() && !(await popup.evaluate(() => window.__presenter.getState().finished)),
+    );
+    await popup.keyboard.press("End");
+    const end = nav.last(shape);
+    await same(end.slide, end.step);
+    const atEnd = await cue();
+    check(
+      "the presenter view shows the end cue at the last slide and step",
+      atEnd?.shown && atEnd.text === "End of presentation · Esc to exit",
+      JSON.stringify(atEnd),
+    );
+    const audience = async () => {
+      const own = await page.evaluate(
+        () =>
+          document.querySelector("[data-pptaken-end-cue]") !== null ||
+          document.body.innerText.includes("End of presentation"),
+      );
+      let inFrame = false;
+      for (const f of page.frames()) {
+        const html = await f.evaluate(() => document.documentElement.outerHTML).catch(() => "");
+        if (html.includes("End of presentation") || html.includes("pptaken-end-cue"))
+          inFrame = true;
+      }
+      return own || inFrame;
+    };
+    check("the audience view has no end cue", !(await audience()));
+    // Static CSS: the presenter stylesheet hides the cue in print media.
+    const presenterPrint = await popup.evaluate(() =>
+      [...document.styleSheets].some((s) =>
+        [...s.cssRules].some(
+          (r) => r.cssText.includes("@media print") && r.cssText.includes("pp-endcue"),
+        ),
+      ),
+    );
+    check("the end cue is hidden in print", presenterPrint);
+    check(
+      "the Finish button is in the presenter view only",
+      (await popup.locator("[data-pptaken-finish]").count()) === 1 &&
+        (await page.locator("[data-pptaken-finish]").count()) === 0,
+    );
+    check(
+      "no Back to panel link without panelUrl",
+      (await popup.locator("[data-pptaken-panel-link]").count()) === 0,
+    );
+    // Esc at the end: the audience screen goes black and the presenter window closes itself.
+    await page.evaluate(() => window.__player.black(false));
+    await popup.waitForFunction(() => !window.__presenter.getState().black);
+    await Promise.all([
+      popup.waitForEvent("close", { timeout: 5000 }),
+      popup.keyboard.press("Escape"),
+    ]);
+    await page.waitForFunction(() => window.__player.getState().black === true, null, {
+      timeout: 4000,
+    });
+    check("Esc at the end blacks the audience screen and closes the presenter window", true);
+    check("the main window stays at the end", nav.samePosition(await state(), end));
+    await page.evaluate(() => window.__player.black(false));
+  });
+
+  // l2. Finish from a presenter window the page did not open (it cannot close itself): a clear message instead.
+  await section("presenter-finish", async () => {
+    const p = await context.newPage();
+    try {
+      // Another deck's channel, so the main window of the talk is not touched.
+      await p.goto(`${origins.shell}/presenter/hello`);
+      await p.waitForFunction(() => window.__presenterReady === true, null, { timeout: 15000 });
+      await p.evaluate(() => {
+        window.close = () => {}; // model a browser that refuses
+      });
+      await p.getByRole("button", { name: "Finish" }).click();
+      await p.waitForFunction(() => !document.querySelector(".pp-finished").hidden, null, {
+        timeout: 3000,
+      });
+      const r = await p.evaluate(() => ({
+        text: document.querySelector(".pp-finished").textContent,
+        black: window.__presenter.getState().black,
+        finished: window.__presenter.getState().finished,
+      }));
+      check(
+        "Finish when the window cannot close: black screen and a clear message",
+        r.black && r.finished && r.text.includes("You can close this window"),
+        JSON.stringify(r),
+      );
+    } finally {
+      await p.close();
+    }
   });
 
   // m. Pace with the Playwright clock: behind after 20 fake minutes on slide 1; planned vs actual per section.
