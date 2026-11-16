@@ -17,7 +17,8 @@
     "test:browser": "pnpm run build && node browser/run.mjs",
     "test:e2e-ui": "pnpm build && node browser/ui-e2e.mjs",
     "test:oauth": "pnpm build && node browser/oauth-e2e.mjs",
-    "test:remote": "pnpm run build && node browser/remote.mjs"
+    "test:remote": "pnpm run build && node browser/remote.mjs",
+    "test:pptx": "pnpm run build && node browser/pptx-e2e.mjs"
   },
   "dependencies": {
     "@hono/node-server": "2.1.8",
@@ -26,6 +27,7 @@
     "@pptaken/blob-fs": "workspace:*",
     "@pptaken/core": "workspace:*",
     "@pptaken/export": "workspace:*",
+    "@pptaken/import-pptx": "workspace:*",
     "@pptaken/mcp": "workspace:*",
     "@pptaken/player": "workspace:*",
     "@pptaken/realtime": "workspace:*",

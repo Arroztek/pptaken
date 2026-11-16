@@ -14,7 +14,13 @@ import {
   TokenBucketLimiter,
 } from "@pptaken/auth-local";
 import { openFsBlobStore } from "@pptaken/blob-fs";
-import { createCore, createLiveSessions, createUlidGenerator, systemClock } from "@pptaken/core";
+import {
+  createCore,
+  createLiveSessions,
+  createUlidGenerator,
+  type PptxConverter,
+  systemClock,
+} from "@pptaken/core";
 import { RealtimeHub } from "@pptaken/realtime";
 import {
   createSqliteAuthStore,
@@ -39,6 +45,7 @@ import {
   requestHost,
 } from "./http.js";
 import { createLogger, type Logger, type LogSink } from "./logger.js";
+import { createPptxConverter } from "./pptx.js";
 import { createRealtime, type RealtimeServer } from "./realtime.js";
 import { apiRoutes } from "./routes-api.js";
 import { contentRoutes, playerRoutes } from "./routes-content.js";
@@ -63,6 +70,8 @@ export interface CreateServerOptions {
   fetchClientMetadata?: CimdFetcherOverride;
   /** Interval of the OAuth clean-up job (default 10 minutes; 0 disables it). */
   cleanupIntervalMs?: number;
+  /** Replaces the isolated PowerPoint converter (tests wrap it to inject content). */
+  convertPptx?: PptxConverter;
 }
 
 /** A Node HTTP server whose `upgrade` events the realtime endpoint (`/ws`) handles. */
@@ -127,6 +136,7 @@ export async function createServer(
     clock,
     ids,
     config: config.defaultLang === undefined ? {} : { defaultLang: config.defaultLang },
+    convertPptx: options.convertPptx ?? createPptxConverter(),
   });
   const oauth = createOAuthService({
     store: createSqliteOAuthStore(storage),

@@ -4,6 +4,7 @@
 //
 //   GET  /api/v1/decks/:id/export?format=html|pptaken&notes=0|1&revision=   -> file download
 //   POST /api/v1/decks/import   (body: the raw .pkn archive, Content-Type: application/zip) -> 201
+//   POST /api/v1/decks/import-pptx   (body: the raw .pptx file) -> 201 (converted in an isolated worker)
 //
 // This router is registered BEFORE the global /api body limit (64 KB by default) because an archive is larger:
 // it applies its own limit (PPTAKEN_MAX_IMPORT_MB), its own CSRF check and rate limits, and its middleware is
@@ -313,6 +314,109 @@ export function exportRoutes(s: Services): Hono<AppEnv> {
       } catch (error) {
         if (isDomainError(error)) return domainError(c, error);
         throw error;
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------------------------------------------
+  // PowerPoint import (docs/spec/pptx-import.md): the raw .pptx as the body, converted in an isolated worker.
+
+  const PPTX_TYPES = new Set([
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "application/vnd.openxmlformats-officedocument.presentationml.slideshow",
+    "application/vnd.openxmlformats-officedocument.presentationml.template",
+    "application/vnd.ms-powerpoint.presentation.macroenabled.12",
+    "application/octet-stream",
+  ]);
+  /** Conversions running at once (each one is a worker with its own heap). */
+  const MAX_CONVERSIONS = 2;
+  let converting = 0;
+
+  const pptxTooLarge = (c: Context) =>
+    apiError(c, "VALIDATION_ERROR", "The file is too large", {
+      status: 413,
+      hint: `The limit is ${Math.floor(s.config.maxImportBytes / 1024 / 1024)} MB (PPTAKEN_MAX_IMPORT_MB).`,
+    });
+
+  app.post(
+    "/decks/import-pptx",
+    async (c, next) => {
+      const denied = await guard(c);
+      if (denied) return denied;
+      const type = c.req.header("content-type")?.split(";")[0]?.trim().toLowerCase() ?? "";
+      if (!PPTX_TYPES.has(type)) {
+        return apiError(c, "VALIDATION_ERROR", "The request body must be a .pptx file", {
+          hint: "Send the file as the raw request body with Content-Type: application/vnd.openxmlformats-officedocument.presentationml.presentation.",
+        });
+      }
+      const length = c.req.header("content-length");
+      if (
+        length !== undefined &&
+        (!/^\d+$/.test(length) || Number(length) > s.config.maxImportBytes)
+      ) {
+        return pptxTooLarge(c);
+      }
+      const rl = importsPerIp.take(c.get("ip"));
+      if (!rl.ok) {
+        return apiError(c, "RATE_LIMITED", "Too many imports", {
+          retryAfterSec: Math.ceil(rl.retryAfterMs / 1000),
+        });
+      }
+      await next();
+    },
+    bodyLimit({ maxSize: s.config.maxImportBytes, onError: pptxTooLarge }),
+    async (c) => {
+      if (converting >= MAX_CONVERSIONS) {
+        return apiError(c, "RATE_LIMITED", "Another import is being converted", {
+          retryAfterSec: 10,
+        });
+      }
+      converting++;
+      try {
+        const bytes = new Uint8Array(await c.req.arrayBuffer());
+        if (bytes.length === 0) return apiError(c, "VALIDATION_ERROR", "The request body is empty");
+        const result = await s.core.importPptx(owner, { bytes }, call(c));
+        const deck = await s.storage.decks.get(DEFAULT_WORKSPACE_ID, result.presentationId);
+        s.logger.info("pptx imported", {
+          requestId: c.get("requestId"),
+          slides: result.slideCount,
+          assets: result.assetCount,
+          warnings: result.warnings.length,
+        });
+        return c.json(
+          {
+            deck: {
+              id: result.presentationId,
+              title: deck?.title ?? result.title,
+              lang: deck?.lang ?? null,
+              slideCount: result.slideCount,
+              revision: result.revision,
+              updatedAt: new Date(deck?.updatedAt ?? s.clock.now()).toISOString(),
+              createdBy: "owner",
+            },
+            assetCount: result.assetCount,
+            warnings: result.warnings.map((w) => ({
+              code: w.code,
+              message: w.message,
+              ...(w.path === undefined ? {} : { path: w.path }),
+              ...(w.slideId === undefined ? {} : { slideId: w.slideId }),
+              ...(w.name === undefined ? {} : { name: w.name }),
+            })),
+          },
+          201,
+        );
+      } catch (error) {
+        if (isDomainError(error)) {
+          s.logger.info("pptx import refused", {
+            requestId: c.get("requestId"),
+            code: error.code,
+            reason: error.details?.reason,
+          });
+          return domainError(c, error);
+        }
+        throw error;
+      } finally {
+        converting--;
       }
     },
   );

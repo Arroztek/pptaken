@@ -22,3 +22,4 @@ An **ADR** (*Architecture Decision Record*) is a short note that records **what 
 | 0016 | [Observability and privacy](0016-observability-and-privacy.md) | accepted |
 | 0017 | [Remote control: authoritative screen, first-frame auth, approved pairing](0017-remote-control.md) | accepted |
 | 0018 | [Built-in OAuth authorization server for `/mcp`](0018-oauth-authorization-server.md) | accepted |
+| 0019 | [PowerPoint import](0019-powerpoint-import.md) | accepted |

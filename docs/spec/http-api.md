@@ -189,7 +189,8 @@ The player and presenter pages (`/p/:deckId`, `/p/:deckId/presenter`) send the a
 
 Human-only actions (security §3.3): they need the panel session cookie; API and OAuth tokens get
 `401 UNAUTHENTICATED` here, and the core refuses any non-owner principal (`FORBIDDEN_ACTOR`). Not MCP tools.
-Every export and import is written to the audit log (`presentation.export`, `presentation.import`). These routes
+Every export and import is written to the audit log (`presentation.export`, `presentation.import`,
+`presentation.import_pptx`). These routes
 are served before the generic `/api` body limit and apply their own (see `POST /decks/import`); the rate limit per
 IP of the rest of the panel API also applies.
 
@@ -251,6 +252,34 @@ A ZIP (stored or deflated entries, UTF-8 names) with exactly:
 Imports never trust the archive: the deck is validated with `parseDeck`, sanitized again and validated again; every
 asset is re-checked like `add_asset` (content signature, declared type, SHA-256, limits); all rows are written in one
 transaction.
+
+### `POST /api/v1/decks/import-pptx`
+Creates a **new** presentation (revision 1) from a PowerPoint file ([pptx-import.md](pptx-import.md),
+[ADR-0019](../adr/0019-powerpoint-import.md)). Same guards as `POST /decks/import`: owner session, CSRF,
+`PPTAKEN_MAX_IMPORT_MB` (→ `413`), and the same import rate limit (10 per 10 minutes per IP, shared with `.pkn`
+imports). At most 2 conversions run at once per server; a third gets `429 RATE_LIMITED` (`Retry-After: 10`).
+
+- Body: the raw file bytes with `Content-Type` one of
+  `application/vnd.openxmlformats-officedocument.presentationml.presentation` (`.pptx`),
+  `…presentationml.slideshow` (`.ppsx`), `…presentationml.template` (`.potx`),
+  `application/vnd.ms-powerpoint.presentation.macroEnabled.12` (`.pptm`; macros are never read) or
+  `application/octet-stream`. No multipart, for the same reason as the archive import.
+- The file is converted in a worker thread with a heap limit and a hard timeout; the result goes through the same
+  path as an archive import (`parseDeck`, sanitizer, asset checks, deck limits, one transaction). Audited as
+  `presentation.import_pptx` (`detail.source = "pptx"`, slide, asset and warning counts).
+- `201`: the body of `POST /decks/import`; warnings may also carry `name` (the affected feature):
+  ```json
+  { "code": "PPTX_FEATURE_DROPPED", "message": "Slide 4: charts are not imported; an empty box marks where they were",
+    "path": "slides[3]", "slideId": "slide-4", "name": "chart" }
+  ```
+  Converter codes (listed first): `PPTX_FEATURE_DROPPED`, `PPTX_FEATURE_SIMPLIFIED`, `PPTX_IMAGE_DROPPED`,
+  `PPTX_FONT_REPLACED`, `PPTX_CANVAS_ADJUSTED`, `PPTX_CONTENT_TRUNCATED`; then the core's (sanitizer codes,
+  `UNKNOWN_ASSET_REF`, `UNUSED_ASSET`).
+- Errors, all `VALIDATION_ERROR` with an English message and a `hint`: not a presentation (or another Office
+  document), a PowerPoint 97-2003 `.ppt` file (hint: save it as `.pptx`), a password-protected file, a damaged or
+  unsafe package (ZIP checks of the archive import, a `<!DOCTYPE`/`<!ENTITY` in any XML part, malformed XML or
+  UTF-8), more than 200 slides, too large or too slow to convert. Plus `FORBIDDEN` (CSRF), `UNAUTHENTICATED`,
+  `SETUP_REQUIRED`, `RATE_LIMITED`.
 <!-- END export and import (F3) -->
 
 <!-- BEGIN remote control (F4) -->

@@ -1,0 +1,36 @@
+{
+  "name": "@pptaken/import-pptx",
+  "version": "0.0.0",
+  "description": "PPTaken PowerPoint importer: converts a .pptx file into a pptaken.deck and its images (pure, no I/O), plus an isolated worker runner.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./isolated": {
+      "types": "./dist/isolated.d.ts",
+      "default": "./dist/isolated.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "vitest run --testTimeout=30000"
+  },
+  "dependencies": {
+    "@pptaken/core": "workspace:*",
+    "@pptaken/schema": "workspace:*",
+    "@pptaken/zip": "workspace:*",
+    "saxes": "6.0.0"
+  },
+  "devDependencies": {
+    "@pptaken/sanitizer": "workspace:*",
+    "@pptaken/testing": "workspace:*",
+    "@types/node": "22.20.5"
+  }
+}
