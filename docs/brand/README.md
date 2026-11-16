@@ -181,6 +181,8 @@ Sparse, geometric, **two inks**: Ink (`currentColor`, which turns Chalk in dark 
 
 - Radii: 6 (fields), 14 (cards, dialogs), pill (buttons). Thumbnails inside a card: 8.
 - 4 px grid; spacing `4 · 8 · 12 · 16 · 24 · 32 · 48 · 64`.
+- Panel rhythm (`--ppt-rhythm-*` tokens, applied only through the panel's `PageLayout` and `PageSection`): page header → content 32, title → description 8, section → section 48, section header → content 16 (24 on a card), form fields 24, page gutters 32 / 24 / 16 at ≥ 1024 / 768 / < 768 px.
+- Panel frame: signed-in pages sit beside a left sidebar (256 px, or a 72 px icon rail; a drawer below 768 px) with grouped navigation, this instance's status, theme and language. The current page gets a 3 px `accent-text` cue bar. Setup, sign-in and OAuth consent stay single focused columns (560 px) under a slim bar; the player, presenter view and phone remote never show the sidebar.
 - A single elevation (`--ppt-shadow-overlay`) for dialogs and toasts.
 - **Tactile pill buttons**: 44 px tall, Spotlight with a 2 px inner shadow on the bottom edge, like a key. On press it drops 1 px.
 - Remote: Next takes all the available height (min. 220 px), Previous ≥ 96 px. Buttons with a 28 px radius.
