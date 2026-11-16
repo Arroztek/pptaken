@@ -170,7 +170,7 @@
       bind:this={fileInput}
       class="ppt-sr-only"
       type="file"
-      accept=".pptaken,application/zip"
+      accept=".pkn,application/zip"
       tabindex="-1"
       aria-hidden="true"
       onchange={onFileChosen}

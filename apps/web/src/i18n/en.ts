@@ -15,7 +15,8 @@ export const webEn = {
   nav: {
     label: "Panel",
     decks: "Presentations",
-    tokens: "Agent tokens",
+    tokens: "Access & connections",
+    security: "Security",
     connect: "Connect your agent",
     signOut: "Sign out",
     language: "Language",
@@ -57,7 +58,9 @@ export const webEn = {
     copySetupPrompt: "Copy setup prompt",
     promptLabel: "Setup prompt",
     tokenLabel: "Token",
-    tokenOnce: "Shown once. If you lose it, create a new one in Agent tokens.",
+    tokenOnce: "Shown once. If you lose it, create a new one in Access & connections.",
+    managedThere:
+      "Connections made by signing in (claude.ai, Claude Desktop) are managed in Access & connections › Connected applications. Tokens created here are listed there too.",
     show: "Show",
     hide: "Hide",
     showLabel: "Show {name}",
@@ -108,8 +111,8 @@ export const webEn = {
     downloadHtml: "Download HTML",
     archiveTitle: "PPTaken archive",
     archiveText:
-      "A .pptaken file with the slides, images and speaker notes. Import it into any PPTaken to move or back up this presentation.",
-    downloadArchive: "Download .pptaken",
+      "A .pkn file with the slides, images and speaker notes. Import it into any PPTaken to move or back up this presentation.",
+    downloadArchive: "Download .pkn",
     import: "Import",
     importing: "Importing {name}…",
     importedTitle: "Imported “{title}”.",
@@ -117,12 +120,13 @@ export const webEn = {
     importedAdjusted: "{n} things were adjusted on the way in:",
     importedAdjustedOne: "1 thing was adjusted on the way in:",
     importFailed: "Could not import {name}.",
-    wrongType: "Choose a .pptaken file exported from PPTaken.",
+    wrongType: "Choose a .pkn file exported from PPTaken.",
     tooLarge: "This file is larger than {n} MB.",
   },
   tokens: {
-    title: "Agent tokens",
-    subtitle: "Each agent signs in with its own token. Revoke one and that agent stops at once.",
+    title: "Access & connections",
+    subtitle:
+      "Everything that can reach your PPTaken: agent tokens and the applications you connected by signing in. Revoke or disconnect one and it stops at once.",
     createTitle: "Create a token",
     nameLabel: "Token name",
     nameHint: "Where you use it, like Claude Code on my laptop.",
@@ -132,7 +136,7 @@ export const webEn = {
     createdText: "It is shown only once. PPTaken keeps only a fingerprint of it.",
     secretLabel: "New token",
     done: "Done",
-    listTitle: "Tokens",
+    listTitle: "Agent tokens",
     colName: "Name",
     colScopes: "Permissions",
     colCreated: "Created",
@@ -199,6 +203,10 @@ export const webEn = {
     disconnected: "Application disconnected.",
     emptyTitle: "No connected applications.",
     emptyText: "When you add PPTaken as a connector in Claude and allow it, it shows up here.",
+  },
+  security: {
+    title: "Security",
+    subtitle: "Your owner password. Changing it signs out your other sessions.",
   },
   password: {
     title: "Change password",

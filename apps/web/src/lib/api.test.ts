@@ -242,12 +242,12 @@ describe("export and import", () => {
     const { api } = fakeFetch(400, {
       error: {
         code: "VALIDATION_ERROR",
-        message: "Not a valid .pptaken archive: manifest.json is missing",
+        message: "Not a valid .pkn archive: manifest.json is missing",
       },
     });
     await expect(api.importDeck(new Blob(["x"]))).rejects.toMatchObject({
       code: "VALIDATION_ERROR",
-      message: "Not a valid .pptaken archive: manifest.json is missing",
+      message: "Not a valid .pkn archive: manifest.json is missing",
     });
   });
 });

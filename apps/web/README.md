@@ -1,7 +1,8 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 # @pptaken/web
 
-The owner panel of PPTaken: first-run setup, "Connect your agent", the presentation list and agent tokens.
+The owner panel of PPTaken: first-run setup, "Connect your agent", the presentation list, "Access & connections"
+(agent tokens and connected applications, `/tokens`) and "Security" (the owner password, `/security`).
 Svelte 5 + Vite, no SvelteKit ([ADR-004](../../docs/adr/0004-frontend-svelte.md)). It consumes the panel API in
 [`docs/spec/http-api.md`](../../docs/spec/http-api.md); `apps/server` serves the built files.
 
@@ -22,7 +23,7 @@ Svelte 5 + Vite, no SvelteKit ([ADR-004](../../docs/adr/0004-frontend-svelte.md)
 ## Structure
 
 - `index.html` + `src/main.ts`: one page, a tiny History API router (`src/lib/router.ts` decides, `src/lib/state.svelte.ts`
-  navigates). Only `/`, `/welcome`, `/login`, `/decks`, `/tokens` are client routes; links to `/p/:id` and anything
+  navigates). Only `/`, `/welcome`, `/login`, `/decks`, `/tokens`, `/security` are client routes; links to `/p/:id` and anything
   else are normal page loads. The server's SPA fallback serves `index.html` for unknown non-API paths.
 - `src/pages/*`: one lazily loaded chunk per page. `src/components/*`: panel-only pieces built on `@pptaken/ui`.
 - `src/lib/api.ts`: the typed client. Every response is validated with small hand-written guards (`validate.ts`);
@@ -40,7 +41,7 @@ Svelte 5 + Vite, no SvelteKit ([ADR-004](../../docs/adr/0004-frontend-svelte.md)
 - **Token secrets** live only in memory (`secrets` in `state.svelte.ts`), never in storage or URLs, and are cleared
   when the path changes or the page is hidden for good (`pagehide`). The DOM holds a masked value until the owner
   selects Show; Copy reads the real value from memory. `localStorage` stores only `pptaken.lang` and `pptaken.theme`.
-- **Open redirects.** `?next=` on `/login` only accepts `/decks`, `/tokens` or `/welcome`.
+- **Open redirects.** `?next=` on `/login` only accepts `/decks`, `/tokens`, `/security` or `/welcome`.
 
 ## Decisions and open questions
 

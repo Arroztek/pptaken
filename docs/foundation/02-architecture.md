@@ -452,7 +452,7 @@ Rule: a PR is not merged with CI red, and bug fixes carry a test that reproduces
 ## 12. Single-node operation
 
 - **Data**: everything in `/data`. `pptaken backup` (a CLI inside the container) generates a consistent `.tar` using SQLite's backup API plus the blobs. Restoring = unpacking into an empty volume.
-- **Portability**: `.pptaken` (a zip with `deck.json` + assets) to move a presentation between instances or to the cloud.
+- **Portability**: `.pkn` (a zip with `deck.json` + assets) to move a presentation between instances or to the cloud.
 - **Updates**: `docker compose pull && docker compose up -d`. Migrations run at startup, after copying the database. Policy: minor versions never break data.
 - **Scaling**: vertical. A node with SQLite and an in-memory hub comfortably serves the use case (one person, one talk at a time, hundreds of attendees). Horizontal scaling is a cloud problem and is covered by the ports.
 - **Graceful shutdown**: on `SIGTERM`, connections stop being accepted, clients are told to reconnect and the database is closed.

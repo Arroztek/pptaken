@@ -2,7 +2,6 @@
 <script lang="ts">
   import { Button, Dialog, EmptyState, Notice, StatusBadge, Table, TextField, toast } from "@pptaken/ui";
   import { onMount } from "svelte";
-  import ChangePassword from "../components/ChangePassword.svelte";
   import ConnectedApps from "../components/ConnectedApps.svelte";
   import SecretBlock from "../components/SecretBlock.svelte";
   import { api, type TokenListItem } from "../lib/api";
@@ -22,7 +21,6 @@
   let confirmOpen = $state(false);
   let revoking = $state(false);
   let revokeError = $state("");
-  let appsList: ConnectedApps | undefined = $state();
   const now = Date.now();
 
   const nameError = $derived(submitted && !name.trim() ? t("tokens.nameRequired") : "");
@@ -189,9 +187,7 @@
     </Table>
   {/if}
 
-  <ConnectedApps bind:this={appsList} />
-
-  <ChangePassword onchanged={() => void appsList?.reload()} />
+  <ConnectedApps />
 
   <Dialog
     bind:open={confirmOpen}

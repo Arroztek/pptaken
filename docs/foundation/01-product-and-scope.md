@@ -94,7 +94,7 @@ I validate the proposed scope with **four adjustments** and one **reordering**. 
 | 6b | Kahoot-style quiz with draft and approval | No change |
 | 7 | One administrator, tokens with scopes, anonymous audience | No change |
 | + | **Revisions and trash** | **Adjustment D (added)**: essential when the editor is an agent |
-| + | Presentation export/import (`.pptaken`) and instance backup | Added: it is the portability seam with the cloud |
+| + | Presentation export/import (`.pkn`) and instance backup | Added: it is the portability seam with the cloud |
 
 ### Out of v1 (but with the door open in the design)
 

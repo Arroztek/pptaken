@@ -107,7 +107,8 @@ Trashed decks are excluded. `createdBy` is `"owner"` or `"agent"`.
 
 `apps/server` serves the built web app. Routes handled by the web app (client-side): `/` (redirects to `/welcome`
 before setup, to the presentation list after), `/welcome` (setup wizard and "Connect your agent"), `/login`,
-`/decks`, `/tokens` (agent tokens, connected applications, password change) and `/connect/<id>` (OAuth consent,
+`/decks`, `/tokens` ("Access & connections": agent tokens and connected applications), `/security` (password
+change) and `/connect/<id>` (OAuth consent,
 ADR-0018). Unknown non-API paths fall back to the web app's `index.html`.
 
 ## MCP endpoint
@@ -212,7 +213,7 @@ A file download.
 - The web app uses a plain `<a href download>` to this URL (same origin, the cookie goes along).
 
 ### `POST /api/v1/decks/import`
-Creates a **new** presentation (revision 1) from a `.pptaken` archive; it never overwrites one.
+Creates a **new** presentation (revision 1) from a `.pkn` archive; it never overwrites one.
 
 - Body: the raw archive bytes with `Content-Type: application/zip` (no multipart: the simplest robust option, and a
   cross-site form cannot send this type without a CORS preflight). CSRF rules as for every `POST`.
@@ -237,7 +238,7 @@ Creates a **new** presentation (revision 1) from a `.pptaken` archive; it never 
   `UNSUPPORTED_MEDIA` and `LIMIT_EXCEEDED` are reported as `VALIDATION_ERROR` with their hint);
   `FORBIDDEN` (CSRF), `UNAUTHENTICATED`, `SETUP_REQUIRED`, `RATE_LIMITED`. No new error code was added.
 
-### The `.pptaken` archive (format version 1)
+### The `.pkn` archive (format version 1)
 A ZIP (stored or deflated entries, UTF-8 names) with exactly:
 
 - `manifest.json`: `{ "format": "pptaken.archive", "formatVersion": 1, "exportedAt": ISO-8601, "generator":

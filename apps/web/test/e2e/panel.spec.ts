@@ -19,7 +19,9 @@ test.describe("sign in", () => {
     await page.getByLabel("Password").fill(OWNER_PASSWORD);
     await page.getByRole("button", { name: "Sign in" }).click();
     await expect(page).toHaveURL(/\/tokens$/);
-    await expect(page.getByRole("heading", { level: 1, name: "Agent tokens" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Access & connections" }),
+    ).toBeVisible();
 
     await page.getByRole("button", { name: "Sign out" }).click();
     await expect(page).toHaveURL(/\/login$/);
@@ -109,9 +111,12 @@ test.describe("presentations", () => {
 
       const present = cards.first().getByRole("link", { name: "Present" });
       await expect(present).toHaveAttribute("href", "/p/deck_001");
-      await present.click();
-      await expect(page).toHaveURL(/\/p\/deck_001$/);
-      await expect(page.getByRole("heading", { name: "Player placeholder" })).toBeVisible();
+      // The player opens in a new tab (it has no way back to the panel other than the presenter's link).
+      await expect(present).toHaveAttribute("target", "_blank");
+      const [player] = await Promise.all([page.context().waitForEvent("page"), present.click()]);
+      await expect(player).toHaveURL(/\/p\/deck_001$/);
+      await expect(player.getByRole("heading", { name: "Player placeholder" })).toBeVisible();
+      await player.close();
     });
   });
 });
@@ -160,6 +165,33 @@ test.describe("tokens", () => {
     expect(mock.state.tokens[0]?.revokedAt).not.toBeNull();
   });
 
+  test("the password form lives on Security, not on Access & connections", async ({
+    page,
+    mock,
+  }) => {
+    await signIn(page, mock);
+    await page.goto(`${mock.url}/tokens`);
+    await expect(page.getByText("No tokens yet.")).toBeVisible();
+    await expect(page.getByRole("heading", { level: 2, name: "Agent tokens" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Change password" })).toHaveCount(0);
+
+    await page.getByRole("link", { name: "Security" }).first().click();
+    await expect(page).toHaveURL(/\/security$/);
+    await expect(page.getByRole("heading", { level: 1, name: "Security" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Change password" })).toBeVisible();
+    await expect(page.getByLabel("Current password")).toBeVisible();
+    await expect(page.getByLabel("New password")).toBeVisible();
+    await expect(page).toHaveTitle("Security · PPTaken");
+  });
+
+  test("Connect your agent says where sign-in connections are managed", async ({ page, mock }) => {
+    await signIn(page, mock);
+    await page.goto(`${mock.url}/welcome`);
+    await expect(
+      page.getByText(/managed in Access & connections › Connected applications/),
+    ).toBeVisible();
+  });
+
   test("an expired session sends the owner back to sign in", async ({ page, mock }) => {
     await signIn(page, mock);
     await page.goto(`${mock.url}/tokens`);
@@ -183,7 +215,8 @@ test.describe("preferences", () => {
     await expect(page.getByRole("heading", { level: 1, name: "Presentaciones" })).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("lang", "es");
     await expect(page.getByRole("radio", { name: "Español" })).toBeFocused();
-    await expect(page.getByRole("link", { name: "Tokens del agente" }).first()).toBeAttached();
+    await expect(page.getByRole("link", { name: "Acceso y conexiones" }).first()).toBeAttached();
+    await expect(page.getByRole("link", { name: "Seguridad" }).first()).toBeAttached();
     await expect(page).toHaveTitle("Presentaciones · PPTaken");
     await page.reload();
     await expect(page.getByRole("heading", { level: 1, name: "Presentaciones" })).toBeVisible();

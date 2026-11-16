@@ -30,14 +30,14 @@ test.describe("export", () => {
     let download = page.waitForEvent("download");
     await html.click();
     expect((await download).suggestedFilename()).toBe("deck_001.html");
-    const archive = dialog.getByRole("link", { name: "Download .pptaken" });
+    const archive = dialog.getByRole("link", { name: "Download .pkn" });
     await expect(archive).toHaveAttribute(
       "href",
       "/api/v1/decks/deck_001/export?format=pptaken&notes=1",
     );
     download = page.waitForEvent("download");
     await archive.click();
-    expect((await download).suggestedFilename()).toBe("deck_001.pptaken");
+    expect((await download).suggestedFilename()).toBe("deck_001.pkn");
     expect(mock.state.exports).toEqual([
       { id: "deck_001", format: "html", notes: "1" },
       { id: "deck_001", format: "pptaken", notes: "1" },
@@ -64,7 +64,7 @@ test.describe("import", () => {
     const chooser = page.waitForEvent("filechooser");
     await page.getByRole("button", { name: "Import" }).click();
     await (await chooser).setFiles({
-      name: "talk.pptaken",
+      name: "talk.pkn",
       mimeType: "",
       buffer: Buffer.from("PK WARN"),
     });
@@ -87,12 +87,12 @@ test.describe("import", () => {
     let chooser = page.waitForEvent("filechooser");
     await page.getByRole("button", { name: "Import" }).click();
     await (await chooser).setFiles({
-      name: "bad.pptaken",
+      name: "bad.pkn",
       mimeType: "",
       buffer: Buffer.from("BROKEN"),
     });
     const alert = page.getByRole("alert");
-    await expect(alert).toContainText("Could not import bad.pptaken.");
+    await expect(alert).toContainText("Could not import bad.pkn.");
     await expect(alert).toContainText("manifest.json is missing");
 
     chooser = page.waitForEvent("filechooser");
@@ -103,7 +103,7 @@ test.describe("import", () => {
       buffer: Buffer.from("x"),
     });
     await expect(page.getByRole("alert")).toContainText(
-      "Choose a .pptaken file exported from PPTaken.",
+      "Choose a .pkn file exported from PPTaken.",
     );
     expect(mock.state.imports).toHaveLength(1); // the HTML file never left the browser
   });
@@ -116,7 +116,7 @@ test.describe("import", () => {
     const chooser = page.waitForEvent("filechooser");
     await page.getByRole("button", { name: "Importar" }).click();
     await (await chooser).setFiles({
-      name: "charla.pptaken",
+      name: "charla.pkn",
       mimeType: "",
       buffer: Buffer.from("PK"),
     });

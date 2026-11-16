@@ -66,7 +66,7 @@ Done when:
 
 ### F3 · Present well → **0.2**
 
-Deliverables: presenter view (notes, next, clock with target and pace per section), overview, full screen, black screen, HID clicker support, state in URL, print/PDF mode, **offline preload with indicator**, *service worker*, **export to single HTML**, `.pptaken` export/import.
+Deliverables: presenter view (notes, next, clock with target and pace per section), overview, full screen, black screen, HID clicker support, state in URL, print/PDF mode, **offline preload with indicator**, *service worker*, **export to single HTML**, `.pkn` export/import.
 
 Done when:
 - [ ] Automated test: open, wait for "ready offline", cut the network, go through all slides and steps, open notes and overview.
@@ -209,7 +209,7 @@ Priority: **P0** essential for the indicated version · **P1** important · **P2
 8. P1 · Download by URL with SSRF protection.
 9. P1 · Audit log.
 10. P1 · Orphan blob collector and trash purge.
-11. P2 · `.pptaken` export/import.
+11. P2 · `.pkn` export/import.
 
 ### E4 · MCP server (F2, F5)
 1. P0 · Mount `/mcp` (stateless Streamable HTTP) with SDK v2.

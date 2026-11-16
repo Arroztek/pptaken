@@ -1,7 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Pure routing decisions: given the path and what we know about the instance, render a page or redirect.
 
-export type Page = "setup" | "connect" | "login" | "decks" | "tokens" | "oauthConsent" | "notFound";
+export type Page =
+  | "setup"
+  | "connect"
+  | "login"
+  | "decks"
+  | "tokens"
+  | "security"
+  | "oauthConsent"
+  | "notFound";
 
 export interface RouteContext {
   installed: boolean;
@@ -11,10 +19,17 @@ export interface RouteContext {
 export type Decision = { kind: "render"; page: Page } | { kind: "redirect"; to: string };
 
 /** Client-side routes. Everything else (/p/…, /c/…, /api/…) is a real server request. */
-export const APP_PATHS = ["/", "/welcome", "/login", "/decks", "/tokens"] as const;
+export const APP_PATHS = ["/", "/welcome", "/login", "/decks", "/tokens", "/security"] as const;
 
 /** Pages that need a session; `next` may only point at one of these (no open redirects). */
-const PROTECTED: readonly string[] = ["/decks", "/tokens", "/welcome"];
+const PROTECTED: readonly string[] = ["/decks", "/tokens", "/security", "/welcome"];
+
+/** Signed-in pages that render directly (no extra state): path -> page. `/tokens` is "Access & connections". */
+const SIGNED_IN_PAGES: Readonly<Record<string, Page>> = {
+  "/decks": "decks",
+  "/tokens": "tokens",
+  "/security": "security",
+};
 
 /**
  * The OAuth consent page of a pending connection request (ADR-0018): `/connect/<32 base64url characters>`. It is
@@ -69,9 +84,10 @@ export function decide(rawPath: string, search: string, ctx: RouteContext): Deci
     }
     case "/decks":
     case "/tokens":
+    case "/security":
       if (!ctx.installed) return redirect("/welcome");
       if (!ctx.signedIn) return redirect(loginUrl(path));
-      return render(path === "/decks" ? "decks" : "tokens");
+      return render(SIGNED_IN_PAGES[path] ?? "notFound");
     default:
       if (CONSENT_PATH.test(path)) {
         if (!ctx.installed) return redirect("/welcome");

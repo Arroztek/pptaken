@@ -13,6 +13,7 @@
   const links = $derived([
     { href: "/decks", label: t("nav.decks") },
     { href: "/tokens", label: t("nav.tokens") },
+    { href: "/security", label: t("nav.security") },
     { href: "/welcome", label: t("nav.connect") },
   ]);
 

@@ -260,6 +260,8 @@
     {/snippet}
   </Tabs>
 
+  <p class="ppt-small ppt-muted">{t("connect.managedThere")}</p>
+
   {#if connected}
     <section class="ppt-card next-card ppt-curtain-in" aria-labelledby="next-title">
       <svg viewBox="0 0 240 160" fill="none" aria-hidden="true"

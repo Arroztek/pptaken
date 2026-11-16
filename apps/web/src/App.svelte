@@ -16,6 +16,7 @@
     login: () => import("./pages/Login.svelte"),
     decks: () => import("./pages/Decks.svelte"),
     tokens: () => import("./pages/Tokens.svelte"),
+    security: () => import("./pages/Security.svelte"),
     oauthConsent: () => import("./pages/OAuthConsent.svelte"),
     notFound: () => import("./pages/NotFound.svelte"),
   };
@@ -25,6 +26,7 @@
     login: "login.pageTitle",
     decks: "decks.title",
     tokens: "tokens.title",
+    security: "security.title",
     oauthConsent: "consent.pageTitle",
     notFound: "notFound.pageTitle",
   };
@@ -41,7 +43,10 @@
       : null,
   );
   const page = $derived(decision?.kind === "render" ? decision.page : null);
-  const withNav = $derived(session.signedIn && (page === "connect" || page === "decks" || page === "tokens"));
+  const withNav = $derived(
+    session.signedIn &&
+      (page === "connect" || page === "decks" || page === "tokens" || page === "security"),
+  );
 
   onMount(() => void loadSession());
 

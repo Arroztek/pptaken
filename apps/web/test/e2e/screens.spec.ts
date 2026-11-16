@@ -112,8 +112,16 @@ const screens: Screen[] = [
       await page.locator("form .ppt-btn--primary").click();
       await expect(page.locator(".secret-field")).toBeVisible();
       await page.locator("table .ppt-btn").first().click();
-      await page.locator("dialog .ppt-btn--danger").click();
+      await page.locator("dialog[open] .ppt-btn--danger").click();
       await expect(page.locator("dialog[open]")).toHaveCount(0);
+    },
+  },
+  {
+    name: "security",
+    options: { installed: true },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/security`);
+      await expect(page.locator("input[name=current-password]")).toBeVisible();
     },
   },
   {

@@ -131,7 +131,7 @@ messages, so keys work whichever side has focus. Clicking the player gives the i
 | `s` | open (or focus) the presenter window (when the page passes `presenterUrl`) |
 | `p` | print / PDF |
 | `?` | key help on/off |
-| `Escape` | close the overview or the help |
+| `Escape` | close the overview or the help; in the presenter view, at the last slide and step only: finish |
 | `t`, `Shift+R` | presenter view only: start/pause the clock, reset it |
 | `r` | remote control: open/close the pairing panel (F4; handled by the page through `onKey`) |
 | `k` | remote control: disconnect every paired phone (F4; handled by the page through `onKey`) |
@@ -151,7 +151,9 @@ the shell fails closed (the keys then work only with focus on the parent page).
 
 **Help overlay.** `?` shows the key list in `#8B8FA0` JetBrains Mono over translucent black, centered; `?` or
 `Escape` fade it out (no transition under `prefers-reduced-motion`). Nothing is shown otherwise: no persistent
-chrome. Texts come from `i18n.ts` (English, Spanish; option `locale`).
+chrome. Texts come from `i18n.ts` (English, Spanish; option `locale`). The rows are `keyHelpRows(labels,
+presenter, remote)`; with a presenter window (`presenterUrl`) they also list its keys: `T` (clock), `Shift+R`
+(reset) and `Esc` (finish, on the last slide).
 
 ## URL state
 
@@ -241,19 +243,34 @@ Chromium, and their handling of a tall cross-origin iframe when printing was not
 
 ## Presenter view
 
-`createPresenter(root, { contentUrl, data, sync?, locale?, now?, tickMs?, keyboard?, onChange? })`, module
-`@pptaken/player/presenter`, framework-free, served by the server like the shell modules. Page
-`GET /p/:deckId/presenter` (owner session), data from `GET /api/v1/decks/:id/presenter` (see the HTTP API spec).
+`createPresenter(root, { contentUrl, data, sync?, locale?, now?, tickMs?, keyboard?, panelUrl?, onFinish?,
+onChange? })`, module `@pptaken/player/presenter`, framework-free, served by the server like the shell modules.
+Page `GET /p/:deckId/presenter` (owner session), data from `GET /api/v1/decks/:id/presenter` (see the HTTP API
+spec).
 
 - **Layout** (dark, neutral, `@pptaken/ui` tokens: ink/paper/slate colors, Inter for text, JetBrains Mono for the
   clock and numbers): a top bar with slide `n / N` and step, the clock (elapsed vs target) with the pace status,
-  and buttons (previous, next, start/pause, reset); on the left the current slide and the pace per section; on
+  buttons (previous, next, start/pause, reset, finish) and, for the owner, a "Back to panel" link; on the left the current slide and the pace per section; on
   the right the next slide (or "End of the presentation") and the notes (scrollable, 1.5rem type).
 - **Previews** are two ordinary players (`createPlayer` with `hash: false`, `keyboard: false`, `help: false` and
   an `onKey` hook): the same sandboxed iframe, CSP and runtime as the main window, each scaled by the runtime with a
   CSS transform. The next preview sits at `next(position)`: the next step, or the next slide with no step.
 - **Keys**: navigation keys, `b`/`.` (black screen of the main window), `f` (full screen of the presenter), `t`
-  start/pause, `Shift+R` reset. Keys pressed inside a preview come back through `onKey`.
+  start/pause, `Shift+R` reset, `Escape` finish (only at the end, see below). Keys pressed inside a preview come
+  back through `onKey`.
+- **End of the talk** (presenter view only). At the last slide with every step revealed (`navigation.isEnd`;
+  advancing further does nothing), the bar shows a discreet cue, "End of presentation · Esc to exit"
+  (`[data-pptaken-end-cue]`, a status line, not a blocking screen; hidden in print). The audience window never
+  shows it: the main player has no end cue, no end screen and no new chrome. `presenter.finish()` (the **Finish**
+  button, always available, or `Escape` at the end) turns the audience screen black over the sync channel (the
+  existing `black` message), calls `onFinish`, then closes the presenter window after 150 ms (so the message
+  leaves first). A window the browser does not let a script close (one the user opened by hand) stays open and
+  shows "Presentation finished: the audience screen is black. You can close this window." `Escape` elsewhere in
+  the talk does nothing, so a stray key cannot end it. `getState()` reports `atEnd` and `finished`.
+- **Back to panel**: with `panelUrl` (same-origin, checked) the bar has a "Back to panel" link that opens it in a
+  new tab with `rel="noopener noreferrer"`. The server's presenter page passes `/decks` only when the deck came
+  from the network with the owner session (the page and its data API are owner-only); an offline copy proves no
+  session, so the link is left out there.
 - **Clock and pace** (`pace.ts`, pure, tested with a fake clock): the clock counts only while running (manual
   start, decision below); time is attributed to the slide shown while it runs. Plan per slide: `durationHintSec`,
   and slides without a hint share what is left of `targetMinutes`. Pace is **on time** while the elapsed time is
@@ -481,11 +498,13 @@ createPlayer(host, { contentUrl | contentHtml, initial?, hash?, keyboard?, showH
 // state: { slide, step, slideId, slideCount, stepCount, black, mode, highlight }
 
 // browser (import "@pptaken/player/presenter")
-createPresenter(root, { contentUrl, data, sync?, locale?, now?, tickMs?, keyboard?, onChange? })
-  -> { goto, next, prev, toggleClock, resetClock, getState, current, upcoming, ready, destroy }
+createPresenter(root, { contentUrl, data, sync?, locale?, now?, tickMs?, keyboard?, panelUrl?, onFinish?,
+  onChange? })
+  -> { goto, next, prev, toggleClock, resetClock, finish, getState, current, upcoming, ready, destroy }
 
 // shared, pure
-navigation: clamp, next, prev, first, last, samePosition, parseHash, formatHash, overviewMove, KEY_ACTIONS
+navigation: clamp, next, prev, first, last, isEnd, samePosition, parseHash, formatHash, overviewMove, KEY_ACTIONS
+shell: keyHelpRows(labels, presenter, remote)
 protocol: parseShellMessage, parseContentMessage, overviewColumns, PROTOCOL_VERSION, MODES, MAX_SLIDES,
   MAX_STEPS, MAX_CANVAS, KEY_CODES, message types
 sync ("@pptaken/player/sync"): openSync, parseSyncMessage, syncChannelName
@@ -527,8 +546,18 @@ CSP hash `RUNTIME_SHA256`). The same script concatenates `offline-cache.ts` and 
   12 keys converges), previews at the current and next position, notes shown and absent from every content
   document and from the `/c/` response, black screen both ways, clock start/pause/reset (real time), pace ahead,
   and behind after 20 minutes with Playwright's fake clock; the hostile document cannot select, change the mode,
-  print, open help or open windows. Last run (with the offline sections): Chromium 441, Firefox 435, WebKit 436 checks, all
+  print, open help or open windows. End of the talk: no cue before the end, Esc there does nothing, the cue at the
+  last slide and step in the presenter view and nowhere in the audience page or its content frame, hidden in
+  print, Finish only in the presenter view, Esc at the end blacks the audience screen and closes the presenter
+  window, and a window that cannot close itself shows the "you can close this window" message; the key help lists
+  the presenter keys. Last run (with the offline sections): Chromium 452, Firefox 446, WebKit 446 checks, all
   passing.
+- `pnpm --filter @pptaken/player test` also covers `isEnd` (against `next` over many shapes), `keyHelpRows` and
+  the end/finish texts in both languages (`test/end.test.ts`).
+- `apps/server` browser smoke test (`browser/presenter.mjs`, all three engines): the owner's presenter view has
+  the "Back to panel" link (`/decks`, new tab, `noopener`), the audience page has none; the end cue shows in the
+  presenter view and not in the audience page or its frames; Esc at the end closes the presenter window and the
+  main window turns black.
 - Overview with 200 slides (synthetic deck: heading, list, SVG and a step per slide; 1280×720): open to ready
   55-135 ms, first two frames 17-24 ms, scroll through the whole grid p95 about 16.7 ms cold and warm in all three
   engines, 30 ArrowDown presses 38-173 ms. No virtualization needed at this size.

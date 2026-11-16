@@ -45,6 +45,7 @@ const pages = {
   "/login": [entry, page("Login")],
   "/decks": [entry, page("Decks")],
   "/tokens": [entry, page("Tokens")],
+  "/security": [entry, page("Security")],
 };
 
 const kb = (n) => `${(n / 1024).toFixed(1)} KB`;

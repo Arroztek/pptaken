@@ -5,9 +5,9 @@ import { MAX_IMPORT_MB } from "./api";
 
 export type ImportFileProblem = "wrongType" | "tooLarge" | null;
 
-/** `.pptaken` (or a renamed `.zip`) and at most {@link MAX_IMPORT_MB} MB. */
+/** `.pkn` (or a renamed `.zip`) and at most {@link MAX_IMPORT_MB} MB. */
 export function checkImportFile(file: { name: string; size: number }): ImportFileProblem {
-  if (!/\.(pptaken|zip)$/i.test(file.name)) return "wrongType";
+  if (!/\.(pkn|zip)$/i.test(file.name)) return "wrongType";
   if (file.size === 0) return "wrongType";
   if (file.size > MAX_IMPORT_MB * 1024 * 1024) return "tooLarge";
   return null;

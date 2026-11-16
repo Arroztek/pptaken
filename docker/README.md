@@ -50,5 +50,5 @@ work. Behind a reverse proxy:
   `issuer` is exactly your public URL, and `curl -i -X POST https://slides.example.com/mcp` must answer `401` with a
   `WWW-Authenticate: Bearer … resource_metadata="https://slides.example.com/.well-known/oauth-protected-resource/mcp"`.
 
-Connected applications are listed (and can be disconnected) under **Agent tokens** in the panel.
+Connected applications are listed (and can be disconnected) under **Access & connections** in the panel.
 `pptaken reset-password` disconnects every application.

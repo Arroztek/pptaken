@@ -2,7 +2,7 @@
   "name": "@pptaken/web",
   "version": "0.0.0",
   "private": true,
-  "description": "PPTaken owner panel: first-run setup, Connect your agent, presentations and agent tokens.",
+  "description": "PPTaken owner panel: first-run setup, Connect your agent, presentations, access & connections and security.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "scripts": {

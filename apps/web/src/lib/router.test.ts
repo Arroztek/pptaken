@@ -24,6 +24,12 @@ describe("decide", () => {
     expect(decide("/decks", "", out)).toEqual({ kind: "redirect", to: "/login" });
     expect(decide("/tokens", "", out)).toEqual({ kind: "redirect", to: "/login?next=%2Ftokens" });
     expect(decide("/tokens", "", inn)).toEqual({ kind: "render", page: "tokens" });
+    expect(decide("/security", "", out)).toEqual({
+      kind: "redirect",
+      to: "/login?next=%2Fsecurity",
+    });
+    expect(decide("/security", "", inn)).toEqual({ kind: "render", page: "security" });
+    expect(decide("/security", "", fresh)).toEqual({ kind: "redirect", to: "/welcome" });
     expect(decide("/decks/", "", inn)).toEqual({ kind: "render", page: "decks" });
   });
 
@@ -74,12 +80,14 @@ describe("helpers", () => {
 
   it("knows which paths are client-side", () => {
     expect(isAppPath("/tokens")).toBe(true);
+    expect(isAppPath("/security")).toBe(true);
     expect(isAppPath("/p/abc")).toBe(false);
     expect(isAppPath("/api/v1/decks")).toBe(false);
   });
 
   it("only allows internal protected next targets", () => {
     expect(safeNext("/tokens")).toBe("/tokens");
+    expect(safeNext("/security")).toBe("/security");
     expect(safeNext("/login")).toBe("/decks");
     expect(safeNext(null)).toBe("/decks");
     expect(loginUrl("/decks")).toBe("/login");

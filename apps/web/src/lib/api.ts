@@ -203,7 +203,7 @@ export const MAX_IMPORT_MB = 100;
 
 /**
  * Same-origin URL of an export download, used as a plain `<a href download>` (the session cookie goes along).
- * HTML leaves the speaker notes out unless asked; the .pptaken archive keeps them.
+ * HTML leaves the speaker notes out unless asked; the .pkn archive keeps them.
  */
 export function exportUrl(
   id: string,
@@ -232,7 +232,7 @@ export interface ApiClient {
   revokeToken(id: string): Promise<void>;
   connectStatus(): Promise<ConnectStatus>;
   listDecks(params?: { cursor?: string | null; q?: string }): Promise<DeckPage>;
-  /** Uploads a .pptaken archive as the raw body (application/zip); the server creates a new presentation. */
+  /** Uploads a .pkn archive as the raw body (application/zip); the server creates a new presentation. */
   importDeck(file: Blob): Promise<ImportResult>;
   /** A pending OAuth connection request (the consent page). */
   oauthRequest(id: string): Promise<OAuthRequest>;

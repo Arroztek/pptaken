@@ -298,7 +298,7 @@ async function handleApi(state, req, res, url) {
       return fail(res, 400, "VALIDATION_ERROR", "format must be html or pptaken");
     }
     state.exports.push({ id: deck.id, format, notes });
-    const name = `${deck.id}.${format}`;
+    const name = `${deck.id}${format === "html" ? ".html" : ".pkn"}`;
     const body =
       format === "html"
         ? `<!doctype html><title>${deck.id}</title><p>notes=${notes}</p>`
@@ -315,7 +315,7 @@ async function handleApi(state, req, res, url) {
   // Import: a body containing BROKEN is refused like a damaged archive; WARN adds a warning.
   if (method === "POST" && path === "/decks/import") {
     if ((req.headers["content-type"] ?? "").split(";")[0] !== "application/zip") {
-      return fail(res, 400, "VALIDATION_ERROR", "The request body must be a .pptaken archive");
+      return fail(res, 400, "VALIDATION_ERROR", "The request body must be a .pkn archive");
     }
     const chunks = [];
     for await (const chunk of req) chunks.push(chunk);
@@ -326,7 +326,7 @@ async function handleApi(state, req, res, url) {
         res,
         400,
         "VALIDATION_ERROR",
-        "Not a valid .pptaken archive: manifest.json is missing",
+        "Not a valid .pkn archive: manifest.json is missing",
         {
           hint: "Export the presentation again from PPTaken and import the unmodified file.",
         },

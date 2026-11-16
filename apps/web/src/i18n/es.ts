@@ -16,7 +16,8 @@ export const webEs: WebDictionary = {
   nav: {
     label: "Panel",
     decks: "Presentaciones",
-    tokens: "Tokens del agente",
+    tokens: "Acceso y conexiones",
+    security: "Seguridad",
     connect: "Conecta tu agente",
     signOut: "Cerrar sesión",
     language: "Idioma",
@@ -59,7 +60,9 @@ export const webEs: WebDictionary = {
     copySetupPrompt: "Copiar prompt de configuración",
     promptLabel: "Prompt de configuración",
     tokenLabel: "Token",
-    tokenOnce: "Se muestra una sola vez. Si lo pierdes, crea otro en Tokens del agente.",
+    tokenOnce: "Se muestra una sola vez. Si lo pierdes, crea otro en Acceso y conexiones.",
+    managedThere:
+      "Las conexiones hechas iniciando sesión (claude.ai, Claude Desktop) se gestionan en Acceso y conexiones › Aplicaciones conectadas. Los tokens creados aquí también aparecen allí.",
     show: "Mostrar",
     hide: "Ocultar",
     showLabel: "Mostrar {name}",
@@ -111,8 +114,8 @@ export const webEs: WebDictionary = {
     downloadHtml: "Descargar HTML",
     archiveTitle: "Archivo de PPTaken",
     archiveText:
-      "Un archivo .pptaken con las slides, las imágenes y las notas del orador. Impórtalo en cualquier PPTaken para mover esta presentación o guardar una copia.",
-    downloadArchive: "Descargar .pptaken",
+      "Un archivo .pkn con las slides, las imágenes y las notas del orador. Impórtalo en cualquier PPTaken para mover esta presentación o guardar una copia.",
+    downloadArchive: "Descargar .pkn",
     import: "Importar",
     importing: "Importando {name}…",
     importedTitle: "“{title}” importada.",
@@ -120,13 +123,13 @@ export const webEs: WebDictionary = {
     importedAdjusted: "Se ajustaron {n} cosas al importar:",
     importedAdjustedOne: "Se ajustó 1 cosa al importar:",
     importFailed: "No se pudo importar {name}.",
-    wrongType: "Elige un archivo .pptaken exportado desde PPTaken.",
+    wrongType: "Elige un archivo .pkn exportado desde PPTaken.",
     tooLarge: "Este archivo pesa más de {n} MB.",
   },
   tokens: {
-    title: "Tokens del agente",
+    title: "Acceso y conexiones",
     subtitle:
-      "Cada agente entra con su propio token. Revoca uno y ese agente se detiene al instante.",
+      "Todo lo que puede llegar a tu PPTaken: los tokens del agente y las aplicaciones que conectaste iniciando sesión. Revoca o desconecta una y se detiene al instante.",
     createTitle: "Crea un token",
     nameLabel: "Nombre del token",
     nameHint: "Dónde lo usas, como Claude Code en mi portátil.",
@@ -136,7 +139,7 @@ export const webEs: WebDictionary = {
     createdText: "Se muestra una sola vez. PPTaken solo guarda una huella de él.",
     secretLabel: "Token nuevo",
     done: "Listo",
-    listTitle: "Tokens",
+    listTitle: "Tokens del agente",
     colName: "Nombre",
     colScopes: "Permisos",
     colCreated: "Creado",
@@ -204,6 +207,10 @@ export const webEs: WebDictionary = {
     disconnected: "Aplicación desconectada.",
     emptyTitle: "No hay aplicaciones conectadas.",
     emptyText: "Cuando agregues PPTaken como conector en Claude y lo permitas, aparecerá aquí.",
+  },
+  security: {
+    title: "Seguridad",
+    subtitle: "Tu contraseña de dueño. Al cambiarla se cierran tus otras sesiones.",
   },
   password: {
     title: "Cambiar contraseña",
