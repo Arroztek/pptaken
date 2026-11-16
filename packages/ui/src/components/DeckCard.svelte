@@ -18,6 +18,8 @@
     statusLabel?: string;
     /** Present action. The live deck says "Back on stage". */
     presentHref?: string;
+    /** Open the title link and the present button in a new tab (the player has no way back to the panel). */
+    newTab?: boolean;
     onmore?: (event: MouseEvent) => void;
     actions?: Snippet;
   }
@@ -31,6 +33,7 @@
     status,
     statusLabel,
     presentHref,
+    newTab = false,
     onmore,
     actions,
   }: Props = $props();
@@ -49,14 +52,14 @@
     {/if}
   </div>
   <div class="ppt-deck__body">
-    <h3 class="ppt-deck__title"><a {href}>{title}</a></h3>
+    <h3 class="ppt-deck__title"><a {href} target={newTab ? "_blank" : undefined} rel={newTab ? "noopener noreferrer" : undefined}>{title}</a></h3>
     {#if meta}<p class="ppt-deck__meta">{meta}</p>{/if}
     <div class="ppt-deck__actions">
       {#if actions}
         {@render actions()}
       {:else}
         {#if presentHref}
-          <Button size="sm" icon="play" href={presentHref}>
+          <Button size="sm" icon="play" href={presentHref} target={newTab ? "_blank" : undefined}>
             {status === "live" ? t("decks.backOnStage") : t("decks.present")}
           </Button>
         {/if}

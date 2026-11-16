@@ -283,6 +283,7 @@
             title={deck.title}
             href="/p/{encodeURIComponent(deck.id)}"
             presentHref="/p/{encodeURIComponent(deck.id)}"
+            newTab
             meta={meta(deck)}
             onmore={() => openExport(deck)}
           >
