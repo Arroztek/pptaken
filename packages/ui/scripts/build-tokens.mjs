@@ -43,6 +43,7 @@ for (const [k, v] of Object.entries(tokens.border)) statics.push(decl(`border-${
 for (const [k, v] of Object.entries(tokens.motion))
   statics.push(decl(k === "ease" ? "ease" : `motion-${k}`, v));
 for (const [k, v] of Object.entries(tokens.size)) statics.push(decl(`size-${k}`, v));
+for (const [k, v] of Object.entries(tokens.rhythm)) statics.push(decl(`rhythm-${k}`, v));
 for (const [k, v] of Object.entries(tokens.z)) statics.push(decl(`z-${k}`, v));
 
 // ---- themed tokens ----

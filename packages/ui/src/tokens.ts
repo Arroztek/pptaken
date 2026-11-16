@@ -218,7 +218,28 @@ export const tokens = {
     "remote-button": "96px",
     "quiz-option": "64px",
     "content-max": "1120px",
-    "prose-max": "640px"
+    "prose-max": "640px",
+    "column-max": "720px",
+    "form-max": "480px",
+    "focused-max": "560px",
+    "sidebar": "256px",
+    "sidebar-collapsed": "72px",
+    "topbar": "56px"
+  },
+  "rhythm": {
+    "page-x": "32px",
+    "page-x-sm": "16px",
+    "page-top": "48px",
+    "page-top-sm": "24px",
+    "page-bottom": "64px",
+    "page-bottom-sm": "48px",
+    "head": "32px",
+    "title-text": "8px",
+    "section": "48px",
+    "section-sm": "32px",
+    "section-head": "16px",
+    "stack": "16px",
+    "form": "24px"
   },
   "z": {
     "overlay": 40,

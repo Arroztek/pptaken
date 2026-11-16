@@ -7,7 +7,8 @@
     /** Two-ink illustration (Ink via currentColor + Spotlight). Decorative: give it aria-hidden. */
     art?: Snippet;
     actions?: Snippet;
-    headingLevel?: 2 | 3;
+    /** 1 when the empty state is the whole page (a not-found screen, for example). */
+    headingLevel?: 1 | 2 | 3;
   }
 
   let { title, text, art, actions, headingLevel = 2 }: Props = $props();

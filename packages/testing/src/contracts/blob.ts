@@ -85,7 +85,8 @@ export function runBlobStoreContract(name: string, factory: BlobFactory): void {
       const put = await store().put(big);
       expect(put.sha256).toBe(sha256Hex(big));
       expect(await store().get(put.sha256)).toEqual(big);
-    });
+      // Comparing 3 MB element by element is CPU-bound: under a parallel `pnpm check` it can pass 5 s.
+    }, 30_000);
 
     it("deletes", async () => {
       const put = await store().put(enc("bye"));

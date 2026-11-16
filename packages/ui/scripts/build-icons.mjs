@@ -3,6 +3,8 @@
 //   src/icons.ts    -> inner SVG markup per icon, used by Icon.svelte (inline SVG, currentColor)
 //   dist/icons.css  -> CSS mask classes for static HTML (`<span class="ppt-icon" data-icon="copy">`)
 // Only the icons present in icons/ are shipped. Add an icon = drop its SVG (256 viewBox) there.
+// The panel navigation icons (presentation, plug, key, shield-check, list, sidebar-simple) are drawn in house on
+// the same 256 grid with Phosphor Regular's 16-unit round stroke, so they sit with the rest of the set.
 // Dependency-free: `node scripts/build-icons.mjs`.
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
