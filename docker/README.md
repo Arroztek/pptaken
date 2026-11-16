@@ -29,3 +29,26 @@ proxy also set `PPTAKEN_TRUST_PROXY=true`.
 
 Plain HTTP on a local network works, but the password then travels unencrypted. Use HTTPS (a reverse proxy such as
 Caddy, or a tunnel) for anything reachable by others.
+
+## Connecting claude.ai and Claude Desktop (OAuth) behind Traefik / Dokploy
+
+claude.ai, Claude Desktop and the mobile apps sign in to PPTaken with OAuth ([ADR-018](../docs/adr/0018-oauth-authorization-server.md)).
+It is on only when `PPTAKEN_PUBLIC_URL` is the exact **https** origin people use (for example
+`https://slides.example.com`); with plain http (other than localhost) the server logs a warning and only API tokens
+work. Behind a reverse proxy:
+
+- Route **all** paths of the host to PPTaken, in particular `/.well-known/*` and `/oauth/*` (not only `/`, `/api`
+  and `/mcp`). In Dokploy a single domain rule ``Host(`slides.example.com`)`` without a path prefix does this.
+- Do not strip or rewrite the `WWW-Authenticate` response header (no header-cleaning middleware on this router).
+- No redirects on `/mcp`: no cross-host redirect (www/apex), no trailing-slash or `/mcp/` rewrite, no http→https
+  redirect for the URL you paste into Claude (paste the https URL). Claude drops the `Authorization` header when it
+  follows a redirect, which shows up as an endless sign-in loop.
+- Set `PPTAKEN_TRUST_PROXY=true` so rate limits see client IPs (`X-Forwarded-For`), and keep the default
+  `Host` forwarding (`passHostHeader`).
+- Quick check from anywhere:
+  `curl -i https://slides.example.com/.well-known/oauth-authorization-server` must answer `200` JSON whose
+  `issuer` is exactly your public URL, and `curl -i -X POST https://slides.example.com/mcp` must answer `401` with a
+  `WWW-Authenticate: Bearer … resource_metadata="https://slides.example.com/.well-known/oauth-protected-resource/mcp"`.
+
+Connected applications are listed (and can be disconnected) under **Agent tokens** in the panel.
+`pptaken reset-password` disconnects every application.

@@ -1,5 +1,8 @@
 # ADR-009 · Agent authentication: API token + built-in OAuth 2.1 server
 
+> Amended by [ADR-018](0018-oauth-authorization-server.md): the SDK has no authorization-server helpers, so the server
+> is hand-written; issuer, limits, token lifetimes and consent are specified there.
+
 **Verified context.** Claude Code accepts fixed headers. claude.ai/Desktop/mobile only guarantee OAuth (or no authentication); fixed headers are in restricted beta. For OAuth, Claude requires: a `401` response with `WWW-Authenticate: Bearer resource_metadata=…`, RFC 9728 and RFC 8414 metadata, PKCE S256, and it accepts CIMD (if the server announces `client_id_metadata_document_supported: true` and `"none"` in `token_endpoint_auth_methods_supported`) or DCR. Return URI: `https://claude.ai/api/mcp/auth_callback` for the hosted apps, and *loopback* with a variable port for Claude Code.
 
 **Options.**

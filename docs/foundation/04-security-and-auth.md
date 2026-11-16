@@ -55,21 +55,22 @@ Two mechanisms that produce the same internal `Principal`:
 
 **b) OAuth 2.1** (claude.ai, Claude Desktop, mobile; also Claude Code)
 
-The current MCP specification (2026-07-28) defines the MCP server as an OAuth *resource server*. PPTaken also includes a minimal *authorization server*. Implemented requirements (verified against the specification and Claude's connector documentation):
+The current MCP specification (2026-07-28) defines the MCP server as an OAuth *resource server*. PPTaken also includes a minimal, hand-written *authorization server* ([ADR-018](../adr/0018-oauth-authorization-server.md)), enabled only when `PPTAKEN_PUBLIC_URL` is https (the issuer is exactly that value). Implemented requirements (verified against the specification and Claude's connector documentation):
 
 | Requirement | Implementation |
 |---|---|
-| Resource discovery (RFC 9728) | `401` with `WWW-Authenticate: Bearer resource_metadata="…/.well-known/oauth-protected-resource"`; the `resource` field exactly matches the `/mcp` URL |
+| Resource discovery (RFC 9728) | `401` with `WWW-Authenticate: Bearer realm="pptaken", resource_metadata="…/.well-known/oauth-protected-resource/mcp", scope="…"` (`error="invalid_token"` only when a token was presented); the `resource` field exactly matches the `/mcp` URL and `authorization_servers` names the issuer |
 | Authorization server metadata (RFC 8414) | `/.well-known/oauth-authorization-server` |
 | Flow | Only *authorization code* + **PKCE S256** (announces `code_challenge_methods_supported: ["S256"]`). No *implicit*, no *password*, no *client credentials* |
-| Client registration | **CIMD** preferred (`client_id_metadata_document_supported: true`, `token_endpoint_auth_methods_supported: ["none"]`); **DCR** (RFC 7591) for compatibility, with rate limiting and cleanup of unused clients |
-| Redirect URI | Exact match with the registered ones; `https://claude.ai/api/mcp/auth_callback` and *loopback* (`http://localhost/…`, `http://127.0.0.1/…`) are accepted ignoring the port, as Claude Code requires |
-| Consent | Requires the owner's session; shows client name, **redirect host** and requested scopes; stronger warning if the redirect is *loopback* |
+| Client registration | **CIMD** preferred (`client_id_metadata_document_supported: true`, `token_endpoint_auth_methods_supported: ["none"]`), fetched through the SSRF guard (https, 5 KB, 5 s, no redirects), cached 5 min–24 h, stored only after consent; **DCR** (RFC 7591) for compatibility: 10/h per IP, ~100 clients without a grant, 4 KB, ≤ 5 redirect URIs; unused clients purged after 24 h |
+| Redirect URI | Exact match with the registered ones; https, or *loopback* http (`localhost`, `127.0.0.1`, `[::1]`) where only the port may differ, as Claude Code requires; no custom schemes. An invalid client or redirect URI gets an error page, never a redirect |
+| Consent | A panel page (`/connect/<id>`) that requires the owner's session and the CSRF check; never automatic. Headline = **redirect host**; "Claude (claude.ai)" badge only for the exact claude.ai callback; CIMD `client_id` host; client name only as "calls itself …" (sanitized, ≤ 60); `logo_uri` never fetched; stronger warning if the redirect is *loopback*; scopes can be unticked |
 | Issuer identification (RFC 9207) | `iss` parameter in the authorization response, announced in metadata |
 | Resource indicators (RFC 8707) | The token is bound to the resource URL; `/mcp` rejects tokens issued for another audience |
-| Tokens | Opaque (random, stored as a hash): access 1 h; *refresh* 60 days **with rotation** and reuse detection (reusing an already-rotated one revokes the whole grant) |
+| Tokens | Opaque, prefixed (`ppto_` access, `pptr_` refresh; 256 bits; stored as SHA-256): access 1 h; *refresh* 60 days sliding **with rotation** and reuse detection (reusing an already-rotated one revokes the whole grant, except the immediate predecessor within 60 s). Codes: 60 s, single use (reuse revokes the grant). `Principal.tokenId` is the grant id. OAuth never grants `share:write` |
 | Token endpoint | Accepts `application/x-www-form-urlencoded`; RFC 6749 errors (`invalid_grant`); responds in < 1 s (Claude waits 10 s at most) |
-| Revocation | The owner sees and revokes "connected applications" in the panel |
+| Revocation | The owner sees and revokes "connected applications" in the panel; RFC 7009 `/oauth/revoke`; a password change can disconnect every application and `pptaken reset-password` always does |
+| Audience | `ppto_` tokens are accepted only at `/mcp`, never on `/api/v1` |
 
 When fetching a CIMD document (a URL supplied by the client) the same SSRF defenses as in `add_asset` apply (§6).
 
@@ -146,7 +147,7 @@ Improvement over `ppt`: there the room code was permanent (stored in `localStora
 | T11 | Brute force of the audience code or the password | S | Medium | Per-IP limits; codes valid only during the session; the audience code grants no privileges |
 | T12 | DoS: huge uploads, thousands of WebSockets, compression bombs | D | Medium | Size limits before reading the body; connection cap per IP and per session; rate limits; decompression limits; timeouts |
 | T13 | CSRF against the panel | T | High | `SameSite`, `Origin` check, custom header |
-| T14 | *DNS rebinding* against a local instance (a malicious web page talks to `localhost:8080`) | S, I | Medium | `Host` header validation against allowed names (MCP SDK helper for Hono); closed CORS |
+| T14 | *DNS rebinding* against a local instance (a malicious web page talks to `localhost:8080`) | S, I | Medium | `Host` header validation against allowed names (MCP SDK helper for Hono); closed CORS (the only exceptions, `*` without credentials, are the OAuth metadata documents, `/oauth/token` and `/oauth/register`, ADR-018) |
 | T15 | Panel *clickjacking* | T | Medium | `frame-ancestors 'none'` on everything except `/c/` (which only admits its own origin) |
 | T16 | Malicious or compromised dependency (supply chain) | T, E | High | §9 |
 | T17 | Access to the data volume (leaked backup) | I | High | Tokens and passwords only as hashes; `0600` permissions; disk/backup encryption documentation |

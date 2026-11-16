@@ -107,12 +107,19 @@ Trashed decks are excluded. `createdBy` is `"owner"` or `"agent"`.
 
 `apps/server` serves the built web app. Routes handled by the web app (client-side): `/` (redirects to `/welcome`
 before setup, to the presentation list after), `/welcome` (setup wizard and "Connect your agent"), `/login`,
-`/decks`. Unknown non-API paths fall back to the web app's `index.html`.
+`/decks`, `/tokens` (agent tokens, connected applications, password change) and `/connect/<id>` (OAuth consent,
+ADR-0018). Unknown non-API paths fall back to the web app's `index.html`.
 
 ## MCP endpoint
 
-`POST /mcp` — Streamable HTTP, stateless, `Authorization: Bearer ppt_...`. Defined in
+`POST /mcp` — Streamable HTTP, stateless, `Authorization: Bearer ppt_...` (API token) or `Bearer ppto_...` (OAuth
+access token, when OAuth is on; see below). Defined in
 [`docs/foundation/02-architecture.md`](../foundation/02-architecture.md) §5; not part of the panel API.
+
+Without a valid token: `401` with
+`WWW-Authenticate: Bearer realm="pptaken", resource_metadata="<public URL>/.well-known/oauth-protected-resource/mcp", scope="decks:read decks:write quiz:draft"`;
+`, error="invalid_token"` is appended only when a token was presented. `/mcp` grants no CORS and refuses
+cross-origin browser requests.
 
 <!-- BEGIN presenter view (F3) -->
 ## Presenter view (owner session required, F3)
@@ -294,3 +301,79 @@ is the only route that returns speaker notes (threat T7).
   `phone`, `protocol`, `screen`), `phone-page.js`, `phone.css`, and `qr.js` (the pinned QR encoder). No data.
 - `GET /ws`: the WebSocket endpoint ([realtime.md](realtime.md)).
 <!-- END remote control (F4) -->
+<!-- BEGIN oauth (ADR-0018) -->
+## OAuth authorization server (ADR-0018)
+
+Design and rationale: [ADR-018](../adr/0018-oauth-authorization-server.md). **Enabled only when
+`PPTAKEN_PUBLIC_URL` is https** (or http on `localhost`, `*.localhost`, `127.0.0.1`, `[::1]` for development);
+the issuer is that value exactly. When disabled, only the resource metadata exists (without
+`authorization_servers`) and every `/oauth/*` path is `404`. None of these routes exist on the content origin.
+OAuth responses use the RFC 6749 error shape `{ "error": "...", "error_description": "..." }`, not the panel shape.
+Every OAuth response carries `Cache-Control: no-store` (the metadata documents: `public, max-age=300`).
+
+CORS: `Access-Control-Allow-Origin: *` (no credentials) and `Cross-Origin-Resource-Policy: cross-origin` only on
+the two metadata documents, `/oauth/token` and `/oauth/register` (with `OPTIONS` preflight answering `204`).
+
+### `GET /.well-known/oauth-protected-resource` and `/.well-known/oauth-protected-resource/mcp`
+RFC 9728: `{ resource: "<iss>/mcp", authorization_servers: ["<iss>"], bearer_methods_supported: ["header"],
+scopes_supported: ["decks:read","decks:write","quiz:draft"], resource_name: "PPTaken", resource_documentation }`
+(`authorization_servers` only when OAuth is on; no `offline_access` here).
+
+### `GET /.well-known/oauth-authorization-server`
+RFC 8414: `issuer`, `authorization_endpoint` (`<iss>/oauth/authorize`), `token_endpoint`, `registration_endpoint`,
+`revocation_endpoint`, `response_types_supported: ["code"]`,
+`grant_types_supported: ["authorization_code","refresh_token"]`, `token_endpoint_auth_methods_supported: ["none"]`,
+`revocation_endpoint_auth_methods_supported: ["none"]`, `code_challenge_methods_supported: ["S256"]`,
+`scopes_supported: ["decks:read","decks:write","quiz:draft","offline_access"]`,
+`client_id_metadata_document_supported: true`, `authorization_response_iss_parameter_supported: true`.
+There is no `/.well-known/openid-configuration`.
+
+### `POST /oauth/register` (RFC 7591)
+JSON body, at most 4 KB. `redirect_uris` (1–5, each ≤ 255 characters: https without fragment or userinfo, or http
+to a loopback host; no custom schemes), optional `client_name` (≤ 200), `grant_types` (`authorization_code` and
+optionally `refresh_token`), `response_types` (`["code"]`). `201` with `client_id` (`pptc_…`),
+`client_id_issued_at`, the accepted metadata and `token_endpoint_auth_method: "none"` (whatever was asked; never a
+secret). Errors: `400 invalid_redirect_uri | invalid_client_metadata`, `413`, `429 temporarily_unavailable`
+(10 per hour per IP, `Retry-After`), `503 temporarily_unavailable` (about 100 registered clients still without a
+grant).
+
+### `GET /oauth/authorize`
+Parameters: `response_type=code`, `client_id` (a `pptc_…` id or a CIMD https URL), `redirect_uri`,
+`code_challenge` + `code_challenge_method=S256` (required; `plain` refused), optional `scope`, `state`
+(≤ 1024), `resource`. A parameter given twice is refused. An unknown or invalid client, an unfetchable or invalid
+CIMD document, or a redirect URI that does not match a registered one exactly (loopback: any port) gives a
+`400` HTML error page and **never** a redirect. Other errors redirect to the client with `error`
+(`invalid_request`, `unsupported_response_type`, `invalid_scope`, `invalid_target`), `state` and `iss`. A valid
+request answers `302` to `<iss>/connect/<id>`, the panel's consent page (pending for 10 minutes).
+
+### `POST /oauth/token`
+`application/x-www-form-urlencoded` only. `grant_type=authorization_code` with `code`, `redirect_uri` (identical
+to the authorization request), `code_verifier`, `client_id`, optional `resource`; or `grant_type=refresh_token`
+with `refresh_token`, `client_id`, optional `scope` (cannot widen) and `resource`. `200`:
+`{ access_token: "ppto_…", token_type: "Bearer", expires_in: 3600, refresh_token: "pptr_…", scope }` where
+`scope` is what the owner granted. Errors (`400`): `invalid_request`, `invalid_client`, `invalid_grant` (unknown,
+expired, used or foreign code; PKCE failure; redirect mismatch; unknown, expired, rotated or foreign refresh token),
+`invalid_scope`, `invalid_target`, `unsupported_grant_type`; `429` per IP. Reusing a code revokes its grant;
+reusing a rotated refresh token revokes its grant except for the immediate predecessor within 60 seconds.
+
+### `POST /oauth/revoke` (RFC 7009)
+Form `token` (and optional `client_id`, `token_type_hint`). Always `200`. A refresh token revokes its whole grant;
+an access token only itself.
+
+### Consent and connected applications (owner session required, panel API)
+
+| Route | Body | Response |
+|---|---|---|
+| `GET /api/v1/oauth/requests/:id` | | `200 { id, client: { id, kind: "cimd"|"dcr", name, idHost }, redirectUri, redirectHost, redirectKind: "claude"|"loopback"|"web", scopes, expiresAt }`; `404` when unknown, expired or answered. `name` is sanitized (no control or bidi characters, ≤ 60) |
+| `POST /api/v1/oauth/requests/:id` | `{ decision: "approve"|"deny", scopes?: string[] }` | `200 { redirectUrl }` (with `code`, `state`, `iss`, or `error=access_denied`); `400` when every scope was unticked; `404` as above. CSRF rules apply |
+| `GET /api/v1/oauth/apps` | | `200 { apps: [{ id, clientId, clientKind, clientName, redirectHost, scopes, createdAt, lastUsedAt, expiresAt }] }`: usable grants, newest first |
+| `DELETE /api/v1/oauth/apps/:id` | | `204`: revokes the grant and every token under it; `404` if unknown |
+
+`ppto_` access tokens are never accepted by the panel API (`401`).
+
+### `POST /api/v1/auth/password` (owner session)
+Body `{ currentPassword, newPassword, disconnectApps?: boolean }`. `200 { disconnectedApps: n }` and a fresh session
+cookie; every other session is signed out; with `disconnectApps` every OAuth grant is revoked. `401` for a wrong
+current password (rate limited like sign-in), `400` for a weak new one. The CLI `pptaken reset-password` always
+disconnects every application.
+<!-- END oauth (ADR-0018) -->
