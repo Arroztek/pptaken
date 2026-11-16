@@ -21,6 +21,11 @@ export interface ServerConfig {
   version: string;
   /** Public origin, e.g. `https://slides.example.com` (no path, no trailing slash); null: derived per request. */
   publicUrl: string | null;
+  /**
+   * Issuer of the built-in OAuth authorization server (ADR-0018): exactly PPTAKEN_PUBLIC_URL when it is https, or
+   * http on a loopback host (development). Null otherwise: OAuth is off (no metadata, no endpoints), API tokens only.
+   */
+  oauthIssuer: string | null;
   /** Optional separate, cookie-less origin for `/c/*` (deck documents, assets, fonts). */
   contentUrl: string | null;
   host: string;
@@ -108,6 +113,17 @@ function bool(name: string, value: string | undefined): boolean {
   throw new ConfigError(`${name} must be true or false (got "${value}")`);
 }
 
+/** The OAuth issuer for a public URL (see {@link ServerConfig.oauthIssuer}). */
+export function oauthIssuerOf(publicUrl: string | null): string | null {
+  if (publicUrl === null) return null;
+  const url = new URL(publicUrl);
+  if (url.protocol === "https:") return publicUrl;
+  const host = url.hostname.toLowerCase();
+  const loopback =
+    host === "localhost" || host.endsWith(".localhost") || host === "127.0.0.1" || host === "[::1]";
+  return loopback ? publicUrl : null;
+}
+
 /** Reads and validates the configuration. Throws {@link ConfigError} with a message naming the variable. */
 export function loadConfig(env: Record<string, string | undefined> = process.env): ServerConfig {
   const publicUrl = env.PPTAKEN_PUBLIC_URL
@@ -141,6 +157,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   return {
     version: packageVersion(),
     publicUrl,
+    oauthIssuer: oauthIssuerOf(publicUrl),
     contentUrl,
     host: env.PPTAKEN_HOST || "0.0.0.0",
     port: int("PPTAKEN_PORT", env.PPTAKEN_PORT, 8080, 0, 65535),

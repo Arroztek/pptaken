@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { serve } from "@hono/node-server";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
-import { createServer, type PPTakenServer } from "../src/app.js";
+import { type CreateServerOptions, createServer, type PPTakenServer } from "../src/app.js";
 import { loadConfig } from "../src/config.js";
 
 declare global {
@@ -39,7 +39,10 @@ export interface Harness {
   cleanup(): Promise<void>;
 }
 
-export async function makeHarness(env: Record<string, string> = {}): Promise<Harness> {
+export async function makeHarness(
+  env: Record<string, string> = {},
+  serverOptions: Partial<CreateServerOptions> = {},
+): Promise<Harness> {
   const dataDir = mkdtempSync(join(tmpdir(), "pptaken-server-"));
   const logs: string[] = [];
   const clock = new TestClock();
@@ -52,6 +55,8 @@ export async function makeHarness(env: Record<string, string> = {}): Promise<Har
     logSink: (line) => logs.push(line),
     clock,
     scrypt: { ln: 10, r: 8, p: 1 },
+    cleanupIntervalMs: 0,
+    ...serverOptions,
   });
   return {
     server,
@@ -111,24 +116,34 @@ export async function createToken(
   return (await res.json()) as { token: { id: string; scopes: string[] }; secret: string };
 }
 
-/** Listens on a random local port. */
+/** A free local TCP port (to configure PPTAKEN_PUBLIC_URL before the server listens). */
+export async function freePort(): Promise<number> {
+  const { createServer: createNetServer } = await import("node:net");
+  return new Promise((resolve) => {
+    const s = createNetServer();
+    s.listen(0, "127.0.0.1", () => {
+      const { port } = s.address() as AddressInfo;
+      s.close(() => resolve(port));
+    });
+  });
+}
+
+/** Listens on a random local port (or on `port`). */
 export async function listen(
   server: PPTakenServer,
+  port = 0,
 ): Promise<{ base: string; close: () => Promise<void> }> {
   return new Promise((resolve) => {
-    const s = serve(
-      { fetch: server.fetch, port: 0, hostname: "127.0.0.1" },
-      (info: AddressInfo) => {
-        resolve({
-          base: `http://127.0.0.1:${info.port}`,
-          close: () =>
-            new Promise<void>((done) => {
-              (s as unknown as { closeAllConnections?: () => void }).closeAllConnections?.();
-              s.close(() => done());
-            }),
-        });
-      },
-    );
+    const s = serve({ fetch: server.fetch, port, hostname: "127.0.0.1" }, (info: AddressInfo) => {
+      resolve({
+        base: `http://127.0.0.1:${info.port}`,
+        close: () =>
+          new Promise<void>((done) => {
+            (s as unknown as { closeAllConnections?: () => void }).closeAllConnections?.();
+            s.close(() => done());
+          }),
+      });
+    });
   });
 }
 

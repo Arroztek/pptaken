@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// POST /mcp: Streamable HTTP, stateless (one McpServer per request), API tokens in `Authorization: Bearer` only.
+// POST /mcp: Streamable HTTP, stateless (one McpServer per request). Credentials only in `Authorization: Bearer`:
+// API tokens (`ppt_`) or, when the built-in authorization server is on, OAuth access tokens (`ppto_`, ADR-0018)
+// issued for exactly this resource.
 // The SDK's createMcpHandler serves the 2026-07-28 per-request protocol and falls back to stateless 2025-era
 // serving for older clients.
 import { type AuthInfo, createMcpHandler } from "@modelcontextprotocol/server";
@@ -60,20 +62,23 @@ export function mcpRoutes(s: Services): Hono<AppEnv> {
     },
   );
 
-  const unauthenticated = (resourceMetadata: string, error: "invalid_request" | "invalid_token") =>
+  // RFC 6750 §3: no error code when the request carried no credentials; invalid_token when it did.
+  const unauthenticated = (resourceMetadata: string, tokenPresented: boolean) =>
     new Response(
       JSON.stringify({
         error: {
           code: "UNAUTHENTICATED",
-          message: "A valid API token is required",
-          hint: "Send Authorization: Bearer ppt_… with a token created in the PPTaken panel.",
+          message: "A valid access token is required",
+          hint: s.oauth.enabled
+            ? "Connect through your MCP client's sign-in (OAuth), or send Authorization: Bearer ppt_… with a token created in the PPTaken panel."
+            : "Send Authorization: Bearer ppt_… with a token created in the PPTaken panel.",
         },
       }),
       {
         status: 401,
         headers: {
           "Content-Type": "application/json; charset=utf-8",
-          "WWW-Authenticate": `Bearer realm="pptaken", error="${error}", resource_metadata="${resourceMetadata}"`,
+          "WWW-Authenticate": `Bearer realm="pptaken", resource_metadata="${resourceMetadata}", scope="${MCP_SCOPES.join(" ")}"${tokenPresented ? ', error="invalid_token"' : ""}`,
         },
       },
     );
@@ -88,7 +93,12 @@ export function mcpRoutes(s: Services): Hono<AppEnv> {
     }
     const authorization = c.req.header("authorization");
     const auth =
-      authorization === undefined ? null : await s.auth.authenticateBearer(authorization);
+      authorization === undefined
+        ? null
+        : await s.auth.authenticateBearer(
+            authorization,
+            s.oauth.resource === null ? {} : { resource: s.oauth.resource },
+          );
     if (auth === null || auth.kind !== "token") {
       const rl = s.limits.mcpAuthFailuresPerIp.take(ip);
       if (!rl.ok) {
@@ -98,7 +108,7 @@ export function mcpRoutes(s: Services): Hono<AppEnv> {
       }
       return unauthenticated(
         `${base}/.well-known/oauth-protected-resource/mcp`,
-        authorization === undefined ? "invalid_request" : "invalid_token",
+        authorization !== undefined,
       );
     }
     const tokenId = auth.token.id;
@@ -168,15 +178,4 @@ async function clientInfoOfInitialize(request: Request, length: number): Promise
   } catch {
     return null;
   }
-}
-
-/** RFC 9728 metadata of the MCP resource (no authorization server until the OAuth phase). */
-export function protectedResourceMetadata(base: string) {
-  return {
-    resource: `${base}/mcp`,
-    bearer_methods_supported: ["header"],
-    scopes_supported: MCP_SCOPES,
-    resource_name: "PPTaken",
-    resource_documentation: `${base}/welcome`,
-  };
 }

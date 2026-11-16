@@ -230,7 +230,7 @@ describe("T3 tokens on /mcp", () => {
     const none = await mcpPost(live.base, {});
     expect(none.status).toBe(401);
     expect(none.headers.get("www-authenticate")).toBe(
-      `Bearer realm="pptaken", error="invalid_request", resource_metadata="${live.base}/.well-known/oauth-protected-resource/mcp"`,
+      `Bearer realm="pptaken", resource_metadata="${live.base}/.well-known/oauth-protected-resource/mcp", scope="decks:read decks:write quiz:draft"`,
     );
     const meta = await (
       await fetch(`${live.base}/.well-known/oauth-protected-resource/mcp`)

@@ -5,9 +5,18 @@ import { cpSync, existsSync, mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { Writable } from "node:stream";
-import { AuthError, createLocalAuth, loadOrCreateSecretKey } from "@pptaken/auth-local";
+import {
+  AuthError,
+  createLocalAuth,
+  createOAuthService,
+  loadOrCreateSecretKey,
+} from "@pptaken/auth-local";
 import { createUlidGenerator } from "@pptaken/core";
-import { createSqliteAuthStore, openSqliteStorage } from "@pptaken/storage-sqlite";
+import {
+  createSqliteAuthStore,
+  createSqliteOAuthStore,
+  openSqliteStorage,
+} from "@pptaken/storage-sqlite";
 import type { ServerConfig } from "./config.js";
 
 /** Reads one line from stdin; on a terminal the typed characters are not echoed. */
@@ -56,13 +65,20 @@ export async function resetPassword(config: ServerConfig): Promise<number> {
   });
   const storage = openSqliteStorage({ filename: db });
   try {
+    const ids = createUlidGenerator((n) => new Uint8Array(randomBytes(n)));
+    // A reset always disconnects every OAuth application too (ADR-0018): whoever needed a reset may have lost
+    // control of the account. The issuer is irrelevant for revocation.
+    const oauth = createOAuthService({ store: createSqliteOAuthStore(storage), ids, issuer: null });
     const auth = createLocalAuth({
       store: createSqliteAuthStore(storage),
       secret: secret.key,
-      ids: createUlidGenerator((n) => new Uint8Array(randomBytes(n))),
+      ids,
+      oauth,
     });
-    await auth.resetPassword(password);
-    process.stderr.write("Password changed. Every session was signed out.\n");
+    const disconnected = await auth.resetPassword(password);
+    process.stderr.write(
+      `Password changed. Every session was signed out and ${disconnected} connected application(s) were disconnected.\n`,
+    );
     return 0;
   } catch (error) {
     if (error instanceof AuthError) {

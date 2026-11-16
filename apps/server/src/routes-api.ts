@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // The panel API, phase F2 (docs/spec/http-api.md). JSON only; every state-changing request passes the CSRF check;
 // every input goes through Zod before it reaches the auth layer or the core.
-import { AuthError, checkCsrf, signToken, type TokenView } from "@pptaken/auth-local";
+import {
+  AuthError,
+  type ConnectedApp,
+  checkCsrf,
+  OAuthProtocolError,
+  signToken,
+  type TokenView,
+} from "@pptaken/auth-local";
 import { DEFAULT_WORKSPACE_ID, isDomainError, ownerPrincipal } from "@pptaken/core";
 import type { Context } from "hono";
 import { Hono } from "hono";
@@ -25,6 +32,15 @@ const iso = (ms: number | null) => (ms === null ? null : new Date(ms).toISOStrin
 
 const setupBody = z.object({ installCode: z.string().max(64), password: z.string().max(4096) });
 const loginBody = z.object({ password: z.string().max(4096) });
+const passwordBody = z.object({
+  currentPassword: z.string().max(4096),
+  newPassword: z.string().max(4096),
+  disconnectApps: z.boolean().optional(),
+});
+const decisionBody = z.object({
+  decision: z.enum(["approve", "deny"]),
+  scopes: z.array(z.string().max(40)).max(10).optional(),
+});
 const tokenBody = z.object({
   name: z.string().max(200),
   scopes: z.array(z.string().max(40)).max(10).optional(),
@@ -40,6 +56,20 @@ function tokenJson(t: TokenView) {
     expiresAt: iso(t.expiresAt),
     lastUsedAt: iso(t.lastUsedAt),
     revokedAt: iso(t.revokedAt),
+  };
+}
+
+function appJson(a: ConnectedApp) {
+  return {
+    id: a.id,
+    clientId: a.clientId,
+    clientKind: a.clientKind,
+    clientName: a.clientName,
+    redirectHost: a.redirectHost,
+    scopes: a.scopes,
+    createdAt: iso(a.createdAt),
+    lastUsedAt: iso(a.lastUsedAt),
+    expiresAt: iso(a.expiresAt),
   };
 }
 
@@ -200,6 +230,97 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
     const session = await ownerSession(c, s);
     if (session === null) return apiError(c, "UNAUTHENTICATED", "Sign in first");
     return c.json({ owner: { id: session.ownerId }, csrf: "1" });
+  });
+
+  api.post("/auth/password", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    const ip = c.get("ip");
+    const gate = s.limits.signIn.check(ip);
+    if (!gate.ok) {
+      return apiError(c, "RATE_LIMITED", "Too many attempts", {
+        retryAfterSec: retryAfter(gate.retryAfterMs),
+      });
+    }
+    const input = await body(c, passwordBody);
+    if (input instanceof Response) return input;
+    try {
+      const { sessionId, disconnected } = await s.auth.changePassword({
+        currentPassword: input.currentPassword,
+        newPassword: input.newPassword,
+        disconnectApps: input.disconnectApps === true,
+      });
+      s.limits.signIn.succeed(ip);
+      setSessionCookie(c, s, sessionId);
+      s.logger.info("owner password changed", { disconnected, requestId: c.get("requestId") });
+      return c.json({ disconnectedApps: disconnected });
+    } catch (error) {
+      if (error instanceof AuthError) {
+        if (error.code === "UNAUTHENTICATED") s.limits.signIn.fail(ip);
+        return authErrorResponse(c, error);
+      }
+      throw error;
+    }
+  });
+
+  // -------------------------------------------------------------------------------------------------------------
+  // OAuth consent and connected applications (ADR-0018). Consent needs a live owner session and the CSRF check
+  // above; it is never automatic.
+
+  api.get("/oauth/requests/:id", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    const view = s.oauth.enabled ? s.oauth.pendingRequest(c.req.param("id")) : null;
+    if (view === null)
+      return apiError(c, "NOT_FOUND", "This connection request expired or was already answered");
+    c.header("Cache-Control", "no-store");
+    return c.json({ ...view, expiresAt: iso(view.expiresAt) });
+  });
+
+  api.post("/oauth/requests/:id", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    const input = await body(c, decisionBody);
+    if (input instanceof Response) return input;
+    if (!s.oauth.enabled) return apiError(c, "NOT_FOUND", "OAuth is not enabled");
+    try {
+      const { redirectUrl } = await s.oauth.decide(c.req.param("id"), {
+        approve: input.decision === "approve",
+        scopes: input.scopes,
+      });
+      s.logger.info("oauth request answered", {
+        decision: input.decision,
+        requestId: c.get("requestId"),
+      });
+      c.header("Cache-Control", "no-store");
+      return c.json({ redirectUrl });
+    } catch (error) {
+      if (error instanceof OAuthProtocolError) {
+        return error.code === "not_found"
+          ? apiError(c, "NOT_FOUND", error.description)
+          : apiError(c, "VALIDATION_ERROR", error.description);
+      }
+      throw error;
+    }
+  });
+
+  api.get("/oauth/apps", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    return c.json({ apps: (await s.oauth.connectedApps()).map(appJson) });
+  });
+
+  api.delete("/oauth/apps/:id", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    if (!(await s.oauth.revokeGrant(c.req.param("id")))) {
+      return apiError(c, "NOT_FOUND", "No connected application has this id");
+    }
+    s.logger.info("oauth grant revoked", {
+      grantId: c.req.param("id"),
+      requestId: c.get("requestId"),
+    });
+    return c.body(null, 204);
   });
 
   // -------------------------------------------------------------------------------------------------------------

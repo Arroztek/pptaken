@@ -6,6 +6,7 @@ import { chmodSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import {
   createLocalAuth,
+  createOAuthService,
   deriveKey,
   loadOrCreateSecretKey,
   type ScryptParams,
@@ -18,6 +19,7 @@ import { RealtimeHub } from "@pptaken/realtime";
 import {
   createSqliteAuthStore,
   createSqliteLiveStore,
+  createSqliteOAuthStore,
   openSqliteStorage,
 } from "@pptaken/storage-sqlite";
 import { Hono } from "hono";
@@ -42,9 +44,11 @@ import { apiRoutes } from "./routes-api.js";
 import { contentRoutes, playerRoutes } from "./routes-content.js";
 import { exportRoutes } from "./routes-export.js";
 import { liveRoutes } from "./routes-live.js";
-import { mcpRoutes, protectedResourceMetadata } from "./routes-mcp.js";
+import { mcpRoutes } from "./routes-mcp.js";
+import { isOAuthPopupPath, OAUTH_MAX_BODY_BYTES, oauthRoutes } from "./routes-oauth.js";
 import { presenterRoutes } from "./routes-present.js";
 import { remotePageRoutes } from "./routes-remote.js";
+import { type CimdFetcherOverride, fetchClientMetadataDocument } from "./safe-fetch.js";
 import { WebApp } from "./static.js";
 
 export interface CreateServerOptions {
@@ -55,6 +59,10 @@ export interface CreateServerOptions {
   scrypt?: ScryptParams;
   /** Remote address of a request (set by the Node adapter in main.ts). */
   socketIp?: (raw: Request, env: unknown) => string | undefined;
+  /** Replaces the SSRF-safe CIMD fetcher (tests serve metadata documents without the network). */
+  fetchClientMetadata?: CimdFetcherOverride;
+  /** Interval of the OAuth clean-up job (default 10 minutes; 0 disables it). */
+  cleanupIntervalMs?: number;
 }
 
 /** A Node HTTP server whose `upgrade` events the realtime endpoint (`/ws`) handles. */
@@ -120,8 +128,24 @@ export async function createServer(
     ids,
     config: config.defaultLang === undefined ? {} : { defaultLang: config.defaultLang },
   });
+  const oauth = createOAuthService({
+    store: createSqliteOAuthStore(storage),
+    ids,
+    clock,
+    issuer: config.oauthIssuer,
+    fetchClientMetadata: options.fetchClientMetadata ?? ((url) => fetchClientMetadataDocument(url)),
+  });
+  if (config.publicUrl !== null && config.oauthIssuer === null) {
+    logger.warn(
+      "OAuth sign-in is off: PPTAKEN_PUBLIC_URL must be https for claude.ai and Claude Desktop",
+      {
+        publicUrl: config.publicUrl,
+      },
+    );
+  }
   const auth = createLocalAuth({
     store: createSqliteAuthStore(storage),
+    oauth,
     secret: secret.key,
     ids,
     clock,
@@ -147,6 +171,7 @@ export async function createServer(
     config,
     core,
     auth,
+    oauth,
     storage,
     logger,
     clock,
@@ -185,6 +210,13 @@ export async function createServer(
         capacity: 20,
         refill: 20,
         intervalMs: minute,
+        clock,
+      }),
+      oauthPerIp: new TokenBucketLimiter({ capacity: 60, refill: 60, intervalMs: minute, clock }),
+      dcrPerIp: new TokenBucketLimiter({
+        capacity: 10,
+        refill: 10,
+        intervalMs: 60 * minute,
         clock,
       }),
       pairPerIp: new TokenBucketLimiter({ capacity: 10, refill: 10, intervalMs: minute, clock }),
@@ -240,7 +272,13 @@ export async function createServer(
     if (isHttps(c, config)) setDefault("Strict-Transport-Security", "max-age=31536000");
     if (c.req.path.startsWith("/c/")) return; // the content route sets its own (CSP sandbox, frame-ancestors)
     setDefault("Permissions-Policy", PERMISSIONS_POLICY);
-    setDefault("Cross-Origin-Opener-Policy", "same-origin");
+    // Pages an OAuth sign-in window passes through (authorize, sign-in, consent) must not cut the window's link to
+    // the client page that opened it (a web client such as claude.ai may wait on window.opener); clickjacking is
+    // still prevented by frame-ancestors 'none' and X-Frame-Options.
+    setDefault(
+      "Cross-Origin-Opener-Policy",
+      isOAuthPopupPath(c.req.path) ? "unsafe-none" : "same-origin",
+    );
     setDefault("Cross-Origin-Resource-Policy", "same-origin");
     setDefault("X-Frame-Options", "DENY");
     const type = headers.get("content-type") ?? "";
@@ -281,6 +319,17 @@ export async function createServer(
     apiError(c, "VALIDATION_ERROR", "Request body too large", { status: 413 });
   app.use("/api/*", bodyLimit({ maxSize: config.maxApiBodyBytes, onError: tooLarge }));
   app.use("/mcp", bodyLimit({ maxSize: config.maxMcpBodyBytes, onError: tooLarge }));
+  app.use(
+    "/oauth/*",
+    bodyLimit({
+      maxSize: OAUTH_MAX_BODY_BYTES,
+      onError: () =>
+        new Response(
+          JSON.stringify({ error: "invalid_request", error_description: "Request body too large" }),
+          { status: 413, headers: { "Content-Type": "application/json; charset=utf-8" } },
+        ),
+    }),
+  );
 
   // Operations.
   app.get("/healthz", (c) => c.json({ status: "ok" }));
@@ -296,13 +345,8 @@ export async function createServer(
     }
   });
 
-  // RFC 9728 metadata for the MCP resource (the 401 points here).
-  app.get("/.well-known/oauth-protected-resource", (c) =>
-    c.json(protectedResourceMetadata(publicOrigin(c, config))),
-  );
-  app.get("/.well-known/oauth-protected-resource/mcp", (c) =>
-    c.json(protectedResourceMetadata(publicOrigin(c, config))),
-  );
+  // RFC 9728 resource metadata (the 401 points here) and the OAuth authorization server (ADR-0018).
+  app.route("/", oauthRoutes(services));
 
   app.route("/", presenterRoutes(services)); // before the API router's catch-all
   app.route("/", liveRoutes(services));
@@ -352,6 +396,21 @@ export async function createServer(
     return c.text("Internal error", 500);
   });
 
+  // Periodic clean-up of expired OAuth codes, tokens, pending requests, dead grants and unused clients.
+  const cleanupEvery = options.cleanupIntervalMs ?? 10 * minute;
+  const cleanup =
+    cleanupEvery > 0
+      ? setInterval(() => {
+          oauth.cleanup().then(
+            (r) => {
+              if (r.rows + r.grants + r.clients > 0) logger.debug("oauth clean-up", { ...r });
+            },
+            (error: unknown) => logger.warn("oauth clean-up failed", { error: String(error) }),
+          );
+        }, cleanupEvery)
+      : null;
+  cleanup?.unref();
+
   const realtime = createRealtime(services);
   return {
     app,
@@ -362,6 +421,7 @@ export async function createServer(
     attach: (server) => realtime.attach(server),
     async close() {
       closing = true;
+      if (cleanup !== null) clearInterval(cleanup);
       realtime.close();
       await storage.close();
     },
