@@ -71,7 +71,7 @@ describe("writeArchive / readArchive", () => {
       generator: "pptaken 0.2.0",
       exportedAt: new Date(Date.UTC(2026, 10, 15)),
     });
-    expect(written.filename).toBe("unicode-talk-1-2.pptaken");
+    expect(written.filename).toBe("unicode-talk-1-2.pkn");
     expect(written.manifest).toEqual({
       format: "pptaken.archive",
       formatVersion: 1,

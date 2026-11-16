@@ -147,7 +147,11 @@ async function start() {
     data,
     locale,
     sync: syncChannelName(id) ?? undefined,
-    onChange: (s) => { body.dataset.slide = String(s.slide); body.dataset.step = String(s.step); body.dataset.running = String(s.running); body.dataset.elapsed = String(Math.floor(s.elapsedMs / 1000)); },
+    // The page is owner-only and the deck came from the network with the owner session: link back to the panel.
+    // An offline copy proves no session, so no link there.
+    panelUrl: source.fromCopy ? undefined : "/decks",
+    onFinish: () => { body.dataset.finished = "true"; },
+    onChange: (s) => { body.dataset.slide = String(s.slide); body.dataset.step = String(s.step); body.dataset.end = String(s.atEnd); body.dataset.running = String(s.running); body.dataset.elapsed = String(Math.floor(s.elapsedMs / 1000)); },
     onOffline: (o) => { body.dataset.offline = o.state; },
   });
   if (source.fromCopy) presenter.setOfflineCopy(true);

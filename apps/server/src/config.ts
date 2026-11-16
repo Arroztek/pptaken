@@ -47,7 +47,7 @@ export interface ServerConfig {
   secretKeyFile: string | undefined;
   maxApiBodyBytes: number;
   maxMcpBodyBytes: number;
-  /** Largest `.pptaken` archive accepted by `POST /api/v1/decks/import` (PPTAKEN_MAX_IMPORT_MB, default 100). */
+  /** Largest `.pkn` archive accepted by `POST /api/v1/decks/import` (PPTAKEN_MAX_IMPORT_MB, default 100). */
   maxImportBytes: number;
   logLevel: "debug" | "info" | "warn" | "error";
 }

@@ -1,6 +1,6 @@
 # @pptaken/export
 
-Portability of presentations (phase F3): the **single-file HTML export** and the **`.pptaken` archive** (export and
+Portability of presentations (phase F3): the **single-file HTML export** and the **`.pkn` archive** (export and
 import), on top of a minimal ZIP writer and a hardened ZIP reader. Node only (uses `node:zlib` and `node:crypto`);
 no runtime dependency outside the workspace. License: AGPL-3.0-or-later.
 
@@ -45,7 +45,7 @@ pnpm --filter @pptaken/export test:browser   # builds, then opens exported files
 - Escaping: the srcdoc value escapes `&` and `"`; the shell configuration is JSON with `<`, `>`, `&`, U+2028 and
   U+2029 escaped; titles go through `escapeHtml`. Tested with hostile titles and content.
 
-## The `.pptaken` archive (format version 1)
+## The `.pkn` archive (format version 1)
 
 `manifest.json` (`format`, `formatVersion`, `exportedAt`, `generator`, `deck {title, lang}`, `notes`, `assets[]`),
 `deck.json` (the stored envelope) and `assets/<sha256>`. The reader refuses: not-a-ZIP, ZIP64, spanned or encrypted

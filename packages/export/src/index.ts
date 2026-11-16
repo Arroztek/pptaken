@@ -2,7 +2,7 @@
 // @pptaken/export: portability of presentations (phase F3).
 //
 // - `exportHtml`: one self-contained `.html` file that opens from `file://` without a server or a network.
-// - `writeArchive` / `readArchive`: the `.pptaken` archive (ZIP with manifest.json, deck.json, assets/<sha256>).
+// - `writeArchive` / `readArchive`: the `.pkn` archive (ZIP with manifest.json, deck.json, assets/<sha256>).
 // - `writeZip` / `readZip`: the minimal ZIP writer and the hardened reader they are built on (Node zlib only).
 //
 // This package does no storage I/O and does not import the core: the server composes it with the core's

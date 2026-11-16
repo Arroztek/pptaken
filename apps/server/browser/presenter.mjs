@@ -46,5 +46,47 @@ export async function checkPresenter({ page, context, content, notesOf, checks }
     }
   }
   checks.push("notes absent from the content documents");
-  await popup.close();
+
+  // Back to panel: the owner's presenter view links to /decks in a new tab, without an opener.
+  const link = await popup.evaluate(() => {
+    const a = document.querySelector("a[data-pptaken-panel-link]");
+    return a
+      ? { href: a.getAttribute("href"), target: a.target, rel: a.rel, text: a.textContent }
+      : null;
+  });
+  if (
+    !link ||
+    new URL(link.href, popup.url()).pathname !== "/decks" ||
+    link.target !== "_blank" ||
+    !link.rel.split(" ").includes("noopener")
+  )
+    throw new Error(`back to panel link: ${JSON.stringify(link)}`);
+  if (await page.locator("a[data-pptaken-panel-link]").count())
+    throw new Error("the audience view has a panel link");
+  checks.push("Back to panel link in the presenter view (new tab, noopener)");
+
+  // End of the talk: the cue shows in the presenter view only, then Esc finishes (black, window closed).
+  const cueShown = (p) =>
+    p.evaluate(() => {
+      const el = document.querySelector("[data-pptaken-end-cue]");
+      return el !== null && !el.hidden && el.offsetParent !== null;
+    });
+  if (await cueShown(popup)) throw new Error("end cue shown before the end");
+  await popup.keyboard.press("End");
+  await popup.waitForSelector('body[data-end="true"]', { timeout: 5000 });
+  await converge();
+  if (!(await cueShown(popup))) throw new Error("end cue missing at the last slide");
+  for (const f of page.frames()) {
+    const html = await f.evaluate(() => document.documentElement.outerHTML).catch(() => "");
+    if (html.includes("pptaken-end-cue") || html.includes("End of presentation"))
+      throw new Error("end cue on the audience view");
+  }
+  checks.push("end cue in the presenter view, absent from the audience view");
+
+  await Promise.all([
+    popup.waitForEvent("close", { timeout: 5000 }),
+    popup.keyboard.press("Escape"),
+  ]);
+  await page.waitForSelector('body[data-black="true"]', { timeout: 5000 });
+  checks.push("Esc at the end closes the presenter and blacks the audience screen");
 }

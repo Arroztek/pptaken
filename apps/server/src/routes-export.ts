@@ -3,7 +3,7 @@
 // tools: the core refuses any other actor, and these routes only accept the panel session cookie.
 //
 //   GET  /api/v1/decks/:id/export?format=html|pptaken&notes=0|1&revision=   -> file download
-//   POST /api/v1/decks/import   (body: the raw .pptaken archive, Content-Type: application/zip) -> 201
+//   POST /api/v1/decks/import   (body: the raw .pkn archive, Content-Type: application/zip) -> 201
 //
 // This router is registered BEFORE the global /api body limit (64 KB by default) because an archive is larger:
 // it applies its own limit (PPTAKEN_MAX_IMPORT_MB), its own CSRF check and rate limits, and its middleware is
@@ -234,7 +234,7 @@ export function exportRoutes(s: Services): Hono<AppEnv> {
       if (denied) return denied;
       const type = c.req.header("content-type")?.split(";")[0]?.trim().toLowerCase();
       if (type !== "application/zip") {
-        return apiError(c, "VALIDATION_ERROR", "The request body must be a .pptaken archive", {
+        return apiError(c, "VALIDATION_ERROR", "The request body must be a .pkn archive", {
           hint: "Send the file as the raw request body with Content-Type: application/zip.",
         });
       }
@@ -269,7 +269,7 @@ export function exportRoutes(s: Services): Hono<AppEnv> {
       } catch (error) {
         if (error instanceof ArchiveError) {
           s.logger.info("import refused", { requestId: c.get("requestId"), code: error.code });
-          return apiError(c, "VALIDATION_ERROR", `Not a valid .pptaken archive: ${error.message}`, {
+          return apiError(c, "VALIDATION_ERROR", `Not a valid .pkn archive: ${error.message}`, {
             hint: "Export the presentation again from PPTaken and import the unmodified file.",
           });
         }

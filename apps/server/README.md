@@ -23,8 +23,8 @@ pnpm --filter @pptaken/server test:remote                # Playwright: remote co
 | `POST/GET /api/v1/tokens`, `DELETE /api/v1/tokens/:id` | owner session | secret shown once |
 | `GET /api/v1/connect/status` | owner session | flips after the first authenticated MCP request |
 | `GET /api/v1/decks`, `GET /api/v1/decks/:id`, `GET /api/v1/decks/:id/content-url` | owner session | read-only in F2 |
-| `GET /api/v1/decks/:id/export?format=…&notes=…&revision=` | owner session | file download (`routes-export.ts`): single HTML file or `.pptaken` archive; notes off for HTML, on for the archive by default |
-| `POST /api/v1/decks/import` | owner session + CSRF | raw `.pptaken` body (`application/zip`), own size limit, 10 imports / 10 min / IP; creates a new presentation |
+| `GET /api/v1/decks/:id/export?format=…&notes=…&revision=` | owner session | file download (`routes-export.ts`): single HTML file or `.pkn` archive; notes off for HTML, on for the archive by default |
+| `POST /api/v1/decks/import` | owner session + CSRF | raw `.pkn` body (`application/zip`), own size limit, 10 imports / 10 min / IP; creates a new presentation |
 | `POST /mcp` | `Authorization: Bearer ppt_…` | Streamable HTTP, stateless (SDK `createMcpHandler`: 2026-07-28 per-request protocol plus stateless 2025-era fallback) |
 | `GET /.well-known/oauth-protected-resource[/mcp]` | public | RFC 9728 metadata, referenced by the `401` `WWW-Authenticate` header |
 | `/api/v1/live…`, `POST /api/v1/remote/pair`, `GET /api/v1/remote/deck` | owner session + CSRF / pairing secret / device credential | remote control (`routes-live.ts`, F4, ADR-017): live sessions, screen tickets, pairing, approval, kick; deck data for an approved phone |
@@ -52,7 +52,7 @@ pnpm --filter @pptaken/server test:remote                # Playwright: remote co
 | `PPTAKEN_SECRET_KEY` / `PPTAKEN_SECRET_KEY_FILE` | none | inject the 256-bit secret (hex or base64) instead of `secret.key` |
 | `PPTAKEN_LANG` | none | default deck language |
 | `PPTAKEN_MAX_API_BODY_KB` / `PPTAKEN_MAX_MCP_BODY_MB` | `64` / `4` | enforced while reading, before parsing |
-| `PPTAKEN_MAX_IMPORT_MB` | `100` | largest `.pptaken` archive for `POST /api/v1/decks/import` (1–1024), checked from `Content-Length` and while reading |
+| `PPTAKEN_MAX_IMPORT_MB` | `100` | largest `.pkn` archive for `POST /api/v1/decks/import` (1–1024), checked from `Content-Length` and while reading |
 | `PPTAKEN_LOG_LEVEL` | `info` | |
 
 Invalid values stop the server with `Configuration error: <variable> …` (exit code 2).

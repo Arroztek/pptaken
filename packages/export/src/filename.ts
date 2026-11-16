@@ -38,7 +38,7 @@ export function unicodeStem(title: string, max = 80): string {
   return stem === "" || WINDOWS_RESERVED.test(stem) ? slugify(title) : stem;
 }
 
-/** ASCII and Unicode file names for a deck title and an extension such as `.html` or `.pptaken`. */
+/** ASCII and Unicode file names for a deck title and an extension such as `.html` or `.pkn`. */
 export function exportFilenames(
   title: string,
   extension: string,

@@ -2,7 +2,7 @@
 // Portability (phase F3): export a presentation as data (deck + asset bytes) and import one as a NEW presentation.
 // Both are human-only (owner session) actions, never agent tools: an export can carry speaker notes out of the
 // instance, and an import writes a whole deck at once. The core does no I/O and knows nothing about file formats:
-// the server turns the export into an HTML file or a `.pptaken` archive (`@pptaken/export`) and reads archives
+// the server turns the export into an HTML file or a `.pkn` archive (`@pptaken/export`) and reads archives
 // back into the plain input of `importPresentation`.
 //
 // Imported content is untrusted, whatever produced it: the deck is validated with `parseDeck`, sanitized again and
@@ -44,7 +44,7 @@ export interface ExportPresentationInput {
   presentationId: string;
   /** Export an older revision instead of the current one. */
   revision?: number;
-  /** Keep the speaker notes. Default `false`: callers opt in (the `.pptaken` backup does, the HTML export not). */
+  /** Keep the speaker notes. Default `false`: callers opt in (the `.pkn` backup does, the HTML export not). */
   includeNotes?: boolean;
 }
 

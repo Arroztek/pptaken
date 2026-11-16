@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// The `.pptaken` archive: a ZIP with `manifest.json`, `deck.json` (the stored, sanitized `pptaken.deck`
+// The `.pkn` archive: a ZIP with `manifest.json`, `deck.json` (the stored, sanitized `pptaken.deck`
 // envelope) and `assets/<sha256>` (raw asset bytes, named by their SHA-256). Used to back up a presentation or to
 // move it between instances. The reader only checks the container (structure, sizes, hashes); the deck and the
 // assets are still untrusted and must go through the core's import (validation, sanitizing, type sniffing).
@@ -12,7 +12,7 @@ import { readZip, writeZip, ZipError, type ZipErrorCode } from "./zip.js";
 
 export const ARCHIVE_FORMAT = "pptaken.archive";
 export const ARCHIVE_FORMAT_VERSION = 1;
-export const ARCHIVE_EXTENSION = ".pptaken";
+export const ARCHIVE_EXTENSION = ".pkn";
 /** Media type of the archive on the wire (it is a plain ZIP). */
 export const ARCHIVE_MEDIA_TYPE = "application/zip";
 
@@ -117,12 +117,12 @@ export interface WriteArchiveInput {
 
 export interface WrittenArchive {
   bytes: Uint8Array;
-  /** ASCII file name (`<slug>.pptaken`). */
+  /** ASCII file name (`<slug>.pkn`). */
   filename: string;
   manifest: ArchiveManifest;
 }
 
-/** Writes a `.pptaken` archive. Throws a `TypeError` when an asset's bytes do not match its `sha256`. */
+/** Writes a `.pkn` archive. Throws a `TypeError` when an asset's bytes do not match its `sha256`. */
 export function writeArchive(input: WriteArchiveInput): WrittenArchive {
   const includeNotes = input.includeNotes !== false;
   const deck = includeNotes ? input.deck : withoutNotes(input.deck);
@@ -302,7 +302,7 @@ function acceptName(name: string): boolean {
 }
 
 /**
- * Reads and checks a `.pptaken` archive: ZIP safety (see `readZip`), the allow-listed layout, the manifest, that
+ * Reads and checks a `.pkn` archive: ZIP safety (see `readZip`), the allow-listed layout, the manifest, that
  * every listed asset is present with the declared size and SHA-256 (and nothing else is), and that `deck.json`
  * is JSON. Throws {@link ArchiveError}.
  */

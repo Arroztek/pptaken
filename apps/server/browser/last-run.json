@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-11-15T21:41:31.486Z",
+  "startedAt": "2026-11-16T03:05:27.092Z",
   "engines": {
     "chromium": {
       "ok": true,
@@ -13,6 +13,9 @@
         "main window follows the presenter (1/2)",
         "notes shown in the presenter",
         "notes absent from the content documents",
+        "Back to panel link in the presenter view (new tab, noopener)",
+        "end cue in the presenter view, absent from the audience view",
+        "Esc at the end closes the presenter and blacks the audience screen",
         "ready offline: service-worker (1 images, 6 fonts), copy true",
         "player page CSP allows only the runtime hash and data: fonts in addition",
         "presenter ready offline: service-worker",
@@ -51,6 +54,9 @@
         "main window follows the presenter (1/2)",
         "notes shown in the presenter",
         "notes absent from the content documents",
+        "Back to panel link in the presenter view (new tab, noopener)",
+        "end cue in the presenter view, absent from the audience view",
+        "Esc at the end closes the presenter and blacks the audience screen",
         "ready offline: service-worker (1 images, 6 fonts), copy true",
         "player page CSP allows only the runtime hash and data: fonts in addition",
         "presenter ready offline: service-worker",
@@ -89,6 +95,9 @@
         "main window follows the presenter (1/2)",
         "notes shown in the presenter",
         "notes absent from the content documents",
+        "Back to panel link in the presenter view (new tab, noopener)",
+        "end cue in the presenter view, absent from the audience view",
+        "Esc at the end closes the presenter and blacks the audience screen",
         "ready offline: service-worker (1 images, 6 fonts), copy true",
         "player page CSP allows only the runtime hash and data: fonts in addition",
         "presenter ready offline: service-worker",

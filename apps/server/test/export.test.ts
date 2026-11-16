@@ -130,12 +130,12 @@ describe("export and import", () => {
     res = await download(a.h, `/api/v1/decks/${id}/export?format=html&notes=1`, a.cookie);
     expect(await res.text()).toContain(JSON.stringify(note).slice(1, 30));
 
-    // .pptaken: notes included by default; notes=0 strips them.
+    // .pkn: notes included by default; notes=0 strips them.
     res = await download(a.h, `/api/v1/decks/${id}/export?format=pptaken`, a.cookie);
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe("application/zip");
     expect(res.headers.get("content-disposition")).toContain(
-      'filename="how-a-talk-gets-taken-care-of.pptaken"',
+      'filename="how-a-talk-gets-taken-care-of.pkn"',
     );
     const archive = new Uint8Array(await res.arrayBuffer());
     const read = readArchive(archive);

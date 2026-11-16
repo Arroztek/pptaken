@@ -218,9 +218,9 @@ describe("file names", () => {
     expect(unicodeStem("Charla: ¿qué tal? / v2")).toBe("Charla qué tal v2");
     expect(unicodeStem(`a${String.fromCharCode(0x202e)}b\r\nc"d`)).toBe("a b c d");
     expect(unicodeStem("...")).toBe("presentation");
-    expect(exportFilenames("日本語", ".pptaken")).toEqual({
-      ascii: "presentation.pptaken",
-      unicode: "日本語.pptaken",
+    expect(exportFilenames("日本語", ".pkn")).toEqual({
+      ascii: "presentation.pkn",
+      unicode: "日本語.pkn",
     });
     expect(() => exportFilenames("x", "/../")).toThrow(TypeError);
   });
