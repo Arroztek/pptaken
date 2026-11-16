@@ -57,7 +57,7 @@
   }
 </script>
 
-<div class="welcome">
+<div class="focused">
   <section class="hero ppt-curtain-in">
     <p class="ppt-eyebrow">{t("welcome.step", { current: 1, total: 2 })}</p>
     <h1 class="ppt-display">{t("setup.title")}</h1>

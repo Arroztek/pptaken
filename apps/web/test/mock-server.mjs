@@ -4,6 +4,8 @@
 //
 //   node test/mock-server.mjs            → http://127.0.0.1:4173, fresh instance (install code 7K2M-9QXD)
 //   MOCK_INSTALLED=1 MOCK_DECKS=14 MOCK_CONNECT_DELAY_MS=3000 MOCK_HTTPS=1 PORT=4173 node test/mock-server.mjs
+//   MOCK_APPS=3 adds connected applications; MOCK_OAUTH_REQUESTS=3 adds consent requests at
+//   /connect/req00000000000000000000000000000 (…1, …2: Claude, a loopback client, a website).
 //
 // Tests import startMockServer() and get an isolated server (and its mutable state) per test.
 import { createHash, randomBytes } from "node:crypto";
@@ -45,6 +47,56 @@ const TITLES = [
   "Intro to tide pools",
 ];
 
+const APP_SAMPLES = [
+  { clientName: "Claude", clientKind: "cimd", redirectHost: "claude.ai" },
+  { clientName: "Claude Desktop", clientKind: "dcr", redirectHost: "127.0.0.1:33418" },
+  { clientName: null, clientKind: "dcr", redirectHost: "notes.example.org" },
+];
+
+/** Build `n` connected applications (OAuth grants). */
+export function makeApps(n, now = Date.now()) {
+  return Array.from({ length: n }, (_, i) => {
+    const sample = APP_SAMPLES[i % APP_SAMPLES.length];
+    return {
+      id: `grant_${i + 1}`,
+      clientId: `client_${i + 1}`,
+      ...sample,
+      scopes: i === 2 ? ["decks:read"] : DEFAULT_SCOPES,
+      createdAt: new Date(now - (i + 1) * 86_400_000 * 3).toISOString(),
+      lastUsedAt: i === 2 ? null : new Date(now - (i + 1) * 3_600_000).toISOString(),
+      expiresAt: new Date(now + 30 * 86_400_000).toISOString(),
+    };
+  });
+}
+
+/** Build `n` pending consent requests; ids are 32 base64url characters, like the real server's. */
+export function makeOAuthRequests(n, now = Date.now()) {
+  const kinds = ["claude", "loopback", "web"];
+  return Array.from({ length: n }, (_, i) => {
+    const kind = kinds[i % kinds.length];
+    const redirectUri =
+      kind === "claude"
+        ? "https://claude.ai/api/mcp/auth_callback"
+        : kind === "loopback"
+          ? "http://127.0.0.1:33418/callback"
+          : "https://notes.example.org/oauth/callback";
+    return {
+      id: `req${String(i).padStart(29, "0")}`,
+      client: {
+        id: `client_${i + 1}`,
+        kind: kind === "claude" ? "cimd" : "dcr",
+        name: kind === "claude" ? "Claude" : kind === "loopback" ? "Claude Code" : "Notes helper",
+        idHost: kind === "claude" ? "claude.ai" : null,
+      },
+      redirectUri,
+      redirectHost: new URL(redirectUri).host,
+      redirectKind: kind,
+      scopes: DEFAULT_SCOPES,
+      expiresAt: new Date(now + 10 * 60_000).toISOString(),
+    };
+  });
+}
+
 /** Build `n` deck summaries, newest first. */
 export function makeDecks(n, now = Date.now()) {
   return Array.from({ length: n }, (_, i) => ({
@@ -73,6 +125,12 @@ export function createState(options = {}) {
     retryAfter: options.retryAfter ?? 30,
     sessions: new Set(),
     tokens: [],
+    /** Connected applications (OAuth grants): a count of samples or an array. */
+    apps: Array.isArray(options.apps) ? options.apps : makeApps(options.apps ?? 0),
+    /** Pending OAuth consent requests: a count of samples or an array. */
+    oauthRequests: Array.isArray(options.oauthRequests)
+      ? options.oauthRequests
+      : makeOAuthRequests(options.oauthRequests ?? 0),
     firstTokenAt: null,
     loginAttempts: [],
     csp: options.csp ?? STRICT_CSP,
@@ -406,6 +464,48 @@ async function handleApi(state, req, res, url) {
     return send(res, 201, { deck, assetCount: 4, warnings });
   }
 
+  // Connected applications (OAuth grants, ADR-0018).
+  if (method === "GET" && path === "/oauth/apps") {
+    return send(res, 200, { apps: state.apps });
+  }
+  const app = path.match(/^\/oauth\/apps\/([^/]+)$/);
+  if (method === "DELETE" && app) {
+    const before = state.apps.length;
+    state.apps = state.apps.filter((a) => a.id !== decodeURIComponent(app[1]));
+    if (state.apps.length === before) return fail(res, 404, "NOT_FOUND", "No such application.");
+    return send(res, 204);
+  }
+
+  // A pending OAuth consent request, as GET /oauth/authorize would have stored it.
+  const consent = path.match(/^\/oauth\/requests\/([^/]+)$/);
+  if (consent) {
+    const request = state.oauthRequests.find((r) => r.id === decodeURIComponent(consent[1]));
+    if (!request) return fail(res, 404, "NOT_FOUND", "No such request.");
+    if (method === "GET") return send(res, 200, request);
+    if (method === "POST") {
+      const body = await readJson(req);
+      state.oauthRequests = state.oauthRequests.filter((r) => r !== request);
+      const target = new URL(request.redirectUri);
+      if (body?.decision === "approve") target.searchParams.set("code", "mock-code");
+      else target.searchParams.set("error", "access_denied");
+      return send(res, 200, { redirectUrl: target.toString() });
+    }
+  }
+
+  if (method === "POST" && path === "/auth/password") {
+    const body = await readJson(req);
+    if (!body || body.currentPassword !== state.password) {
+      return fail(res, 401, "UNAUTHENTICATED", "Wrong password");
+    }
+    if (typeof body.newPassword !== "string" || body.newPassword.length < 12) {
+      return fail(res, 400, "VALIDATION_ERROR", "Weak password.");
+    }
+    state.password = body.newPassword;
+    const disconnectedApps = body.disconnectApps ? state.apps.length : 0;
+    if (body.disconnectApps) state.apps = [];
+    return send(res, 200, { disconnectedApps });
+  }
+
   const one = path.match(/^\/decks\/([^/]+)$/);
   if (method === "GET" && one) {
     const deck = state.decks.find((d) => d.id === decodeURIComponent(one[1]));
@@ -490,6 +590,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     installed: env.MOCK_INSTALLED === "1",
     https: env.MOCK_HTTPS === "1",
     decks: Number(env.MOCK_DECKS ?? 0),
+    apps: Number(env.MOCK_APPS ?? 0),
+    oauthRequests: Number(env.MOCK_OAUTH_REQUESTS ?? 0),
     connectDelayMs: Number(env.MOCK_CONNECT_DELAY_MS ?? 3000),
   });
   console.log(`PPTaken mock ready at ${mock.url} · Install code: ${INSTALL_CODE}`);

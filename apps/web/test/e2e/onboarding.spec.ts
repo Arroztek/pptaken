@@ -8,6 +8,8 @@ test.describe("first run", () => {
     page,
     mock,
   }) => {
+    // The whole first run in one test (with a real 2.5 s polling check): WebKit in parallel can pass 30 s.
+    test.setTimeout(60_000);
     await page.goto(`${mock.url}/`);
     await expect(page).toHaveURL(/\/welcome$/);
     await expect(page.getByText("Step 1 of 2")).toBeVisible();

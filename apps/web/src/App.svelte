@@ -4,8 +4,9 @@
   import type { Component } from "svelte";
   import { onMount, tick } from "svelte";
   import AppHeader from "./components/AppHeader.svelte";
+  import AppShell from "./components/AppShell.svelte";
   import I18nScope from "./components/I18nScope.svelte";
-  import { decide, type Page } from "./lib/router";
+  import { decide, layoutFor, type Page } from "./lib/router";
   import { loadSession, navigate, network, prefs, route, session, t } from "./lib/state.svelte";
   import type { Key } from "./lib/translate";
 
@@ -43,10 +44,8 @@
       : null,
   );
   const page = $derived(decision?.kind === "render" ? decision.page : null);
-  const withNav = $derived(
-    session.signedIn &&
-      (page === "connect" || page === "decks" || page === "tokens" || page === "security"),
-  );
+  // Nothing framed until the session is known: no header flashing before the sidebar.
+  const layout = $derived(page ? layoutFor(page, session.signedIn) : session.boot === "error" ? "focused" : null);
 
   onMount(() => void loadSession());
 
@@ -82,28 +81,36 @@
   });
 </script>
 
+{#snippet content()}
+  {#if !network.online}
+    <div class="offline-bar">
+      <Notice tone="warning" title={t("app.offlineTitle")} text={t("app.offlineText")} />
+    </div>
+  {/if}
+  <main id="main" tabindex="-1" bind:this={main}>
+    {#if session.boot === "error" || pageError}
+      <div class="focused">
+        <Notice tone="danger" title={t("app.bootErrorTitle")} text={t("app.bootErrorText")}>
+          <div><Button size="sm" onclick={() => (pageError ? location.reload() : loadSession())}>{t("app.retry")}</Button></div>
+        </Notice>
+      </div>
+    {:else if session.boot === "loading" || !PageComponent || shownPage !== page}
+      <p class="boot-loading" role="status">{t("app.loading")}</p>
+    {:else}
+      <PageComponent />
+    {/if}
+  </main>
+{/snippet}
+
 {#key prefs.locale}
   <I18nScope locale={prefs.locale}>
     <a class="skip-link" href="#main">{t("app.skip")}</a>
-    <AppHeader nav={withNav} />
-    {#if !network.online}
-      <div class="offline-bar">
-        <Notice tone="warning" title={t("app.offlineTitle")} text={t("app.offlineText")} />
-      </div>
+    {#if layout === "shell" && page}
+      <AppShell title={t(titles[page])}>{@render content()}</AppShell>
+    {:else}
+      {#if layout === "focused"}<AppHeader />{/if}
+      {@render content()}
     {/if}
-    <main id="main" tabindex="-1" bind:this={main}>
-      {#if session.boot === "error" || pageError}
-        <div class="welcome">
-          <Notice tone="danger" title={t("app.bootErrorTitle")} text={t("app.bootErrorText")}>
-            <div><Button size="sm" onclick={() => (pageError ? location.reload() : loadSession())}>{t("app.retry")}</Button></div>
-          </Notice>
-        </div>
-      {:else if session.boot === "loading" || !PageComponent || shownPage !== page}
-        <p class="boot-loading" role="status">{t("app.loading")}</p>
-      {:else}
-        <PageComponent />
-      {/if}
-    </main>
     <ToastRegion />
   </I18nScope>
 {/key}

@@ -4,7 +4,7 @@
 import { type Locale, readTheme, type ThemeChoice } from "@pptaken/ui";
 import { api, type CreatedToken, type SetupStatus } from "./api";
 import { isAppPath, normalizePath } from "./router";
-import { initialLocale, LANG_KEY, readStored, writeStored } from "./storage";
+import { initialLocale, LANG_KEY, readStored, SIDEBAR_KEY, writeStored } from "./storage";
 import { createWebTranslator, type Key, type Vars } from "./translate";
 
 // ------------------------------------------------------------ preferences
@@ -148,6 +148,27 @@ export function clearSecrets(): void {
   secrets.code = null;
   secrets.other = null;
   secrets.created = null;
+}
+
+// ------------------------------------------------------------------ shell
+
+/**
+ * Sidebar state. Module level so a language switch (which re-creates the tree) keeps the mobile drawer open and
+ * the language switch inside it focusable. `collapsed` is the desktop icon-only mode, remembered per browser.
+ */
+export const shell = $state<{ collapsed: boolean | null; drawerOpen: boolean }>({
+  // null: no choice yet, so the width decides (icons on tablets, full on desktops).
+  collapsed: storedSidebar(readStored(SIDEBAR_KEY)),
+  drawerOpen: false,
+});
+
+function storedSidebar(value: string | null): boolean | null {
+  return value === "collapsed" ? true : value === "expanded" ? false : null;
+}
+
+export function setSidebarCollapsed(collapsed: boolean): void {
+  shell.collapsed = collapsed;
+  writeStored(SIDEBAR_KEY, collapsed ? "collapsed" : "expanded");
 }
 
 // ----------------------------------------------------------------- network

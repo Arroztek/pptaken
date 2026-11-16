@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from "vitest";
-import { decide, isAppPath, loginUrl, normalizePath, safeNext } from "./router";
+import { isActive, NAV_GROUPS } from "./nav";
+import { decide, isAppPath, layoutFor, loginUrl, normalizePath, safeNext } from "./router";
 
 const fresh = { installed: false, signedIn: false };
 const out = { installed: true, signedIn: false };
@@ -91,5 +92,34 @@ describe("helpers", () => {
     expect(safeNext("/login")).toBe("/decks");
     expect(safeNext(null)).toBe("/decks");
     expect(loginUrl("/decks")).toBe("/login");
+  });
+});
+
+describe("layoutFor", () => {
+  it("frames signed-in dashboard pages with the sidebar", () => {
+    for (const page of ["decks", "connect", "tokens", "security", "notFound"] as const) {
+      expect(layoutFor(page, true)).toBe("shell");
+    }
+  });
+
+  it("keeps setup, sign-in, consent and signed-out pages focused", () => {
+    expect(layoutFor("setup", false)).toBe("focused");
+    expect(layoutFor("login", false)).toBe("focused");
+    expect(layoutFor("oauthConsent", true)).toBe("focused");
+    expect(layoutFor("notFound", false)).toBe("focused");
+  });
+});
+
+describe("navigation", () => {
+  it("links only to app paths, each once", () => {
+    const hrefs = NAV_GROUPS.flatMap((g) => g.items.map((i) => i.href));
+    expect(new Set(hrefs).size).toBe(hrefs.length);
+    for (const href of hrefs) expect(isAppPath(href)).toBe(true);
+  });
+
+  it("marks the current page, ignoring a trailing slash", () => {
+    const decks = { href: "/decks", label: "nav.decks", icon: "presentation" } as const;
+    expect(isActive(decks, "/decks/")).toBe(true);
+    expect(isActive(decks, "/tokens")).toBe(false);
   });
 });

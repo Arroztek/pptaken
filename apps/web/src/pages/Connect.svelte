@@ -1,10 +1,11 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <!-- /welcome, step 2: "Connect your agent" with three tabs and the live connection status. -->
 <script lang="ts">
-  import { Button, CopyField, Notice, Tabs } from "@pptaken/ui";
+  import { Button, CopyField, Icon, Notice, Tabs } from "@pptaken/ui";
   import { onDestroy, onMount } from "svelte";
   import ConnectStatus from "../components/ConnectStatus.svelte";
   import CopyButton from "../components/CopyButton.svelte";
+  import PageLayout from "../components/PageLayout.svelte";
   import SecretBlock from "../components/SecretBlock.svelte";
   import { api, type ConnectStatus as Status, SCOPES } from "../lib/api";
   import { errorMessage } from "../lib/errors";
@@ -113,15 +114,12 @@
   }
 </script>
 
-<div class="welcome">
-  <section class="hero ppt-curtain-in">
-    {#if session.justInstalled}
-      <p class="ppt-eyebrow">{t("welcome.step", { current: 2, total: 2 })}</p>
-    {/if}
-    <h1 class="ppt-display">{t("welcome.title")}</h1>
-    <p class="ppt-lead">{t("welcome.lead")}</p>
-  </section>
-
+<PageLayout
+  title={t("welcome.title")}
+  subtitle={t("welcome.lead")}
+  eyebrow={session.justInstalled ? t("welcome.step", { current: 2, total: 2 }) : undefined}
+  width="column"
+>
   <Tabs {tabs} bind:selected={tab} label={t("welcome.tabsLabel")}>
     {#snippet panel(id)}
       {#if id === "code"}
@@ -260,7 +258,10 @@
     {/snippet}
   </Tabs>
 
-  <p class="ppt-small ppt-muted">{t("connect.managedThere")}</p>
+  <div class="connect-note">
+    <Icon name="info" size={18} />
+    <p>{t("connect.managedThere")}</p>
+  </div>
 
   {#if connected}
     <section class="ppt-card next-card ppt-curtain-in" aria-labelledby="next-title">
@@ -308,7 +309,6 @@
   {/if}
 
   <footer class="welcome-foot">
-    <span></span>
     <a href="/decks">{t("welcome.later")}</a>
   </footer>
-</div>
+</PageLayout>

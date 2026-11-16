@@ -11,6 +11,19 @@ export type Page =
   | "oauthConsent"
   | "notFound";
 
+/**
+ * How a page is framed. "shell": the signed-in dashboard with the sidebar. "focused": a single centered column
+ * under a slim bar (setup, sign-in, OAuth consent, and anything shown while signed out). The player, presenter
+ * view and phone remote are server pages and never pass through here.
+ */
+export type Layout = "shell" | "focused";
+
+const SHELL_PAGES: readonly Page[] = ["decks", "connect", "tokens", "security", "notFound"];
+
+export function layoutFor(page: Page, signedIn: boolean): Layout {
+  return signedIn && SHELL_PAGES.includes(page) ? "shell" : "focused";
+}
+
 export interface RouteContext {
   installed: boolean;
   signedIn: boolean;

@@ -22,6 +22,17 @@ export const webEs: WebDictionary = {
     signOut: "Cerrar sesión",
     language: "Idioma",
     home: "Inicio de PPTaken",
+    groupWorkspace: "Espacio de trabajo",
+    groupAccount: "Cuenta",
+    openMenu: "Abrir menú",
+    closeMenu: "Cerrar menú",
+    collapse: "Contraer la barra lateral",
+    expand: "Expandir la barra lateral",
+    instance: "Este PPTaken",
+    online: "En línea",
+    offline: "Sin conexión",
+    version: "Versión {v}",
+    preferences: "Preferencias",
   },
   lang: {
     en: "English",
@@ -156,6 +167,7 @@ export const webEs: WebDictionary = {
     subtitle:
       "Todo lo que puede llegar a tu PPTaken: los tokens del agente y las aplicaciones que conectaste iniciando sesión. Revoca o desconecta una y se detiene al instante.",
     createTitle: "Crea un token",
+    createText: "Para un agente o cliente MCP que se conecta con un token Bearer.",
     nameLabel: "Nombre del token",
     nameHint: "Dónde lo usas, como Claude Code en mi portátil.",
     nameRequired: "Ponle un nombre al token.",
@@ -165,6 +177,8 @@ export const webEs: WebDictionary = {
     secretLabel: "Token nuevo",
     done: "Listo",
     listTitle: "Tokens del agente",
+    listText:
+      "Los tokens que creaste aquí o en Conecta tu agente. Los agentes los envían en cada llamada.",
     colName: "Nombre",
     colScopes: "Permisos",
     colCreated: "Creado",
@@ -239,6 +253,7 @@ export const webEs: WebDictionary = {
   },
   password: {
     title: "Cambiar contraseña",
+    lead: "Con ella inicias sesión en este panel. Una frase corta es fácil de recordar y difícil de adivinar.",
     current: "Contraseña actual",
     next: "Contraseña nueva",
     nextHint: "Al menos 12 caracteres.",

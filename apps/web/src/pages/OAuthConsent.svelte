@@ -81,7 +81,7 @@
   }
 </script>
 
-<div class="welcome auth consent">
+<div class="focused consent">
   {#if loading}
     <p class="ppt-muted loading-line" role="status">{t("common.loading")}…</p>
   {:else if gone || !request}
@@ -102,21 +102,23 @@
     </section>
 
     <div class="form-card ppt-card consent__card">
-      <dl class="consent__facts">
-        <dt>{t("consent.redirectLabel")}</dt>
-        <dd>
-          <code class="consent__uri" data-testid="consent-redirect">{request.redirectUri}</code>
-          {#if request.redirectKind === "claude"}
-            <span class="consent__badge" data-testid="consent-claude">{t("consent.claudeBadge")}</span>
-          {/if}
-        </dd>
-      </dl>
-      {#if request.client.idHost}
-        <p class="ppt-small">{t("consent.publishedBy", { host: request.client.idHost })}</p>
-      {/if}
-      <p class="ppt-small ppt-muted" data-testid="consent-name">
-        {request.client.name ? t("consent.callsItself", { name: request.client.name }) : t("consent.noName")}
-      </p>
+      <div class="consent__about">
+        <dl class="consent__facts">
+          <dt>{t("consent.redirectLabel")}</dt>
+          <dd>
+            <code class="consent__uri" data-testid="consent-redirect">{request.redirectUri}</code>
+            {#if request.redirectKind === "claude"}
+              <span class="consent__badge" data-testid="consent-claude">{t("consent.claudeBadge")}</span>
+            {/if}
+          </dd>
+        </dl>
+        {#if request.client.idHost}
+          <p class="ppt-small">{t("consent.publishedBy", { host: request.client.idHost })}</p>
+        {/if}
+        <p class="ppt-small ppt-muted" data-testid="consent-name">
+          {request.client.name ? t("consent.callsItself", { name: request.client.name }) : t("consent.noName")}
+        </p>
+      </div>
 
       {#if request.redirectKind === "loopback"}
         <Notice
@@ -168,48 +170,62 @@
   }
   .consent__card {
     display: grid;
-    gap: var(--ppt-space-4, 1rem);
+    gap: var(--ppt-rhythm-form);
+  }
+  .consent__about {
+    display: grid;
+    gap: var(--ppt-space-2);
   }
   .consent__facts {
     margin: 0;
     display: grid;
-    gap: 0.25rem;
+    gap: var(--ppt-space-1);
   }
   .consent__facts dt {
-    font-weight: 600;
+    font-size: var(--ppt-text-sm);
+    font-weight: var(--ppt-weight-semibold);
   }
   .consent__facts dd {
     margin: 0;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--ppt-space-2);
   }
   .consent__uri {
+    font-family: var(--ppt-font-mono);
+    font-size: var(--ppt-text-sm);
     overflow-wrap: anywhere;
   }
   .consent__badge {
     display: inline-block;
-    padding: 0.1rem 0.5rem;
-    border-radius: 999px;
-    border: 1px solid currentColor;
-    font-size: 0.8rem;
-    font-weight: 600;
+    padding: 2px var(--ppt-space-2);
+    border-radius: var(--ppt-radius-pill);
+    border: var(--ppt-border-width) solid currentColor;
+    font-size: var(--ppt-text-xs);
+    font-weight: var(--ppt-weight-semibold);
   }
   .consent__scopes {
     border: 0;
     margin: 0;
     padding: 0;
     display: grid;
-    gap: 0.5rem;
+    gap: var(--ppt-space-2);
+    min-width: 0;
   }
   .consent__scopes legend {
-    margin-bottom: 0.25rem;
+    padding: 0;
+    margin-bottom: var(--ppt-space-1);
   }
-  .consent__never h2 {
-    margin: 0 0 0.25rem;
+  .consent__never {
+    display: grid;
+    gap: var(--ppt-space-1);
+    padding-top: var(--ppt-rhythm-form);
+    border-top: var(--ppt-border-width) solid var(--ppt-border);
   }
   .consent__actions {
     justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: var(--ppt-space-2);
   }
 </style>

@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-// Screenshots of every screen at 360 and 1280 px, light and dark, English and Spanish (Chromium only).
+// Screenshots of every screen at 360, 768 and 1280 px, light and dark, English and Spanish (Chromium only).
 // Also checks for horizontal overflow on each. Files go to test/.screenshots (git-ignored).
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Page } from "@playwright/test";
+import { makeApps, makeOAuthRequests } from "../mock-server.mjs";
 import {
   expect,
   type Mock,
@@ -17,13 +18,15 @@ import {
 const OUT = join(dirname(fileURLToPath(import.meta.url)), "..", ".screenshots");
 mkdirSync(OUT, { recursive: true });
 
-const WIDTHS = [360, 1280] as const;
+const WIDTHS = [360, 768, 1280] as const;
 const THEMES = ["light", "dark"] as const;
 const LANGS = ["en", "es"] as const;
 
 interface Screen {
   name: string;
   options?: MockOptions;
+  /** Only these widths (default: all). */
+  widths?: readonly number[];
   /** Bring the page to the state to capture. Runs once per variant on a fresh load. */
   prepare: (page: Page, mock: Mock) => Promise<void>;
 }
@@ -132,6 +135,98 @@ const screens: Screen[] = [
       await expect(page.locator(".ppt-empty")).toBeVisible();
     },
   },
+  {
+    name: "tokens-apps",
+    options: { installed: true, apps: 3 },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/tokens`);
+      await page.locator("input[name=name]").fill("Laptop");
+      await page.locator("form .ppt-btn--primary").click();
+      await page.getByRole("button", { name: /^(Done|Listo)$/ }).click();
+      await expect(page.locator("table")).toHaveCount(2);
+    },
+  },
+  {
+    name: "tokens-revoke-dialog",
+    options: { installed: true, apps: 1 },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/tokens`);
+      await page.locator("input[name=name]").fill("Laptop");
+      await page.locator("form .ppt-btn--primary").click();
+      await page.getByRole("button", { name: /^(Done|Listo)$/ }).click();
+      await page.locator("table .ppt-btn").first().click();
+      await expect(page.locator("dialog[open]")).toBeVisible();
+    },
+  },
+  {
+    name: "decks-import-dialog",
+    options: { installed: true, decks: 3 },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks`);
+      await expect(page.locator("article.ppt-deck")).toHaveCount(3);
+      await page.locator(".page-head__actions .ppt-btn").last().click();
+      await expect(page.locator("dialog[open]")).toBeVisible();
+    },
+  },
+  {
+    name: "security-done",
+    options: { installed: true },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/security`);
+      await page.locator("input[name=current-password]").fill(mock.state.password ?? "");
+      await page.locator("input[name=new-password]").fill(mock.state.password ?? "");
+      await page.locator("form .ppt-btn--primary").click();
+      await expect(page.locator(".ppt-notice--success")).toBeVisible();
+    },
+  },
+  {
+    name: "security-error",
+    options: { installed: true },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/security`);
+      await page.locator("input[name=current-password]").fill("not the password");
+      await page.locator("input[name=new-password]").fill("a new long passphrase");
+      await page.locator("input[type=checkbox]").check();
+      await page.locator("form .ppt-btn--primary").click();
+      await expect(page.locator(".ppt-field__error")).toBeVisible();
+    },
+  },
+  {
+    name: "consent",
+    options: { installed: true, oauthRequests: 3 },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/connect/req00000000000000000000000000001`);
+      await expect(page.locator("fieldset")).toBeVisible();
+    },
+  },
+  {
+    name: "nav-drawer",
+    options: { installed: true, decks: 3 },
+    widths: [360],
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks`);
+      await page.locator(".topbar__menu").click();
+      await expect(page.locator("#sidebar")).toBeVisible();
+    },
+  },
+  {
+    name: "sidebar-collapsed",
+    options: { installed: true, decks: 3 },
+    widths: [768, 1280],
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks`);
+      await expect(page.locator(".shell--collapsed")).toBeVisible();
+    },
+  },
+  {
+    name: "not-found-signed-out",
+    options: { installed: true },
+    prepare: async (page, mock) => {
+      await page.context().clearCookies();
+      await page.goto(`${mock.url}/nowhere`);
+      await expect(page.locator(".ppt-empty")).toBeVisible();
+    },
+  },
 ];
 
 for (const screen of screens) {
@@ -139,13 +234,16 @@ for (const screen of screens) {
     if (screen.options) test.use({ mockOptions: screen.options });
 
     test(`${screen.name} in every size, theme and language`, async ({ page, mock }) => {
-      test.setTimeout(120_000);
+      test.setTimeout(240_000);
       for (const lang of LANGS) {
         for (const theme of THEMES) {
-          for (const width of WIDTHS) {
+          for (const width of screen.widths ?? WIDTHS) {
             // Reset the instance so each variant starts from the same state.
             mock.state.sessions.clear();
             mock.state.tokens = [];
+            if (screen.options?.apps) mock.state.apps = makeApps(screen.options.apps as number);
+            if (screen.options?.oauthRequests)
+              mock.state.oauthRequests = makeOAuthRequests(screen.options.oauthRequests as number);
             mock.state.firstTokenAt = null;
             if (screen.name === "welcome-setup") mock.state.installed = false;
             await page.context().clearCookies();
@@ -155,14 +253,23 @@ for (const screen of screens) {
             await page.goto(`${mock.url}/api/v1/setup/status`); // same origin, no markup
             await page.evaluate((l) => localStorage.setItem("pptaken.lang", l), lang);
             await page.evaluate(() => localStorage.removeItem("pptaken.theme"));
+            await page.evaluate(
+              (collapsed) =>
+                collapsed
+                  ? localStorage.setItem("pptaken.sidebar", "collapsed")
+                  : localStorage.removeItem("pptaken.sidebar"),
+              screen.name === "sidebar-collapsed",
+            );
             await screen.prepare(page, mock);
             await expect(page.locator("html")).toHaveAttribute("lang", lang);
             await page.evaluate(() => document.fonts.ready);
             await page.evaluate(() => window.scrollTo(0, 0));
+            if (screen.name.endsWith("-dialog") || screen.name === "nav-drawer")
+              await page.waitForTimeout(250);
             await noHorizontalOverflow(page);
             await page.screenshot({
               path: join(OUT, `${screen.name}-${width}-${theme}-${lang}.png`),
-              fullPage: true,
+              fullPage: !screen.name.endsWith("-dialog") && screen.name !== "nav-drawer",
               animations: "disabled",
             });
           }

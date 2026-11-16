@@ -3,6 +3,7 @@
   import { Button, DeckCard, Dialog, EmptyState, Icon, Notice } from "@pptaken/ui";
   import { onDestroy, onMount } from "svelte";
   import CopyButton from "../components/CopyButton.svelte";
+  import PageLayout from "../components/PageLayout.svelte";
   import {
     ApiError,
     api,
@@ -181,28 +182,16 @@
   );
 </script>
 
-<div class="page">
-  <div class="page-head">
-    <div class="page-head__text">
-      <h1 class="ppt-h1">{t("decks.title")}</h1>
-      <p class="ppt-muted">{t("decks.subtitle")}</p>
-    </div>
-    {#if !empty && !loading}
-      <div class="page-head__actions">
-        <CopyButton label={t("welcome.copyExample")} text={t("decks.examplePrompt")} />
-        {@render importButton("secondary")}
-      </div>
-    {/if}
-    <input
-      bind:this={fileInput}
-      class="ppt-sr-only"
-      type="file"
-      accept={IMPORT_ACCEPT}
-      tabindex="-1"
-      aria-hidden="true"
-      onchange={onFileChosen}
-    />
-  </div>
+<PageLayout title={t("decks.title")} subtitle={t("decks.subtitle")} actions={!empty && !loading ? headActions : undefined}>
+  <input
+    bind:this={fileInput}
+    class="ppt-sr-only"
+    type="file"
+    accept={IMPORT_ACCEPT}
+    tabindex="-1"
+    aria-hidden="true"
+    onchange={onFileChosen}
+  />
 
   {#if importing}
     <div class="import-progress" role="status">
@@ -364,7 +353,12 @@
       <Button variant="ghost" size="sm" onclick={forgetCopies}>{t("decks.offlineForget")}</Button>
     </p>
   {/if}
-</div>
+</PageLayout>
+
+{#snippet headActions()}
+  <CopyButton label={t("welcome.copyExample")} text={t("decks.examplePrompt")} />
+  {@render importButton("secondary")}
+{/snippet}
 
 {#snippet importButton(variant: "secondary" | "ghost")}
   <Button {variant} loading={importing !== null} onclick={() => (importOpen = true)}>{t("transfer.import")}</Button>

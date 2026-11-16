@@ -52,7 +52,7 @@
   }
 </script>
 
-<div class="welcome auth">
+<div class="focused">
   <section class="hero ppt-curtain-in">
     <h1 class="ppt-display">{t("login.title")}</h1>
     <p class="ppt-lead">{t("login.lead")}</p>

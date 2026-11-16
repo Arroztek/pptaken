@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
 /* Page composition for the panel. Components come from @pptaken/ui/components.css; the layouts below
  * follow docs/brand/preview/preview.css (the approved reference screens), written with the same tokens.
+ * Spacing between page parts comes only from the --ppt-rhythm-* tokens, through PageLayout and PageSection.
  * No inline styles anywhere: the server's CSP is style-src 'self'. */
 
 [hidden] { display: none !important; }
@@ -9,10 +10,12 @@
 .ppt-logo { display: block; width: auto; color: var(--ppt-text); }
 
 body { min-height: 100dvh; background: var(--ppt-bg); }
+main { display: block; min-width: 0; }
 main:focus { outline: none; }
+html.drawer-open { overflow: hidden; }
 
 .skip-link {
-  position: absolute; left: var(--ppt-space-4); top: -100px; z-index: 50;
+  position: absolute; left: var(--ppt-space-4); top: -100px; z-index: 70;
   padding: var(--ppt-space-2) var(--ppt-space-4);
   border-radius: var(--ppt-radius-pill);
   background: var(--ppt-surface); color: var(--ppt-text); font-weight: 600;
@@ -23,14 +26,22 @@ main:focus { outline: none; }
 .copy-buffer { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 
 .boot-loading { padding: var(--ppt-space-16) var(--ppt-space-6); text-align: center; color: var(--ppt-text-muted); }
-.loading-line { padding: var(--ppt-space-8) 0; }
-.offline-bar { width: min(var(--ppt-size-content-max), 100%); margin: var(--ppt-space-4) auto 0; padding: 0 var(--ppt-space-6); }
-@media (max-width: 600px) { .offline-bar { padding: 0 var(--ppt-space-4); } }
+.loading-line { padding: var(--ppt-space-4) 0; }
+.lang-switch .ppt-segmented__opt { font-size: var(--ppt-text-xs); font-weight: 700; letter-spacing: 0.04em; }
 
-/* ------------------------------------------------------------- app shell */
+/* Page gutters: one value per breakpoint, shared by the page, the offline bar and the top bar. */
+:root { --page-x: var(--ppt-rhythm-page-x); --page-top: var(--ppt-rhythm-page-top); --page-bottom: var(--ppt-rhythm-page-bottom); }
+@media (max-width: 1023px) { :root { --page-x: var(--ppt-space-6); } }
+@media (max-width: 767px) {
+  :root { --page-x: var(--ppt-rhythm-page-x-sm); --page-top: var(--ppt-rhythm-page-top-sm); --page-bottom: var(--ppt-rhythm-page-bottom-sm); }
+}
+
+.offline-bar { width: min(var(--ppt-size-content-max), 100%); margin: 0 auto; padding: var(--ppt-space-4) var(--page-x) 0; }
+
+/* ------------------------------------------------- focused pages: slim bar */
 .app-header {
   position: sticky; top: 0; z-index: 10;
-  display: flex; align-items: center; gap: var(--ppt-space-4);
+  display: flex; align-items: center; gap: var(--ppt-space-3);
   height: 64px; padding: 0 var(--ppt-space-6);
   background: color-mix(in srgb, var(--ppt-bg) 92%, transparent);
   backdrop-filter: blur(10px);
@@ -39,48 +50,168 @@ main:focus { outline: none; }
 .app-header__logo { display: inline-flex; flex: none; color: var(--ppt-text); border-radius: var(--ppt-radius-sm); }
 .app-header__spacer { flex: 1; }
 .logo-narrow { display: none; }
-.app-nav { display: flex; gap: 2px; margin-left: var(--ppt-space-6); }
-.app-nav a, .app-subnav a {
-  display: inline-flex; align-items: center; height: 36px; padding: 0 12px; flex: none;
-  border-radius: var(--ppt-radius-pill);
-  color: var(--ppt-text-muted); text-decoration: none; font-size: var(--ppt-text-sm); font-weight: 600;
-  white-space: nowrap;
-}
-.app-nav a:hover, .app-subnav a:hover { color: var(--ppt-text); background: var(--ppt-surface-2); }
-.app-nav a[aria-current="page"], .app-subnav a[aria-current="page"] { color: var(--ppt-text); background: var(--ppt-surface-2); }
-.app-subnav { display: none; }
-.lang-switch .ppt-segmented__opt { font-size: var(--ppt-text-xs); font-weight: 700; letter-spacing: 0.04em; }
-@media (max-width: 900px) {
-  .app-header { padding: 0 var(--ppt-space-4); gap: var(--ppt-space-2); }
-  .app-nav { display: none; }
-  .app-subnav {
-    display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none;
-    padding: var(--ppt-space-2) var(--ppt-space-4); border-bottom: 1px solid var(--ppt-border);
-  }
-}
+@media (max-width: 767px) { .app-header { padding: 0 var(--page-x); gap: var(--ppt-space-2); } }
 @media (max-width: 480px) {
   .logo-wide { display: none; }
   .logo-narrow { display: inline-flex; }
-  .app-header { gap: 6px; padding: 0 12px; }
   .app-header .ppt-segmented__opt { min-width: 32px; padding: 0 6px; }
 }
 
-/* ------------------------------------------------------------ list pages */
-.page { width: min(var(--ppt-size-content-max), 100%); margin: 0 auto; padding: var(--ppt-space-12) var(--ppt-space-6) var(--ppt-space-16); }
-@media (max-width: 600px) { .page { padding: var(--ppt-space-8) var(--ppt-space-4) var(--ppt-space-12); } }
-.page-head { display: flex; flex-wrap: wrap; align-items: end; gap: var(--ppt-space-4); margin-bottom: var(--ppt-space-8); }
-.page-head__text { flex: 1 1 280px; display: grid; gap: var(--ppt-space-2); }
+/* ------------------------------------------------ dashboard shell: sidebar */
+.shell {
+  display: grid;
+  grid-template-columns: var(--ppt-size-sidebar) minmax(0, 1fr);
+  min-height: 100dvh;
+}
+.shell--collapsed { grid-template-columns: var(--ppt-size-sidebar-collapsed) minmax(0, 1fr); }
+/* The sidebar's surface runs the full page height; the sidebar itself sticks to the viewport over it. */
+.shell::before {
+  content: ""; grid-column: 1; grid-row: 1;
+  background: var(--ppt-surface);
+  border-right: var(--ppt-border-width) solid var(--ppt-border);
+}
+.shell__content { grid-column: 2; min-width: 0; }
+.topbar, .scrim { display: none; }
+
+.sidebar {
+  grid-column: 1; grid-row: 1;
+  position: sticky; top: 0;
+  display: flex; flex-direction: column; gap: var(--ppt-space-6);
+  height: 100dvh; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  padding: var(--ppt-space-4) var(--ppt-space-3);
+}
+.sidebar__top { display: flex; align-items: center; justify-content: space-between; gap: var(--ppt-space-2); min-height: var(--ppt-size-touch-min); padding-left: var(--ppt-space-3); }
+.sidebar__logo { display: inline-flex; flex: none; color: var(--ppt-text); border-radius: var(--ppt-radius-sm); }
+.sidebar__nav { display: grid; align-content: start; gap: var(--ppt-space-6); flex: 1; }
+.nav-group { display: grid; gap: var(--ppt-space-1); }
+.nav-group__label {
+  padding: 0 var(--ppt-space-3); margin-bottom: var(--ppt-space-1);
+  font-family: var(--ppt-font-mono); font-size: var(--ppt-text-xs); font-weight: var(--ppt-weight-medium);
+  letter-spacing: var(--ppt-tracking-caps); text-transform: uppercase; color: var(--ppt-text-muted);
+}
+.nav-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+
+.nav-link {
+  position: relative;
+  display: flex; align-items: center; gap: var(--ppt-space-3);
+  width: 100%; min-height: 40px; padding: 0 var(--ppt-space-3);
+  border: 0; border-radius: var(--ppt-radius-sm);
+  background: transparent; color: var(--ppt-text-muted);
+  font: inherit; font-size: var(--ppt-text-sm); font-weight: var(--ppt-weight-semibold); text-align: left; text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--ppt-motion-fast) var(--ppt-ease), color var(--ppt-motion-fast) var(--ppt-ease);
+}
+.nav-link svg { flex: none; width: 20px; height: 20px; }
+.nav-link__label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-link:hover { background: var(--ppt-surface-2); color: var(--ppt-text); }
+.nav-link:focus-visible { outline-offset: -2px; }
+.nav-link[aria-current="page"] { background: var(--ppt-surface-2); color: var(--ppt-text); }
+.nav-link[aria-current="page"] svg { color: var(--ppt-accent-text); }
+/* The cue mark: a Spotlight bar on the current page (accent-text keeps 3:1 on light surfaces). */
+.nav-link[aria-current="page"]::before {
+  content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px;
+  border-radius: 0 2px 2px 0; background: var(--ppt-accent-text);
+}
+.nav-link[disabled] { opacity: 0.45; cursor: not-allowed; }
+
+.sidebar__foot { display: grid; gap: var(--ppt-space-3); padding-top: var(--ppt-space-4); border-top: var(--ppt-border-width) solid var(--ppt-border); }
+.instance { display: flex; align-items: center; gap: var(--ppt-space-3); padding: 0 var(--ppt-space-3); min-height: 40px; }
+.instance .ppt-dot { margin: 0 6px; }
+.instance__text { display: grid; min-width: 0; line-height: var(--ppt-leading-snug); }
+.instance__label { font-family: var(--ppt-font-mono); font-size: var(--ppt-text-xs); letter-spacing: var(--ppt-tracking-caps); text-transform: uppercase; color: var(--ppt-text-muted); }
+.instance__host { font-size: var(--ppt-text-sm); font-weight: var(--ppt-weight-semibold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.instance__meta { font-size: var(--ppt-text-xs); color: var(--ppt-text-muted); }
+.sidebar__prefs { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ppt-space-2); padding: 0 var(--ppt-space-1); }
+
+/* Collapsed to icons (desktop): labels stay for screen readers, a title shows them on hover. */
+.shell--collapsed .sidebar { padding-inline: var(--ppt-space-3); align-items: stretch; }
+.shell--collapsed .sidebar__top { flex-direction: column; padding-left: 0; gap: var(--ppt-space-3); }
+.shell--collapsed .nav-link { justify-content: center; padding: 0; }
+.shell--collapsed .nav-link__label,
+.shell--collapsed .nav-group__label,
+.shell--collapsed .instance__text {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.shell--collapsed .nav-group + .nav-group { padding-top: var(--ppt-space-4); border-top: var(--ppt-border-width) solid var(--ppt-border); }
+.shell--collapsed .instance { justify-content: center; padding: 0; }
+.shell--collapsed .sidebar__prefs { flex-direction: column; padding: 0; }
+.shell--collapsed .sidebar__prefs .ppt-segmented { flex-direction: column; }
+
+/* Below 768 px: a slim top bar and an off-canvas drawer. */
+@media (max-width: 767px) {
+  .shell, .shell--collapsed { display: block; }
+  .shell::before { content: none; }
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; gap: var(--ppt-space-2);
+    height: var(--ppt-size-topbar); padding: 0 var(--ppt-space-2);
+    background: color-mix(in srgb, var(--ppt-bg) 92%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: var(--ppt-border-width) solid var(--ppt-border);
+  }
+  .topbar__logo { display: inline-flex; flex: none; color: var(--ppt-text); border-radius: var(--ppt-radius-sm); }
+  .topbar__title {
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-family: var(--ppt-font-display); font-weight: var(--ppt-weight-bold); font-size: var(--ppt-text-md);
+    letter-spacing: var(--ppt-tracking-tight);
+  }
+  .sidebar {
+    position: fixed; inset: 0 auto 0 0; z-index: var(--ppt-z-dialog);
+    width: min(300px, 86vw); height: 100dvh;
+    background: var(--ppt-surface);
+    border-right: var(--ppt-border-width) solid var(--ppt-border);
+    box-shadow: var(--ppt-shadow-overlay);
+    transform: translateX(-100%); visibility: hidden;
+    transition: transform var(--ppt-motion-base) var(--ppt-ease), visibility 0s linear var(--ppt-motion-base);
+  }
+  .sidebar--open { transform: none; visibility: visible; transition: transform var(--ppt-motion-base) var(--ppt-ease); }
+  .scrim { display: block; position: fixed; inset: 0; z-index: var(--ppt-z-overlay); background: var(--ppt-scrim); }
+}
+
+/* ------------------------------------------------------------ page layout */
+.page {
+  width: min(var(--ppt-size-content-max), 100%);
+  margin: 0 auto;
+  padding: var(--page-top) var(--page-x) var(--page-bottom);
+}
+/* Column pages share the wide header position; their content stops at column-max. */
+.page--column .page-head, .page--column .page-body { max-width: var(--ppt-size-column-max); }
+.page-head { display: flex; flex-wrap: wrap; align-items: end; gap: var(--ppt-space-4); margin-bottom: var(--ppt-rhythm-head); }
+.page-head__text { flex: 1 1 320px; min-width: 0; display: grid; gap: var(--ppt-rhythm-title-text); }
+.page-head__subtitle { max-width: 72ch; color: var(--ppt-text-muted); text-wrap: pretty; }
 .page-head__actions { display: flex; flex-wrap: wrap; gap: var(--ppt-space-2); }
-.stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ppt-space-4); }
+.page-body { min-width: 0; }
+.page-body > * + .page-section { margin-top: var(--ppt-rhythm-section); }
+
+.page-section { min-width: 0; }
+.section-head { display: flex; flex-wrap: wrap; align-items: end; gap: var(--ppt-space-4); margin-bottom: var(--ppt-rhythm-section-head); }
+.section-head__text { flex: 1 1 280px; min-width: 0; display: grid; gap: var(--ppt-space-1); }
+.section-head__description { max-width: 72ch; font-size: var(--ppt-text-sm); color: var(--ppt-text-muted); text-wrap: pretty; }
+.section-head__actions { display: flex; flex-wrap: wrap; gap: var(--ppt-space-2); }
+.section-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ppt-rhythm-stack); }
+/* On a card the header sits a step further from the form, like the fields from each other. */
+.page-section--card .section-head { margin-bottom: var(--ppt-rhythm-form); }
+@media (max-width: 480px) { .page-section--card { padding: var(--ppt-space-4); } }
+
+.stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ppt-rhythm-stack); }
 .stack--tight { gap: var(--ppt-space-3); }
 .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ppt-space-3); }
-.section-title { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ppt-space-4); margin: var(--ppt-space-12) 0 var(--ppt-space-4); }
 
-/* --------------------------------------------------------------- welcome */
-.welcome { width: min(720px, 100%); margin: 0 auto; padding: var(--ppt-space-16) var(--ppt-space-6) var(--ppt-space-16); }
-@media (max-width: 600px) { .welcome { padding: var(--ppt-space-8) var(--ppt-space-4) var(--ppt-space-12); } }
-.welcome.auth { width: min(560px, 100%); }
-.hero { position: relative; display: grid; gap: var(--ppt-space-4); margin-bottom: var(--ppt-space-12); }
+/* Forms: fields one under the other, a readable width, actions last. */
+.form-stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ppt-rhythm-form); max-width: var(--ppt-size-form-max); }
+.form-card { display: grid; gap: var(--ppt-rhythm-form); }
+.form-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--ppt-space-2); }
+.form-actions--start { justify-content: flex-start; }
+.check { display: inline-flex; align-items: center; gap: var(--ppt-space-2); font-size: var(--ppt-text-sm); font-weight: var(--ppt-weight-medium); cursor: pointer; justify-self: start; min-height: 32px; }
+.check input { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--ppt-interactive); }
+/* A checkbox with a hint: the hint lines up with the label text, not with the box. */
+.check-field { display: grid; gap: 2px; }
+.check-field__hint { padding-left: calc(18px + var(--ppt-space-2)); font-size: var(--ppt-text-sm); color: var(--ppt-text-muted); }
+
+/* --------------------------------------------------------- focused pages */
+.focused { width: min(var(--ppt-size-focused-max), 100%); margin: 0 auto; padding: var(--page-top) var(--page-x) var(--page-bottom); }
+.hero { position: relative; display: grid; gap: var(--ppt-space-4); margin-bottom: var(--ppt-rhythm-head); }
 /* The single allowed brand gradient: the follow-spot halo, <= 8% amber. */
 .hero::before {
   content: ""; position: absolute; z-index: -1; pointer-events: none;
@@ -88,6 +219,9 @@ main:focus { outline: none; }
   background: radial-gradient(closest-side, var(--ppt-accent-halo), transparent);
 }
 .hero .ppt-display { max-width: 14ch; }
+.consent .hero .ppt-display { max-width: none; font-size: clamp(var(--ppt-text-2xl), 5vw + 0.5rem, var(--ppt-text-4xl)); }
+
+/* ---------------------------------------------------- connect: the steps */
 .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--ppt-space-8); counter-reset: step; }
 .steps--spaced { margin-top: var(--ppt-space-4); }
 .step { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: var(--ppt-space-2) var(--ppt-space-4); counter-increment: step; }
@@ -102,7 +236,8 @@ main:focus { outline: none; }
 }
 .step__title { font-weight: 600; font-size: var(--ppt-text-md); line-height: 32px; }
 .step__text { color: var(--ppt-text-muted); font-size: var(--ppt-text-sm); }
-.step > :not(.step__title):not(.step__text) { grid-column: 2; min-width: 0; }
+/* Content under a step's text gets a little more air than the text under its title. */
+.step > :not(.step__title):not(.step__text) { grid-column: 2; min-width: 0; margin-top: var(--ppt-space-2); }
 .waiting {
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--ppt-space-4);
   padding: var(--ppt-space-4) var(--ppt-space-4) var(--ppt-space-4) var(--ppt-space-6);
@@ -113,8 +248,17 @@ main:focus { outline: none; }
 .waiting__title .ppt-dot { background: var(--ppt-accent-text); animation: ppt-breathe 2.4s var(--ppt-ease) infinite; }
 .waiting__hint { font-size: var(--ppt-text-sm); color: var(--ppt-text-muted); }
 @media (prefers-reduced-motion: reduce) { .waiting__title .ppt-dot { animation: none; } }
-.welcome-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--ppt-space-4); margin-top: var(--ppt-space-12); padding-top: var(--ppt-space-6); border-top: 1px solid var(--ppt-border); font-size: var(--ppt-text-sm); color: var(--ppt-text-muted); }
-.next-card { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--ppt-space-6); align-items: center; margin-top: var(--ppt-space-12); }
+.connect-note {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: var(--ppt-space-3);
+  margin-top: var(--ppt-rhythm-section);
+  padding: var(--ppt-space-4);
+  border-radius: var(--ppt-radius-md);
+  background: var(--ppt-surface-2);
+  font-size: var(--ppt-text-sm); color: var(--ppt-text-muted);
+}
+.connect-note > svg { color: var(--ppt-interactive); margin-top: 1px; }
+.welcome-foot { display: flex; justify-content: flex-end; margin-top: var(--ppt-rhythm-section); padding-top: var(--ppt-space-6); border-top: 1px solid var(--ppt-border); font-size: var(--ppt-text-sm); }
+.next-card { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--ppt-space-6); align-items: center; margin-top: var(--ppt-rhythm-section-sm); }
 .next-card > svg { width: 120px; height: auto; color: var(--ppt-text); }
 @media (max-width: 520px) { .next-card { grid-template-columns: minmax(0, 1fr); } .next-card > svg { width: 140px; } }
 
@@ -125,12 +269,6 @@ main:focus { outline: none; }
 .secret-field .ppt-copyfield__value { min-width: 0; }
 .ppt-copyblock__value { overflow-wrap: anywhere; white-space: pre-wrap; }
 
-/* Setup and sign-in forms */
-.form-card { display: grid; gap: var(--ppt-space-6); }
-.form-actions { display: flex; justify-content: flex-end; }
-.check { display: inline-flex; align-items: center; gap: var(--ppt-space-2); font-size: var(--ppt-text-sm); cursor: pointer; justify-self: start; min-height: 32px; }
-.check input { width: 18px; height: 18px; margin: 0; accent-color: var(--ppt-interactive); }
-
 /* ------------------------------------------------------------ decks list */
 .deck-grid { display: grid; gap: var(--ppt-space-4); grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
 .toolbar { display: flex; flex-wrap: wrap; gap: var(--ppt-space-3); align-items: center; margin-bottom: var(--ppt-space-6); }
@@ -140,6 +278,7 @@ main:focus { outline: none; }
 .toolbar .count { margin-left: auto; font-size: var(--ppt-text-sm); color: var(--ppt-text-muted); }
 .load-more { display: flex; justify-content: center; margin-top: var(--ppt-space-8); }
 .offline-copies { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ppt-space-2) var(--ppt-space-4); margin-top: var(--ppt-space-8); }
+.page-body > .ppt-notice { margin-bottom: var(--ppt-rhythm-stack); }
 
 /* Export dialog and import status (Decks). */
 .export-options { display: grid; gap: var(--ppt-space-6); }
@@ -147,6 +286,7 @@ main:focus { outline: none; }
 .export-option + .export-option { padding-top: var(--ppt-space-6); border-top: 1px solid var(--ppt-border); }
 .export-option__title { margin: 0; font-size: var(--ppt-text-lg); font-weight: var(--ppt-weight-semibold); }
 .export-option p { margin: 0; }
+.export-option > div:last-child { margin-top: var(--ppt-space-2); }
 .import-status { display: flex; align-items: center; gap: var(--ppt-space-2); margin: 0 0 var(--ppt-space-4); }
 .import-status .spin { animation: ppt-spin 0.9s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .import-status .spin { animation: none; } }
@@ -158,7 +298,6 @@ main:focus { outline: none; }
 .import-group summary { cursor: pointer; font-size: var(--ppt-text-sm); font-weight: var(--ppt-weight-semibold); }
 .import-group .import-warnings { max-height: 240px; overflow: auto; }
 .import-open { margin: var(--ppt-space-3) 0 0; }
-.page > .ppt-notice { margin-bottom: var(--ppt-space-4); }
 
 /* Neutral title card: decks have no thumbnails in F2. Sized with cqw like the reference slides. */
 .thumb {
@@ -177,16 +316,23 @@ main:focus { outline: none; }
 .ppt-deck__actions > :only-child { margin-left: 0; }
 
 /* ------------------------------------------------------------- tokens */
-.token-create { display: grid; gap: var(--ppt-space-4); margin-bottom: var(--ppt-space-4); }
 .token-form { display: flex; flex-wrap: wrap; align-items: start; gap: var(--ppt-space-4); }
-.token-form .ppt-field { flex: 1 1 260px; }
+.token-form .ppt-field { flex: 1 1 260px; max-width: var(--ppt-size-form-max); }
 /* Align the button with the input (label height + gap). */
 .token-form__actions { padding-top: calc(var(--ppt-text-sm) * 1.5 + 6px); }
 .token-name { font-weight: 600; }
 
+/* Dialogs: body text and notices breathe like a section; actions stay apart. */
+.ppt-dialog__inner > p { text-wrap: pretty; }
+@media (max-width: 480px) {
+  .ppt-dialog__inner { padding: var(--ppt-space-4); }
+  .ppt-dialog__actions { justify-content: stretch; }
+  .ppt-dialog__actions > .ppt-btn { flex: 1 1 auto; }
+}
+
 /* ---------------------------------------------------------- small screens */
 /* The halo must never cause sideways scrolling: on small screens it is confined to the viewport. */
-@media (max-width: 800px) { .welcome, .page { overflow-x: clip; } }
+@media (max-width: 800px) { .focused, .page { overflow-x: clip; } }
 @media (max-width: 480px) {
   .step { column-gap: var(--ppt-space-3); }
   .step > :not(.step__title):not(.step__text) { grid-column: 1 / -1; }

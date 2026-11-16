@@ -4,6 +4,8 @@
 import { type Locale, pickLocale } from "@pptaken/ui";
 
 export const LANG_KEY = "pptaken.lang";
+/** "collapsed" when the owner folded the desktop sidebar to icons. */
+export const SIDEBAR_KEY = "pptaken.sidebar";
 
 export function readStored(key: string): string | null {
   try {

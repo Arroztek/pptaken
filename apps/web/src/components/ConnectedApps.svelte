@@ -7,6 +7,7 @@
   import { errorMessage } from "../lib/errors";
   import { describeWhen, formatDate } from "../lib/format";
   import { handleAuthError, prefs, t } from "../lib/state.svelte";
+  import PageSection from "./PageSection.svelte";
 
   let apps = $state<ConnectedApp[]>([]);
   let loading = $state(true);
@@ -66,20 +67,15 @@
   const rows = $derived(apps.map((app) => ({ id: app.id, app })));
 </script>
 
-<section aria-labelledby="apps-title">
-  <div class="section-title">
-    <h2 class="ppt-h2" id="apps-title">{t("apps.title")}</h2>
-  </div>
-  <p class="ppt-muted">{t("apps.subtitle")}</p>
-
+<PageSection id="apps" title={t("apps.title")} description={t("apps.subtitle")}>
   {#if listError}
     <Notice tone="danger" title={listError}>
       <div><Button size="sm" onclick={reload}>{t("app.retry")}</Button></div>
     </Notice>
   {:else if loading && apps.length === 0}
-    <p class="ppt-muted loading-line" role="status">{t("common.loading")}…</p>
+    <p class="ppt-muted loading-line" role="status">{t("common.loading")}â€¦</p>
   {:else if apps.length === 0}
-    <EmptyState title={t("apps.emptyTitle")} text={t("apps.emptyText")} />
+    <EmptyState title={t("apps.emptyTitle")} text={t("apps.emptyText")} headingLevel={3} />
   {:else}
     <Table {columns} {rows} rowKey={(row) => row.id}>
       {#snippet cell(row, column)}
@@ -119,4 +115,4 @@
       <Button variant="danger" loading={revoking} onclick={revoke}>{t("apps.disconnect")}</Button>
     {/snippet}
   </Dialog>
-</section>
+</PageSection>
