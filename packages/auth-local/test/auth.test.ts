@@ -290,3 +290,30 @@ describe("agent connection", () => {
     });
   });
 });
+
+describe("bootstrapOwner (PPTAKEN_ADMIN_PASSWORD)", () => {
+  it("creates the owner without an install code and the password signs in", async () => {
+    const { auth } = setupAuth();
+    expect(await auth.bootstrapOwner(GOOD_PASSWORD)).toBe(true);
+    expect(await auth.isInstalled()).toBe(true);
+    expect(await auth.ensureInstallCode()).toBeNull();
+    await expect(auth.login({ password: GOOD_PASSWORD })).resolves.toHaveProperty("sessionId");
+  });
+
+  it("never overwrites an existing owner", async () => {
+    const { auth } = setupAuth();
+    await auth.bootstrapOwner(GOOD_PASSWORD);
+    expect(await auth.bootstrapOwner("another very long passphrase 99")).toBe(false);
+    await expect(auth.login({ password: GOOD_PASSWORD })).resolves.toBeDefined();
+    await expect(
+      auth.login({ password: "another very long passphrase 99" }),
+    ).rejects.toBeInstanceOf(AuthError);
+  });
+
+  it("rejects a password that fails the policy and leaves the instance open to the install code", async () => {
+    const { auth } = setupAuth();
+    await expect(auth.bootstrapOwner("short")).rejects.toBeInstanceOf(AuthError);
+    expect(await auth.isInstalled()).toBe(false);
+    expect(await auth.ensureInstallCode()).not.toBeNull();
+  });
+});

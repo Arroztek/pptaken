@@ -22,7 +22,7 @@ import {
 } from "@pptaken/storage-sqlite";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
-import type { ServerConfig } from "./config.js";
+import { ConfigError, type ServerConfig } from "./config.js";
 import type { AppEnv, Clock, Services } from "./context.js";
 import {
   apiError,
@@ -127,6 +127,19 @@ export async function createServer(
     clock,
     ...(options.scrypt === undefined ? {} : { scrypt: options.scrypt }),
   });
+  // An operator-supplied admin password creates the owner at first boot, so no install code is printed.
+  // It never overwrites an existing owner (use `pptaken reset-password` for that).
+  if (config.adminPassword !== undefined) {
+    try {
+      if (await auth.bootstrapOwner(config.adminPassword)) {
+        logger.info("owner created from PPTAKEN_ADMIN_PASSWORD");
+      }
+    } catch (error) {
+      throw new ConfigError(
+        `PPTAKEN_ADMIN_PASSWORD does not meet the password policy: ${error instanceof Error ? error.message : "invalid"}`,
+      );
+    }
+  }
   const installCode = await auth.ensureInstallCode();
 
   const minute = 60_000;

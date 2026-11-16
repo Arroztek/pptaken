@@ -6,6 +6,11 @@ docker compose -f docker/compose.yaml up -d --build
 docker compose -f docker/compose.yaml logs pptaken   # "PPTaken ready at … · Install code: XXXX-XXXX"
 ```
 
+**Skip the install code (optional):** set `PPTAKEN_ADMIN_PASSWORD` (or `PPTAKEN_ADMIN_PASSWORD_FILE`, a path to a file
+with the password) and the owner is created at first start; nothing is printed in the logs and you sign in with that
+password. It is only used while no owner exists (it never resets a password; use `pptaken reset-password`), and a
+password that fails the policy stops the server with a clear message. Without it, the install-code flow below applies.
+
 Open the public URL, enter the install code and choose a password (at least 12 characters). Set
 `PPTAKEN_PUBLIC_URL` to the address people and agents use (for example `https://slides.example.com`); behind a reverse
 proxy also set `PPTAKEN_TRUST_PROXY=true`.

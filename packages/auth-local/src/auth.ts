@@ -183,6 +183,38 @@ export class LocalAuth implements AuthProvider {
     return code;
   }
 
+  /**
+   * Creates the owner from a password supplied by the operator at startup (`PPTAKEN_ADMIN_PASSWORD`), so no
+   * install code is needed. Does nothing when an owner already exists (it never overwrites or resets a password).
+   * Returns true when the owner was created. Throws when the password does not meet the policy.
+   */
+  async bootstrapOwner(password: string): Promise<boolean> {
+    if (await this.isInstalled()) return false;
+    const policy = checkPasswordPolicy(password);
+    if (!policy.ok) {
+      throw new AuthError(
+        "VALIDATION_ERROR",
+        "The admin password does not meet the policy",
+        policy.hint,
+      );
+    }
+    const now = this.clock.now();
+    const owner = {
+      workspaceId: this.ws,
+      id: this.ids.ulid(),
+      passwordHash: await hashPassword(password, this.scryptParams),
+      createdAt: now,
+      updatedAt: now,
+    };
+    // completeSetup is the atomic "create the owner if none exists" step; it consumes a marker in place of a code.
+    const marker = "bootstrap";
+    await this.store.putSetting(this.ws, INSTALL_CODE_SETTING, marker, now);
+    const outcome = await this.store.completeSetup(owner, marker);
+    await this.store.deleteSetting(this.ws, INSTALL_CODE_SETTING);
+    if (outcome !== "ok") return false;
+    return true;
+  }
+
   /** Creates the owner with the install code and returns a new session. */
   async setup(input: {
     installCode: unknown;

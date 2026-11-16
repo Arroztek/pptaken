@@ -28,6 +28,8 @@ export interface ServerConfig {
   dataDir: string;
   /** Take the client IP and scheme from X-Forwarded-For / X-Forwarded-Proto (only behind a trusted proxy). */
   trustProxy: boolean;
+  /** Optional owner password for unattended installs (PPTAKEN_ADMIN_PASSWORD or the _FILE variant). */
+  adminPassword?: string | undefined;
   /** Built web app (`apps/web/dist`); served only if it exists. */
   webDir: string;
   /** Bundled font files (`packages/ui/fonts`). */
@@ -86,6 +88,18 @@ function int(
   return n;
 }
 
+function adminPasswordFrom(env: Record<string, string | undefined>): string | undefined {
+  if (env.PPTAKEN_ADMIN_PASSWORD) return env.PPTAKEN_ADMIN_PASSWORD;
+  const file = env.PPTAKEN_ADMIN_PASSWORD_FILE;
+  if (!file) return undefined;
+  try {
+    // A trailing newline is how most secret files end; it is not part of the password.
+    return readFileSync(file, "utf8").replace(/\r?\n$/, "") || undefined;
+  } catch {
+    throw new ConfigError(`PPTAKEN_ADMIN_PASSWORD_FILE: cannot read ${file}`);
+  }
+}
+
 function bool(name: string, value: string | undefined): boolean {
   if (value === undefined || value === "") return false;
   const v = value.toLowerCase();
@@ -136,6 +150,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     fontsDir: resolve(env.PPTAKEN_FONTS_DIR || resolve(PACKAGE_DIR, "../../packages/ui/fonts")),
     allowedHosts,
     defaultLang: lang,
+    adminPassword: adminPasswordFrom(env),
     secretKey: env.PPTAKEN_SECRET_KEY || undefined,
     secretKeyFile: env.PPTAKEN_SECRET_KEY_FILE || undefined,
     maxApiBodyBytes:
