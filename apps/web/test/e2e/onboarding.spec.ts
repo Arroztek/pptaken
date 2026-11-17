@@ -128,7 +128,7 @@ test.describe("connect tabs", () => {
       "href",
       "#publish-guide",
     );
-    await expect(page.getByText("Customize → Connectors → Add custom connector")).toBeVisible();
+    await expect(page.getByText("Settings → Customize → Connectors → Add → Add custom connector")).toBeVisible();
     await page.getByRole("button", { name: "Copy", exact: true }).click();
     await expect.poll(() => clipboardText(page)).toBe(`${mock.url}/mcp`);
     await expect(page.getByText("Copied to clipboard.").first()).toBeAttached();

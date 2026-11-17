@@ -193,6 +193,8 @@
             <li class="step">
               <h2 class="step__title">{t("welcome.webAddTitle")}</h2>
               <p class="step__text">{t("welcome.webAddText")}</p>
+              <p class="step__text">{t("welcome.webAddWebText")}</p>
+              <p class="step__text">{t("welcome.webSyncText")}</p>
             </li>
             <li class="step">
               <h2 class="step__title">{t("welcome.webPasteTitle")}</h2>

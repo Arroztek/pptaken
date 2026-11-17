@@ -51,11 +51,16 @@ export const en = {
       "It connects from Anthropic's cloud and needs public HTTPS. Use Claude Code, or publish your server first.",
     webCopyTitle: "Copy the connector URL.",
     webAddTitle: "Add a connector in Claude.",
-    webAddText: "Open Customize → Connectors → Add custom connector.",
+    webAddText:
+      "In Claude Desktop: Settings → Customize → Connectors → Add → Add custom connector.",
+    webAddWebText: "In Claude on the web: Plugins in the sidebar → Add → Add custom connector.",
     webPasteTitle: "Paste the URL and select Connect.",
-    webPasteText: "Keep everything marked Detected. Nothing else to change.",
+    webPasteText:
+      "Type a name (for example PPTaken), paste the URL and continue. Keep everything marked Detected.",
     webAuthTitle: "Authorize Claude.",
-    webAuthText: "This instance opens so you can approve access. Then come back here.",
+    webAuthText:
+      "A browser window opens on this instance so you can approve access. Then come back here.",
+    webSyncText: "Connect from Claude Desktop or the web and it shows up in both.",
     nextTitle: "Ask for your first deck.",
     nextText: "Copy an example, paste it into Claude, and watch it appear in your list.",
     copyExample: "Copy example prompt",

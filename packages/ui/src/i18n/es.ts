@@ -53,11 +53,17 @@ export const es: Dictionary = {
       "Se conecta desde la nube de Anthropic y necesita HTTPS público. Usa Claude Code o publica antes tu servidor.",
     webCopyTitle: "Copia la URL del conector.",
     webAddTitle: "Agrega un conector en Claude.",
-    webAddText: "Abre Personalizar → Conectores → Agregar conector personalizado.",
+    webAddText:
+      "En Claude Desktop: Ajustes → Personalización → Conectores → Añadir → Añadir conector personalizado.",
+    webAddWebText:
+      "En Claude web: Plugins en la barra lateral → Añadir → Añadir conector personalizado.",
     webPasteTitle: "Pega la URL y pulsa Conectar.",
-    webPasteText: "Deja lo que aparece marcado como Detectado. No hace falta tocar nada más.",
+    webPasteText:
+      "Escribe un nombre (por ejemplo PPTaken), pega la URL y continúa. Deja lo que aparece marcado como Detectado.",
     webAuthTitle: "Autoriza a Claude.",
-    webAuthText: "Se abrirá esta instancia para que apruebes el acceso. Después vuelve aquí.",
+    webAuthText:
+      "Se abrirá una ventana del navegador en esta instancia para que apruebes el acceso. Después vuelve aquí.",
+    webSyncText: "Conéctalo desde Claude Desktop o la web y aparece en las dos.",
     nextTitle: "Pide tu primera presentación.",
     nextText: "Copia un ejemplo, pégalo en Claude y mira cómo aparece en tu lista.",
     copyExample: "Copiar prompt de ejemplo",
