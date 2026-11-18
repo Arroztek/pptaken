@@ -49,6 +49,7 @@ import {
 /** The `instructions` field of the server: the recommended flow in five lines (architecture §5.1). */
 export const SERVER_INSTRUCTIONS = [
   "PPTaken turns slides you write into a presentation the user presents from a browser.",
+  "Use it only when the user asks for it: to create, edit, present or send a presentation with or to PPTaken. If the user just asks for a presentation, do not assume PPTaken: make it the way you normally would, in the format they asked for (artifact, file, text), and at most offer in one line to send it to PPTaken afterwards. Never replace their format or tie their work to PPTaken: from the panel, decks leave as a single HTML file or a .pkn archive.",
   "1. Call get_authoring_guide once before writing slides: canvas size, allowed HTML/CSS, steps, fonts, limits.",
   "2. Call create_presentation with all the slides in one call.",
   "3. Give the returned urls.present to the user: it opens the presentation, ready to present.",
@@ -477,7 +478,7 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
     name: "create_presentation",
     title: "Create a presentation",
     description:
-      "Creates a complete presentation in one call (all slides) and returns presentation_id, revision 1 and urls; give urls.present to the user. Call get_authoring_guide first. Use idempotency_key so a retry does not create a duplicate. To change an existing presentation use update_slides or update_presentation instead. Images: create first, then add_asset and update_slides.",
+      "Use only when the user wants the presentation in PPTaken (do not use it for a plain request to make a presentation). Creates a complete presentation in one call (all slides) and returns presentation_id, revision 1 and urls; give urls.present to the user. Call get_authoring_guide first. Use idempotency_key so a retry does not create a duplicate. To change an existing presentation use update_slides or update_presentation instead. Images: create first, then add_asset and update_slides.",
     schema: createPresentationInput,
     annotations: {
       readOnlyHint: false,
@@ -848,7 +849,7 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
     name: "import_html_deck",
     title: "Import an HTML artifact as a presentation",
     description:
-      'Creates a presentation from a whole HTML document as you would write it in an artifact (inline <style>, Google Fonts <link>, CDN <script src>, https images, inline scripts). The server splits it into slides (data-slide, class "slide", sibling <section>s, then <h1>/<h2>, else one slide), downloads every external resource once and stores it, and returns presentation_id, urls, the heuristic used, a vendoring report and warnings. Scripts never run until the owner approves them (interactive.approve_url). Prefer create_presentation when you write a new deck; use this to bring an existing artifact.',
+      'Creates a presentation from a whole HTML document as you would write it in an artifact (inline <style>, Google Fonts <link>, CDN <script src>, https images, inline scripts). The server splits it into slides (data-slide, class "slide", sibling <section>s, then <h1>/<h2>, else one slide), downloads every external resource once and stores it, and returns presentation_id, urls, the heuristic used, a vendoring report and warnings. Scripts never run until the owner approves them (interactive.approve_url). Use it when the user asks to send an existing artifact to PPTaken; prefer create_presentation when you write a new deck for PPTaken.',
     schema: importHtmlDeckInput,
     annotations: {
       readOnlyHint: false,

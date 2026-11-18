@@ -36,7 +36,7 @@
   {
     "name": "create_presentation",
     "title": "Create a presentation",
-    "description": "Creates a complete presentation in one call (all slides) and returns presentation_id, revision 1 and urls; give urls.present to the user. Call get_authoring_guide first. Use idempotency_key so a retry does not create a duplicate. To change an existing presentation use update_slides or update_presentation instead. Images: create first, then add_asset and update_slides.",
+    "description": "Use only when the user wants the presentation in PPTaken (do not use it for a plain request to make a presentation). Creates a complete presentation in one call (all slides) and returns presentation_id, revision 1 and urls; give urls.present to the user. Call get_authoring_guide first. Use idempotency_key so a retry does not create a duplicate. To change an existing presentation use update_slides or update_presentation instead. Images: create first, then add_asset and update_slides.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -933,7 +933,7 @@
   {
     "name": "import_html_deck",
     "title": "Import an HTML artifact as a presentation",
-    "description": "Creates a presentation from a whole HTML document as you would write it in an artifact (inline <style>, Google Fonts <link>, CDN <script src>, https images, inline scripts). The server splits it into slides (data-slide, class \"slide\", sibling <section>s, then <h1>/<h2>, else one slide), downloads every external resource once and stores it, and returns presentation_id, urls, the heuristic used, a vendoring report and warnings. Scripts never run until the owner approves them (interactive.approve_url). Prefer create_presentation when you write a new deck; use this to bring an existing artifact.",
+    "description": "Creates a presentation from a whole HTML document as you would write it in an artifact (inline <style>, Google Fonts <link>, CDN <script src>, https images, inline scripts). The server splits it into slides (data-slide, class \"slide\", sibling <section>s, then <h1>/<h2>, else one slide), downloads every external resource once and stores it, and returns presentation_id, urls, the heuristic used, a vendoring report and warnings. Scripts never run until the owner approves them (interactive.approve_url). Use it when the user asks to send an existing artifact to PPTaken; prefer create_presentation when you write a new deck for PPTaken.",
     "inputSchema": {
       "type": "object",
       "properties": {

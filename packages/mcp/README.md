@@ -37,7 +37,7 @@ The HTTP layer (`apps/server`) builds one server per request (stateless) with th
   guide's "External resources" section describe the instance's policy (`McpServerConfig.vendoring`).
 - **Rate limits and activity** are callbacks (`config.rateLimit`, `config.onActivity`) so this package has no
   state; a limited call answers `RATE_LIMITED` with `details.retry_after_sec`.
-- **`instructions`**: six lines (guide → create → give `urls.present` → edit with `expected_revision` → import an artifact).
+- **`instructions`**: seven lines (use it only when the user asks for PPTaken, never by default; guide → create → give `urls.present` → edit with `expected_revision` → import an artifact).
 
 ## Authoring guide
 

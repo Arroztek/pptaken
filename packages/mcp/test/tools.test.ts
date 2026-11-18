@@ -75,9 +75,9 @@ async function connect(
 }
 
 describe("server metadata", () => {
-  it("has six lines of instructions and lists the eleven tools in a fixed order", async () => {
+  it("has seven lines of instructions and lists the eleven tools in a fixed order", async () => {
     const { client } = await connect();
-    expect(SERVER_INSTRUCTIONS.split("\n")).toHaveLength(6);
+    expect(SERVER_INSTRUCTIONS.split("\n")).toHaveLength(7);
     expect(client.getInstructions()).toBe(SERVER_INSTRUCTIONS);
     const list = await client.listTools();
     expect(list.tools.map((t) => t.name)).toEqual([...TOOL_NAMES]);
