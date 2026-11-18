@@ -278,3 +278,34 @@ describe("other paths", () => {
     expect(view.libs).toBeUndefined();
   });
 });
+
+describe("getScriptsReview (ADR-021 approval screen)", () => {
+  it("returns every script with its hash and UTF-8 size, from the revision the digest binds", async () => {
+    const { t, id, created } = await scriptedDeck();
+    const review = await t.core.getScriptsReview(owner, { presentationId: id });
+    expect(review.digest).toBe(created.scripts.digest);
+    expect(review.sources).toEqual([
+      {
+        slideId: "b",
+        index: 1,
+        source: "slide.onEnter(function(){});",
+        sha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+        bytes: 28,
+      },
+    ]);
+    // Agents may read the code they wrote, never approve it.
+    expect((await t.core.getScriptsReview(agent, { presentationId: id })).sources).toHaveLength(1);
+    const plain = await t.core.createPresentation(agent, {
+      title: "P",
+      slides: [{ html: "<p>x</p>" }],
+    });
+    const none = await t.core.getScriptsReview(owner, { presentationId: plain.presentationId });
+    expect(none).toMatchObject({ digest: null, state: "none", sources: [] });
+    const multibyte = await t.core.createPresentation(agent, {
+      title: "M",
+      slides: [{ id: "m", html: "<p>m</p>", script: "var s = 'ñ';" }],
+    });
+    const mb = await t.core.getScriptsReview(owner, { presentationId: multibyte.presentationId });
+    expect(mb.sources[0]?.bytes).toBe(13);
+  });
+});

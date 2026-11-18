@@ -130,3 +130,11 @@ export {
   type SyncMessage,
   syncChannelName,
 } from "./sync.js";
+export {
+  isUnlockKey,
+  UNLOCK_STORAGE_PREFIX,
+  UNLOCK_TOKEN_PATTERN,
+  type UnlockDialog,
+  type UnlockDialogOptions,
+  type UnlockOutcome,
+} from "./unlock.js";

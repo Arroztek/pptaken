@@ -11,6 +11,7 @@ import {
   type ScriptsSummary,
   scriptsSummary,
 } from "../scripts.js";
+import { sha256Hex, utf8Encode } from "../sha256.js";
 import {
   actorRef,
   audit,
@@ -52,6 +53,66 @@ async function statusOf(
     approvedDigest: approval?.digest ?? null,
     approvedAt: approval?.approvedAt ?? null,
   };
+}
+
+/** One slide's author script as the owner reviews it (ADR-021: the approval screen shows every byte). */
+export interface ScriptSource {
+  slideId: string;
+  /** 0-based position of the slide in the deck. */
+  index: number;
+  /** The exact code that runs (the digest covers its SHA-256). */
+  source: string;
+  /** SHA-256 (hex) of the UTF-8 code: the value the digest is computed from. */
+  sha256: string;
+  /** UTF-8 size. */
+  bytes: number;
+}
+
+export interface ScriptsReview extends ScriptsStatus {
+  /** Every slide script of the current revision, in deck order. */
+  sources: ScriptSource[];
+}
+
+/**
+ * `decks:read`. The scripts status plus every script's source, hash and size: what the owner reads before approving.
+ * Computed from the same revision as the digest, so what is shown is exactly what the digest binds.
+ */
+export async function getScriptsReview(
+  ctx: Ctx,
+  principal: Principal,
+  rawInput: { presentationId: string },
+  call?: CallContext,
+): Promise<ScriptsReview> {
+  return runRead(call, async () => {
+    requireScope(principal, "decks:read");
+    const id = requireString(requireObject(rawInput).presentationId, "presentationId");
+    const deck = await loadLiveDeck(ctx.store, principal, id);
+    const revision = await ctx.store.revisions.get(principal.workspaceId, id, deck.currentRevision);
+    if (revision === null) throw validationError("The current revision is missing", { path: "" });
+    const approval = await ctx.store.scriptApprovals.get(principal.workspaceId, id);
+    const summary = scriptsSummary(revision.document, approval?.digest ?? null);
+    const sources: ScriptSource[] = [];
+    revision.document.slides.forEach((slide, index) => {
+      if (slide.script === undefined) return;
+      const bytes = utf8Encode(slide.script);
+      sources.push({
+        slideId: slide.id,
+        index,
+        source: slide.script,
+        sha256: sha256Hex(bytes),
+        bytes: bytes.length,
+      });
+    });
+    return {
+      presentationId: id,
+      revision: deck.currentRevision,
+      enabled: ctx.config.scriptsEnabled,
+      ...summary,
+      approvedDigest: approval?.digest ?? null,
+      approvedAt: approval?.approvedAt ?? null,
+      sources,
+    };
+  });
 }
 
 /** `decks:read`. The scripts digest of the current revision and its trust state. */

@@ -30,6 +30,7 @@ import { Hono } from "hono";
 import type { AppEnv, Services } from "./context.js";
 import { loadFontFaces } from "./fonts.js";
 import { apiError } from "./http.js";
+import { unlockableDigest } from "./presenter-unlock.js";
 import { escapeHtml, playerPagePolicy } from "./routes-content.js";
 import { ownerSession } from "./session.js";
 
@@ -192,7 +193,12 @@ export function presenterRoutes(s: Services): Hono<AppEnv> {
     const id = c.req.param("id");
     const data = ULID.test(id) ? await presenterData(s, id) : null;
     if (data === null) return apiError(c, "NOT_FOUND", "Presentation not found");
-    return c.json(data, 200, { "Cache-Control": "no-store" });
+    // Interactive mode (ADR-021): whether the deck's approved scripts can run online. The presenter view uses it to
+    // explain, when it runs from the offline copy, that interactive mode needs a connection.
+    const interactive = (await unlockableDigest(s, id)) !== null;
+    return c.json(interactive ? { ...data, interactive } : data, 200, {
+      "Cache-Control": "no-store",
+    });
   });
 
   app.get("/p/:deckId/presenter", async (c) => {

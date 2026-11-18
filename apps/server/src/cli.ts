@@ -11,7 +11,7 @@ import {
   createOAuthService,
   loadOrCreateSecretKey,
 } from "@pptaken/auth-local";
-import { createUlidGenerator } from "@pptaken/core";
+import { createUlidGenerator, DEFAULT_WORKSPACE_ID } from "@pptaken/core";
 import {
   createSqliteAuthStore,
   createSqliteOAuthStore,
@@ -44,7 +44,10 @@ async function readSecretLine(prompt: string): Promise<string> {
   }
 }
 
-export async function resetPassword(config: ServerConfig): Promise<number> {
+export async function resetPassword(
+  config: ServerConfig,
+  options: { clearPresenterPassword?: boolean } = {},
+): Promise<number> {
   const db = join(config.dataDir, "pptaken.db");
   if (!existsSync(db)) {
     process.stderr.write(`No database at ${db}. Check PPTAKEN_DATA_DIR.\n`);
@@ -75,10 +78,38 @@ export async function resetPassword(config: ServerConfig): Promise<number> {
       ids,
       oauth,
     });
-    const disconnected = await auth.resetPassword(password);
+    const hadPresenter = await auth.hasPresenterPassword();
+    const clear = options.clearPresenterPassword === true;
+    const disconnected = await auth.resetPassword(password, { clearPresenterPassword: clear });
+    if (clear && hadPresenter) {
+      // The presenter password is a separate secret (ADR-021): only removed on request, and audited.
+      await storage.audit.append({
+        workspaceId: DEFAULT_WORKSPACE_ID,
+        id: ids.ulid(),
+        at: Date.now(),
+        actor: "owner",
+        tokenId: null,
+        action: "presenter_password.remove",
+        target: null,
+        ip: null,
+        result: "ok",
+        detail: { via: "cli" },
+      });
+    }
     process.stderr.write(
       `Password changed. Every session was signed out and ${disconnected} connected application(s) were disconnected.\n`,
     );
+    if (clear) {
+      process.stderr.write(
+        hadPresenter
+          ? "The presenter password was removed: presenter unlocks stop working until you set a new one.\n"
+          : "No presenter password was set.\n",
+      );
+    } else if (hadPresenter) {
+      process.stderr.write(
+        "The presenter password was kept. Use --clear-presenter-password to remove it too.\n",
+      );
+    }
     return 0;
   } catch (error) {
     if (error instanceof AuthError) {

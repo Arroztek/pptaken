@@ -138,10 +138,13 @@ describe("first-run flow", () => {
         revision: 1,
         updatedAt: expect.any(String),
         createdBy: "agent",
+        scripts: "none",
       },
     ]);
     res = await api("GET", `/api/v1/decks/${id}`, { cookie });
-    expect((await res.json()).urls.present).toBe(`http://localhost:8080/p/${id}`);
+    const urls = (await res.json()).urls;
+    expect(urls.present).toBe(`http://localhost:8080/p/${id}`);
+    expect(urls.manage).toBe(`http://localhost:8080/decks/${id}`);
     expect(
       (await api("GET", "/api/v1/decks?q=nothing-like-this", { cookie }).then((r) => r.json()))
         .decks,

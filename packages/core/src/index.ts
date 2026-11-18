@@ -151,7 +151,7 @@ export {
   type UpdateSlidesInput,
 } from "./usecases/presentations.js";
 export type { RevisionDetail, RevisionInfo } from "./usecases/revisions.js";
-export type { ScriptsStatus } from "./usecases/scripts.js";
+export type { ScriptSource, ScriptsReview, ScriptsStatus } from "./usecases/scripts.js";
 
 /** The system clock (`Date.now()`). */
 export const systemClock: Clock = { now: () => Date.now() };

@@ -23,6 +23,11 @@ export interface PresenterData {
   aspectRatio?: "16:9" | "4:3";
   targetMinutes?: number;
   slides: PresenterSlide[];
+  /**
+   * The deck's approved scripts can run online (ADR-021). The presenter view running from the offline copy says
+   * that interactive mode needs a connection.
+   */
+  interactive?: boolean;
 }
 
 /** Generous bounds over the schema limits (title 200, section 100, notes 16 KB rendered with escaping). */
@@ -41,9 +46,14 @@ function only(o: Record<string, unknown>, keys: readonly string[]): boolean {
 /** Validates presenter data. Returns a fresh copy, or `null` when anything is off. */
 export function parsePresenterData(data: unknown): PresenterData | null {
   if (!isObject(data)) return null;
-  if (!only(data, ["title", "revision", "aspectRatio", "targetMinutes", "slides"])) return null;
+  if (!only(data, ["title", "revision", "aspectRatio", "targetMinutes", "slides", "interactive"]))
+    return null;
   if (!isText(data.title, MAX_TEXT)) return null;
   const out: PresenterData = { title: data.title, slides: [] };
+  if (data.interactive !== undefined) {
+    if (typeof data.interactive !== "boolean") return null;
+    if (data.interactive) out.interactive = true;
+  }
   if (data.revision !== undefined) {
     if (!isBoundedInt(data.revision, 1e9)) return null;
     out.revision = data.revision;

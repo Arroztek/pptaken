@@ -41,6 +41,7 @@ export const SHELL_FILES = [
   "offline.js",
   "offline-cache.js",
   "offline-client.js",
+  "unlock.js",
 ] as const;
 
 const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/;

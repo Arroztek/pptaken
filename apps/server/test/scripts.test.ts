@@ -308,7 +308,9 @@ const REVIEWED_GET_ROUTES: Record<string, string> = {
   "GET /api/v1/connect/status": "read",
   "GET /api/v1/decks": "read",
   "GET /api/v1/decks/:id": "read",
-  "GET /api/v1/decks/:id/content-url": "signs a short-lived content URL; no state",
+  "GET /api/v1/decks/:id/content-url":
+    "signs a short-lived content URL; no state (guests: view grant + optional unlock token headers, ADR-021)",
+  "GET /api/v1/presenter/password": "read (whether a presenter password is set; never the hash)",
   "GET /api/v1/decks/:id/scripts": "read",
   "GET /api/v1/decks/:id/export": "file download (audited read)",
   "GET /api/v1/decks/:id/presenter": "read",

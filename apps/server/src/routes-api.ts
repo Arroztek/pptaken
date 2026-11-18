@@ -15,7 +15,9 @@ import {
   ownerPrincipal,
   type ScriptsStatus,
   scriptsDigest,
+  scriptsStateOf,
 } from "@pptaken/core";
+import { staticDeck } from "@pptaken/sanitizer";
 import { canvasSize, type Deck } from "@pptaken/schema";
 import type { Context } from "hono";
 import { Hono } from "hono";
@@ -29,6 +31,14 @@ import {
   ownOrigin,
   publicOrigin,
 } from "./http.js";
+import {
+  signUnlockToken,
+  UNLOCK_HEADER,
+  unlockableDigest,
+  VIEW_HEADER,
+  verifyUnlockToken,
+  verifyViewGrant,
+} from "./presenter-unlock.js";
 import { clearSessionCookie, ownerSession, readSessionId, setSessionCookie } from "./session.js";
 
 /** Lifetime of the signed URL of a deck document (the shell loads it right away). */
@@ -49,6 +59,12 @@ const decisionBody = z.object({
   scopes: z.array(z.string().max(40)).max(10).optional(),
 });
 const approveBody = z.object({ digest: z.string().regex(/^[0-9a-f]{64}$/) }).strict();
+const presenterPasswordBody = z.object({ password: z.string().max(4096) }).strict();
+const unlockBody = z
+  .object({ deckId: z.string().max(64), password: z.string().max(4096) })
+  .strict();
+/** Sanitizer warnings shown on the approval screen (the rest are summarized by count). */
+const MAX_REVIEW_WARNINGS = 50;
 const tokenBody = z.object({
   name: z.string().max(200),
   scopes: z.array(z.string().max(40)).max(10).optional(),
@@ -412,6 +428,11 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
   async function summary(id: string) {
     const deck = await s.storage.decks.get(DEFAULT_WORKSPACE_ID, id);
     if (deck === null || deck.deletedAt !== null) return null;
+    // Interactive mode (ADR-020/021): the trust state of the current revision's scripts, for the list badge.
+    const revision = await s.storage.revisions.get(DEFAULT_WORKSPACE_ID, id, deck.currentRevision);
+    const digest = revision === null ? null : scriptsDigest(revision.document);
+    const approval =
+      digest === null ? null : await s.storage.scriptApprovals.get(DEFAULT_WORKSPACE_ID, id);
     return {
       id: deck.id,
       title: deck.title,
@@ -420,6 +441,7 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
       revision: deck.currentRevision,
       updatedAt: iso(deck.updatedAt),
       createdBy: deck.createdBy.actor === "agent" ? "agent" : "owner",
+      scripts: scriptsStateOf(digest, approval?.digest ?? null),
     };
   }
 
@@ -472,17 +494,27 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
     const id = c.req.param("id");
     const sum = ULID.test(id) ? await summary(id) : null;
     if (sum === null) return apiError(c, "NOT_FOUND", "Presentation not found");
-    return c.json({ ...sum, urls: { present: `${publicOrigin(c, s.config)}/p/${id}` } });
+    const base = publicOrigin(c, s.config);
+    return c.json({ ...sum, urls: { present: `${base}/p/${id}`, manage: `${base}/decks/${id}` } });
   });
 
   // The signed content URL of the current revision for the owner's player page. Side-effect free (it only signs).
   // Interactive mode (ADR-020): an "sdoc" token (scripted document) only when the instance switch is on, the deck's
   // current scripts digest is the approved one and the page did not ask for the static version (`?safe=1`);
-  // otherwise a "doc" token (static fallback). This route accepts the panel session cookie only, never a token.
+  // otherwise a "doc" token (static fallback). Never an API or OAuth token.
+  //
+  // Without an owner session (ADR-021) the request must carry a view grant for this deck (`X-PPTaken-View`, minted
+  // by a guest page: today the test route, later phase F5's links); it gets the static version, reported as
+  // `locked` when the deck's approved scripts could run after a presenter-password unlock. With a valid unlock token
+  // (`X-PPTaken-Unlock`, bound to this deck, its current approved digest and the presenter password epoch) it gets
+  // the scripted document under the same rules as the owner (switch on, approved digest, not `?safe=1`).
   api.get("/decks/:id/content-url", async (c) => {
-    const denied = await requireOwner(c);
-    if (denied) return denied;
     const id = c.req.param("id");
+    const owned = (await ownerSession(c, s)) !== null;
+    if (!owned && !(ULID.test(id) && verifyViewGrant(s, c.req.header(VIEW_HEADER), id))) {
+      const denied = await requireOwner(c);
+      if (denied) return denied;
+    }
     const sum = ULID.test(id) ? await summary(id) : null;
     if (sum === null) return apiError(c, "NOT_FOUND", "Presentation not found");
     const safe = c.req.query("safe") === "1";
@@ -496,13 +528,24 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
       return domainErrorResponse(c, error);
     }
     const digest = scriptsDigest(document);
-    let scripts: "running" | "none" | "off" | "pending" | "safe" = "none";
+    let scripts: "running" | "none" | "off" | "pending" | "safe" | "locked" = "none";
+    const unlock = owned ? undefined : c.req.header(UNLOCK_HEADER);
+    let unlockRejected = false;
     if (digest !== null) {
       const approval = await s.storage.scriptApprovals.get(DEFAULT_WORKSPACE_ID, id);
       if (s.config.scripts !== "owner") scripts = "off";
       else if (approval?.digest !== digest) scripts = "pending";
-      else scripts = safe ? "safe" : "running";
+      else if (safe) scripts = "safe";
+      else if (owned) scripts = "running";
+      else if (await verifyUnlockToken(s, unlock, id, digest)) scripts = "running";
+      else scripts = "locked";
     }
+    // A guest's unlock token that no longer works (edited deck, revoked, password changed, expired): say so, so
+    // the page forgets it and can offer the unlock again.
+    if (!owned && unlock !== undefined && unlock !== "" && scripts !== "running" && !safe) {
+      unlockRejected = true;
+    }
+    const extra = unlockRejected ? { unlockRejected: true } : {};
     const exp = s.clock.now() + CONTENT_DOC_TTL_MS;
     const token =
       scripts === "running"
@@ -514,7 +557,7 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
         : signToken(s.contentKey, { purpose: "doc", subject: `${id}:${sum.revision}`, exp });
     const url = `${contentOrigin(c, s.config)}/c/${id}/${sum.revision}?ct=${token}`;
     if (scripts !== "running")
-      return c.json({ url, scripts }, 200, { "Cache-Control": "no-store" });
+      return c.json({ url, scripts, ...extra }, 200, { "Cache-Control": "no-store" });
     const canvas = canvasSize(document.aspectRatio);
     return c.json(
       { url, scripts, expect: { slides: document.slides.map((x) => x.id), ...canvas } },
@@ -547,14 +590,41 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
     },
   });
 
+  // The approval screen (ADR-021): the status plus every script's exact source, hash and size, and what the static
+  // fallback loses (sanitizer warnings of the safe re-sanitization), so the owner reads exactly what the digest binds.
   api.get("/decks/:id/scripts", async (c) => {
     const denied = await requireOwner(c);
     if (denied) return denied;
     const id = c.req.param("id");
     if (!ULID.test(id)) return apiError(c, "NOT_FOUND", "Presentation not found");
     try {
-      const st = await s.core.getScriptsStatus(owner, { presentationId: id }, callOf(c));
-      return c.json(scriptsJson(st), 200, { "Cache-Control": "no-store" });
+      const review = await s.core.getScriptsReview(owner, { presentationId: id }, callOf(c));
+      let warnings: { code: string; message: string; path: string | null; name: string | null }[] =
+        [];
+      if (review.digest !== null) {
+        const { document } = await s.core.getRevision(owner, {
+          presentationId: id,
+          revision: review.revision,
+        });
+        warnings = staticDeck(document)
+          .warnings.slice(0, MAX_REVIEW_WARNINGS)
+          .map((w) => ({
+            code: w.code,
+            message: w.message,
+            path: w.path ?? null,
+            name: w.name ?? null,
+          }));
+      }
+      return c.json(
+        {
+          ...scriptsJson(review),
+          sources: review.sources,
+          warnings,
+          presenterPassword: { set: await s.auth.hasPresenterPassword() },
+        },
+        200,
+        { "Cache-Control": "no-store" },
+      );
     } catch (error) {
       return domainErrorResponse(c, error);
     }
@@ -593,6 +663,134 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
     } catch (error) {
       return domainErrorResponse(c, error);
     }
+  });
+
+  // ---------------------------------------------------------------------------------------------------------------
+  // Presenter password (ADR-021). Managed from the owner's panel (session + CSRF). It is a separate secret from the
+  // owner password: it unlocks approved scripts where no owner session exists and can never sign in.
+
+  /** Audit entries written by the HTTP layer (never the password, never the token). */
+  const auditEntry = async (
+    c: Context<AppEnv>,
+    action: string,
+    target: string | null,
+    result: "ok" | "denied",
+    detail: Record<string, unknown> | null,
+    actor: "owner" | "system",
+  ) => {
+    try {
+      await s.storage.audit.append({
+        workspaceId: DEFAULT_WORKSPACE_ID,
+        id: s.ids.ulid(),
+        at: s.clock.now(),
+        actor,
+        tokenId: null,
+        action,
+        target,
+        ip: c.get("ip"),
+        result,
+        detail,
+      });
+    } catch (error) {
+      s.logger.warn("audit write failed", { action, error: String(error) });
+    }
+  };
+
+  api.get("/presenter/password", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    return c.json({ set: await s.auth.hasPresenterPassword() }, 200, {
+      "Cache-Control": "no-store",
+    });
+  });
+
+  api.post("/presenter/password", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    const input = await body(c, presenterPasswordBody);
+    if (input instanceof Response) return input;
+    try {
+      const change = await s.auth.setPresenterPassword(input.password);
+      await auditEntry(
+        c,
+        change === "set" ? "presenter_password.set" : "presenter_password.change",
+        null,
+        "ok",
+        null,
+        "owner",
+      );
+      s.logger.info("presenter password updated", { change, requestId: c.get("requestId") });
+      return c.json({ set: true, change }, 200, { "Cache-Control": "no-store" });
+    } catch (error) {
+      if (error instanceof AuthError) return authErrorResponse(c, error);
+      throw error;
+    }
+  });
+
+  api.delete("/presenter/password", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    if (await s.auth.clearPresenterPassword()) {
+      await auditEntry(c, "presenter_password.remove", null, "ok", { via: "panel" }, "owner");
+      s.logger.info("presenter password removed", { requestId: c.get("requestId") });
+    }
+    return c.body(null, 204);
+  });
+
+  // The unlock (ADR-021): no owner session needed (this is what future presenter/public links call). Strict rate
+  // limits (per IP with backoff, global and per deck), one scrypt verification and one deck read on every attempt
+  // whatever the input (no timing oracle), and one generic failure for every reason. The token only upgrades a view
+  // grant of this deck to its approved scripted document.
+  api.post("/presenter/unlock", async (c) => {
+    const ip = c.get("ip");
+    const gate = s.limits.presenterUnlock.check(ip);
+    if (!gate.ok) {
+      return apiError(c, "RATE_LIMITED", "Too many unlock attempts", {
+        retryAfterSec: retryAfter(gate.retryAfterMs),
+      });
+    }
+    const input = await body(c, unlockBody);
+    if (input instanceof Response) return input;
+    const deckKey = ULID.test(input.deckId) ? input.deckId : "invalid";
+    const deckGate = s.limits.presenterUnlockPerDeck.peek(deckKey);
+    if (!deckGate.ok) {
+      return apiError(c, "RATE_LIMITED", "Too many unlock attempts", {
+        retryAfterSec: retryAfter(deckGate.retryAfterMs),
+      });
+    }
+    const [epoch, digest] = await Promise.all([
+      s.auth.verifyPresenterPassword(input.password),
+      unlockableDigest(s, input.deckId),
+    ]);
+    if (epoch === null || digest === null) {
+      s.limits.presenterUnlock.fail(ip);
+      s.limits.presenterUnlockPerDeck.take(deckKey);
+      await auditEntry(
+        c,
+        "presenter.unlock",
+        ULID.test(input.deckId) ? `deck:${input.deckId}` : null,
+        "denied",
+        { reason: epoch === null ? "password" : "not_unlockable" },
+        "system",
+      );
+      s.logger.warn("presenter unlock failed", { ip, requestId: c.get("requestId") });
+      return apiError(c, "UNAUTHENTICATED", "Unlock failed", {
+        hint: "Check the presenter password. Only presentations whose scripts the owner approved can be unlocked.",
+      });
+    }
+    s.limits.presenterUnlock.succeed(ip);
+    const { token, exp } = signUnlockToken(s, { deckId: input.deckId, digest, epoch });
+    await auditEntry(
+      c,
+      "presenter.unlock",
+      `deck:${input.deckId}`,
+      "ok",
+      { digest, expiresAt: exp },
+      "system",
+    );
+    return c.json({ token, deckId: input.deckId, expiresAt: iso(exp) }, 200, {
+      "Cache-Control": "no-store",
+    });
   });
 
   api.all("*", (c) => apiError(c, "NOT_FOUND", "No such API route"));

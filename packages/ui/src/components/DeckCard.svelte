@@ -20,6 +20,8 @@
     presentHref?: string;
     /** Open the title link and the present button in a new tab (the player has no way back to the panel). */
     newTab?: boolean;
+    /** Override `newTab` for the title link only (e.g. an in-app manage page while Present opens a tab). */
+    titleNewTab?: boolean;
     onmore?: (event: MouseEvent) => void;
     actions?: Snippet;
   }
@@ -34,10 +36,12 @@
     statusLabel,
     presentHref,
     newTab = false,
+    titleNewTab,
     onmore,
     actions,
   }: Props = $props();
   const t = getI18n();
+  const titleTab = $derived(titleNewTab ?? newTab);
 </script>
 
 <article class="ppt-deck">
@@ -52,7 +56,7 @@
     {/if}
   </div>
   <div class="ppt-deck__body">
-    <h3 class="ppt-deck__title"><a {href} target={newTab ? "_blank" : undefined} rel={newTab ? "noopener noreferrer" : undefined}>{title}</a></h3>
+    <h3 class="ppt-deck__title"><a {href} target={titleTab ? "_blank" : undefined} rel={titleTab ? "noopener noreferrer" : undefined}>{title}</a></h3>
     {#if meta}<p class="ppt-deck__meta">{meta}</p>{/if}
     <div class="ppt-deck__actions">
       {#if actions}

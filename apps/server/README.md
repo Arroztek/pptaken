@@ -10,6 +10,7 @@ PPTAKEN_DATA_DIR=./data node apps/server/dist/main.js     # prints "PPTaken read
 pnpm --filter @pptaken/server test                       # integration tests (real SQLite, real blob-fs, real port)
 pnpm --filter @pptaken/server test:browser               # Playwright: Chromium, Firefox, WebKit
 pnpm --filter @pptaken/server test:remote                # Playwright: remote control, laptop + phone contexts
+pnpm --filter @pptaken/server test:unlock                # Playwright: presenter-password unlock (ADR-021), 3 engines
 ```
 
 `createServer(config, options)` (from `src/app.ts`) builds everything for tests; `src/main.ts` is the CLI entry.
@@ -103,7 +104,7 @@ Invalid values stop the server with `Configuration error: <variable> …` (exit 
 | Session-only panel API | `/api/v1/*` accepts only the session cookie (no Bearer), since every F2 panel route is owner-only. `/mcp` accepts only Bearer API tokens. |
 | Owner routes before setup | `409 SETUP_REQUIRED` (as `/auth/me`), otherwise `401 UNAUTHENTICATED`. |
 | Body errors | Oversized bodies answer `413` with code `VALIDATION_ERROR`; non-JSON bodies `400 VALIDATION_ERROR` (the contract has no `413`/`415` codes). |
-| `manage` URL | `create_presentation` returns `urls.manage = <base>/decks/<id>`; the F2 web app only has `/decks` (the SPA fallback serves it). |
+| `manage` URL | `create_presentation` returns `urls.manage = <base>/decks/<id>`: the presentation's page in the panel, with the approval screen of its scripts (ADR-021). |
 | Base URL of agent-facing URLs | The MCP `base_url`/`urls` follow `PPTAKEN_PUBLIC_URL`, or the request's own origin when unset. |
 | Backup format | A directory (`pptaken.db` + `blobs/`) instead of a `.tar`: no dependency needed. **Open:** `.tar` output. |
 | Sign out everywhere | Implemented in `@pptaken/auth-local` (`revokeAllSessions`, also done by `reset-password`) but no HTTP route: the F2 contract has none. **Open:** add `POST /api/v1/auth/logout-all` to the contract. |

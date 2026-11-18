@@ -9,7 +9,7 @@ import {
   SCOPES,
   type Scope,
 } from "@pptaken/core";
-import { constantTimeEqual, deriveKey, hmacHex } from "./crypto.js";
+import { constantTimeEqual, deriveKey, hmacHex, sha256Hex } from "./crypto.js";
 import type { OAuthService } from "./oauth.js";
 import { OAUTH_ACCESS_PREFIX } from "./oauth-primitives.js";
 import {
@@ -50,6 +50,18 @@ export const MAX_TOKEN_NAME_LENGTH = 100;
 export const MAX_TOKEN_EXPIRY_DAYS = 3650;
 
 const INSTALL_CODE_SETTING = "install_code";
+/** Instance setting holding the presenter password's scrypt hash (ADR-021). Never the plain value. */
+export const PRESENTER_PASSWORD_SETTING = "presenter_password";
+/**
+ * A well-formed hash (all-zero salt and key) that no password verifies against: checked when no presenter password
+ * is set, so a request costs the same scrypt time whether or not one exists (no timing oracle).
+ */
+function decoyHash(params: ScryptParams): string {
+  return `$scrypt$ln=${params.ln},r=${params.r},p=${params.p}$${"A".repeat(22)}==$${"A".repeat(43)}=`;
+}
+
+/** What a set or change did, for the audit log. */
+export type PresenterPasswordChange = "set" | "changed";
 
 export type AuthErrorCode =
   | "VALIDATION_ERROR"
@@ -300,13 +312,18 @@ export class LocalAuth implements AuthProvider {
    * application (ADR-0018: a reset means the owner may have lost control, so every grant goes too). Returns the
    * number of applications disconnected.
    */
-  async resetPassword(password: unknown): Promise<number> {
+  async resetPassword(
+    password: unknown,
+    options: { clearPresenterPassword?: boolean } = {},
+  ): Promise<number> {
     const owner = await this.store.getOwner(this.ws);
     if (owner === null)
       throw new AuthError("SETUP_REQUIRED", "Nobody has set up this instance yet");
     const policy = checkPasswordPolicy(password);
     if (!policy.ok)
       throw new AuthError("VALIDATION_ERROR", "The password does not meet the policy", policy.hint);
+    if (options.clearPresenterPassword === true) await this.clearPresenterPassword();
+    else await this.refuseIfPresenterPassword(password as string);
     await this.store.setOwnerPassword(
       this.ws,
       owner.id,
@@ -339,6 +356,7 @@ export class LocalAuth implements AuthProvider {
     const policy = checkPasswordPolicy(input.newPassword);
     if (!policy.ok)
       throw new AuthError("VALIDATION_ERROR", "The password does not meet the policy", policy.hint);
+    await this.refuseIfPresenterPassword(input.newPassword as string);
     await this.store.setOwnerPassword(
       this.ws,
       owner.id,
@@ -349,6 +367,88 @@ export class LocalAuth implements AuthProvider {
     const disconnected =
       input.disconnectApps === true ? ((await this.oauth?.revokeAllGrants()) ?? 0) : 0;
     return { sessionId: await this.createSession(owner.id), disconnected };
+  }
+
+  // -------------------------------------------------------------------------------------------------------------
+  // Presenter password (ADR-021): one instance-wide secret, chosen by the owner, that unlocks approved author
+  // scripts where no owner session exists (future presenter/public links). It is NOT the owner password: it can
+  // never sign in, and the two may never be equal (checked both ways). Stored only as a scrypt hash.
+
+  /** Whether a presenter password is set. */
+  async hasPresenterPassword(): Promise<boolean> {
+    return (await this.store.getSetting(this.ws, PRESENTER_PASSWORD_SETTING)) !== null;
+  }
+
+  /**
+   * A short fingerprint of the stored presenter password hash (it changes with every set, change or removal), or
+   * `null` when none is set. Unlock tokens carry it, so changing or removing the password ends every unlock.
+   */
+  async presenterPasswordEpoch(): Promise<string | null> {
+    const hash = await this.store.getSetting(this.ws, PRESENTER_PASSWORD_SETTING);
+    return hash === null ? null : sha256Hex(`presenter-epoch|${hash}`).slice(0, 16);
+  }
+
+  /**
+   * Sets or replaces the presenter password. Same policy as the owner password; refused when it equals the owner
+   * password (it must be a separate secret). Returns whether it was set for the first time or changed.
+   */
+  async setPresenterPassword(password: unknown): Promise<PresenterPasswordChange> {
+    const owner = await this.store.getOwner(this.ws);
+    if (owner === null)
+      throw new AuthError("SETUP_REQUIRED", "Nobody has set up this instance yet");
+    const policy = checkPasswordPolicy(password);
+    if (!policy.ok)
+      throw new AuthError("VALIDATION_ERROR", "The password does not meet the policy", policy.hint);
+    if (await verifyPassword(password as string, owner.passwordHash)) {
+      throw new AuthError(
+        "VALIDATION_ERROR",
+        "The presenter password must be different from the owner password",
+        "Choose a separate password: the presenter password is typed on other computers.",
+      );
+    }
+    const existed = await this.hasPresenterPassword();
+    await this.store.putSetting(
+      this.ws,
+      PRESENTER_PASSWORD_SETTING,
+      await hashPassword(password as string, this.scryptParams),
+      this.clock.now(),
+    );
+    return existed ? "changed" : "set";
+  }
+
+  /** Removes the presenter password (every unlock ends). Returns whether one was set. */
+  async clearPresenterPassword(): Promise<boolean> {
+    const existed = await this.hasPresenterPassword();
+    if (existed) await this.store.deleteSetting(this.ws, PRESENTER_PASSWORD_SETTING);
+    return existed;
+  }
+
+  /**
+   * Checks a presenter password in constant time. Always spends one scrypt computation (against a decoy hash when
+   * none is set), so the answer time does not reveal whether a presenter password exists. Returns the epoch on
+   * success, `null` otherwise.
+   */
+  async verifyPresenterPassword(password: unknown): Promise<string | null> {
+    const stored = await this.store.getSetting(this.ws, PRESENTER_PASSWORD_SETTING);
+    const candidate =
+      typeof password === "string" && password.length > 0 && password.length <= MAX_PASSWORD_LENGTH
+        ? password
+        : "";
+    const ok = await verifyPassword(candidate, stored ?? decoyHash(this.scryptParams));
+    if (!ok || stored === null || candidate === "") return null;
+    return sha256Hex(`presenter-epoch|${stored}`).slice(0, 16);
+  }
+
+  /** Refuses a new owner password equal to the presenter password (the two secrets stay separate). */
+  private async refuseIfPresenterPassword(password: string): Promise<void> {
+    const stored = await this.store.getSetting(this.ws, PRESENTER_PASSWORD_SETTING);
+    if (stored !== null && (await verifyPassword(password, stored))) {
+      throw new AuthError(
+        "VALIDATION_ERROR",
+        "The owner password must be different from the presenter password",
+        "Choose another owner password, or change the presenter password first.",
+      );
+    }
   }
 
   // -------------------------------------------------------------------------------------------------------------

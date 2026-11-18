@@ -12,6 +12,7 @@ import { createLogger } from "./logger.js";
 const USAGE = `Usage:
   pptaken                    start the server
   pptaken reset-password     set a new owner password (reads it from the terminal or stdin)
+    --clear-presenter-password   also remove the presenter password (ends every presenter unlock)
   pptaken backup <dir>       write a consistent copy of the database and the blobs to a new directory
 
 Configuration (environment): PPTAKEN_PUBLIC_URL, PPTAKEN_PORT (8080), PPTAKEN_DATA_DIR (./data),
@@ -94,7 +95,16 @@ async function main(argv: string[]): Promise<number> {
     await runServer(config);
     return -1; // keep running
   }
-  if (command === "reset-password") return resetPassword(config);
+  if (command === "reset-password") {
+    const unknown = rest.filter((arg) => arg !== "--clear-presenter-password");
+    if (unknown.length > 0) {
+      process.stderr.write(`Unknown option "${unknown[0]}".\n\n${USAGE}`);
+      return 2;
+    }
+    return resetPassword(config, {
+      clearPresenterPassword: rest.includes("--clear-presenter-password"),
+    });
+  }
   if (command === "backup") return backup(config, rest[0]);
   process.stderr.write(`Unknown command "${command}".\n\n${USAGE}`);
   return 2;

@@ -317,3 +317,66 @@ describe("bootstrapOwner (PPTAKEN_ADMIN_PASSWORD)", () => {
     expect(await auth.ensureInstallCode()).not.toBeNull();
   });
 });
+
+describe("presenter password (ADR-021)", () => {
+  const PRESENTER = "lantern quietly folds 9 maps";
+
+  it("is stored only as a scrypt hash, separate from the owner password", async () => {
+    const { auth, store } = await installed();
+    expect(await auth.hasPresenterPassword()).toBe(false);
+    expect(await auth.presenterPasswordEpoch()).toBeNull();
+    expect(await auth.setPresenterPassword(PRESENTER)).toBe("set");
+    const stored = await store.getSetting("default", "presenter_password");
+    expect(stored).toMatch(/^\$scrypt\$ln=10,r=8,p=1\$/);
+    expect(stored).not.toContain(PRESENTER);
+    expect(await auth.setPresenterPassword(`${PRESENTER}!`)).toBe("changed");
+    // It never signs in to the panel.
+    await expectAuthError(auth.login({ password: `${PRESENTER}!` }), "UNAUTHENTICATED");
+  });
+
+  it("refuses the owner password, a weak password, and an owner password equal to it", async () => {
+    const { auth } = await installed();
+    await expectAuthError(auth.setPresenterPassword(GOOD_PASSWORD), "VALIDATION_ERROR");
+    await expectAuthError(auth.setPresenterPassword("short"), "VALIDATION_ERROR");
+    await expectAuthError(auth.setPresenterPassword("password1234"), "VALIDATION_ERROR");
+    await auth.setPresenterPassword(PRESENTER);
+    await expectAuthError(
+      auth.changePassword({ currentPassword: GOOD_PASSWORD, newPassword: PRESENTER }),
+      "VALIDATION_ERROR",
+    );
+    await expectAuthError(auth.resetPassword(PRESENTER), "VALIDATION_ERROR");
+  });
+
+  it("verifies in constant work and returns an epoch that changes with the password", async () => {
+    const { auth } = await installed();
+    // None set: always null (a decoy hash is still computed).
+    expect(await auth.verifyPresenterPassword(PRESENTER)).toBeNull();
+    expect(await auth.verifyPresenterPassword("")).toBeNull();
+    await auth.setPresenterPassword(PRESENTER);
+    const epoch = await auth.verifyPresenterPassword(PRESENTER);
+    expect(epoch).toMatch(/^[0-9a-f]{16}$/);
+    expect(epoch).toBe(await auth.presenterPasswordEpoch());
+    expect(await auth.verifyPresenterPassword(GOOD_PASSWORD)).toBeNull();
+    expect(await auth.verifyPresenterPassword(42)).toBeNull();
+    expect(await auth.verifyPresenterPassword("x".repeat(2000))).toBeNull();
+    await auth.setPresenterPassword(PRESENTER); // same value, new salt: a new epoch
+    expect(await auth.presenterPasswordEpoch()).not.toBe(epoch);
+    expect(await auth.clearPresenterPassword()).toBe(true);
+    expect(await auth.clearPresenterPassword()).toBe(false);
+    expect(await auth.verifyPresenterPassword(PRESENTER)).toBeNull();
+  });
+
+  it("survives an owner password change; a reset can clear it", async () => {
+    const { auth } = await installed();
+    await auth.setPresenterPassword(PRESENTER);
+    await auth.changePassword({
+      currentPassword: GOOD_PASSWORD,
+      newPassword: "another long owner phrase 7",
+    });
+    expect(await auth.verifyPresenterPassword(PRESENTER)).not.toBeNull();
+    await auth.resetPassword("third owner phrase for 2026");
+    expect(await auth.hasPresenterPassword()).toBe(true);
+    await auth.resetPassword(PRESENTER, { clearPresenterPassword: true });
+    expect(await auth.hasPresenterPassword()).toBe(false);
+  });
+});

@@ -53,67 +53,130 @@ const PAGE_SCRIPT = `// PPTaken player page: loads the deck (the signed content 
 // the deck is in memory. Online, it also loads the remote control (/_rt/screen.js) on demand: remote commands are
 // applied as local input, and any failure there never reaches the player.
 import { createPlayer } from "./shell.js";
-import { pickLocale } from "./i18n.js";
+import { labelsFor, pickLocale } from "./i18n.js";
 import { syncChannelName } from "./sync.js";
 import { keepOfflineCopy, loadContent, SignedOutError } from "./offline-client.js";
+import { createUnlockDialog, forgetUnlockToken, readUnlockToken, requestUnlock, storeUnlockToken } from "./unlock.js";
 const body = document.body;
 const id = body.dataset.deck;
+const stage = document.getElementById("stage");
 const status = document.getElementById("status");
+const locale = pickLocale(navigator.languages);
+const t = labelsFor(locale);
 // Interactive mode (ADR-020): ?safe=1 forces the static version; otherwise the server decides (owner session,
 // instance switch, approved digest) and the shell hardens itself when it runs scripts.
 const safe = new URLSearchParams(location.search).get("safe") === "1";
-async function start() {
-  let source;
-  try {
-    source = await loadContent(id, fetch, { safe });
-  } catch (error) {
-    if (error instanceof SignedOutError) { location.href = "/login"; return; }
-    throw error;
-  }
-  body.dataset.source = source.fromCopy ? "copy" : "network";
-  body.dataset.scripts = source.scripts ?? "none";
-  const scripted = source.scripts === "running";
+// A page served WITHOUT an owner session (ADR-021: future presenter/public links; today only the test route) has a
+// view grant for the static version and offers the presenter-password unlock (U). No presenter window, remote
+// control or offline copy there. The unlock token lives in sessionStorage only and goes in a header.
+const guest = body.dataset.viewer === "guest";
+const view = body.dataset.view || "";
+let source = null;
+let player = null;
+let remote = null;
+let unlock = null;
+function load(options) {
+  if (!guest) return loadContent(id, fetch, options);
+  const headers = { "X-PPTaken-View": view };
+  const token = options.safe ? null : readUnlockToken(id);
+  if (token) headers["X-PPTaken-Unlock"] = token;
+  return loadContent(id, fetch, { ...options, headers, offline: false });
+}
+function mount(src) {
+  body.dataset.source = src.fromCopy ? "copy" : "network";
+  body.dataset.scripts = src.scripts ?? "none";
+  body.dataset.state = "loading";
+  const scripted = src.scripts === "running";
   let scriptErrors = 0;
   let keeping = false;
-  let remote = null;
-  const locale = pickLocale(navigator.languages);
-  const player = createPlayer(document.getElementById("stage"), {
-    ...(source.fromCopy ? { contentHtml: source.contentHtml } : { contentUrl: source.contentUrl }),
+  const p = createPlayer(stage, {
+    ...(src.fromCopy ? { contentHtml: src.contentHtml } : { contentUrl: src.contentUrl }),
     showHud: true,
     indicator: true,
     title: document.title,
     locale,
-    remoteKeys: !source.fromCopy,
-    onKey: (code, from) => (remote ? remote.onKey(code, from) : false),
-    presenterUrl: "/p/" + encodeURIComponent(id) + "/presenter",
-    sync: syncChannelName(id) ?? undefined,
+    remoteKeys: !guest && !src.fromCopy,
+    unlockKey: guest,
+    onKey: (code, from) => {
+      // A guest's static frame: Esc gives the keyboard back to the trusted page (where U works).
+      if (guest && from === "frame" && code === "Escape") stage.focus({ preventScroll: true });
+      return remote ? remote.onKey(code, from) : false;
+    },
+    ...(guest ? {} : { presenterUrl: "/p/" + encodeURIComponent(id) + "/presenter", sync: syncChannelName(id) ?? undefined }),
     onReady: (slides) => { status.hidden = true; body.dataset.slides = String(slides.length); body.dataset.state = "ready"; },
     onLoadTimeout: () => { body.dataset.state = "slow"; status.hidden = false; status.textContent = "This presentation is taking too long to load. If you are in an embedded preview, open this page in your regular browser."; },
-    onChange: (s) => { body.dataset.slide = String(s.slide); body.dataset.step = String(s.step); body.dataset.mode = s.mode; body.dataset.black = String(s.black); remote?.onChange(s); },
+    onChange: (s) => { body.dataset.slide = String(s.slide); body.dataset.step = String(s.step); body.dataset.mode = s.mode; body.dataset.black = String(s.black); remote?.onChange(s); unlock?.setIndicatorVisible(!s.black); },
     ...(scripted ? {
       scripts: true,
-      expect: source.expect,
-      fallbackUrl: () => loadContent(id, fetch, { safe: true }).then((r) => r.contentUrl ?? null),
+      expect: src.expect,
+      fallbackUrl: () => load({ safe: true }).then((r) => r.contentUrl ?? null),
       onScriptError: () => { scriptErrors += 1; body.dataset.scriptErrors = String(scriptErrors); },
     } : {}),
     onFault: (f) => {
-      if (f === "unresponsive") { body.dataset.state = "unresponsive"; body.dataset.scripts = "stopped"; return; }
+      if (f === "unresponsive") { body.dataset.state = "unresponsive"; body.dataset.scripts = "stopped"; unlock?.setIndicator(false); return; }
       body.dataset.state = "fault"; status.hidden = false; status.textContent = "The presentation stopped: " + f;
     },
     onOffline: (o) => {
       body.dataset.offline = o.state;
       body.dataset.offlineImages = String(o.images);
       body.dataset.offlineFonts = String(o.fonts);
-      if (o.state === "loading" || source.fromCopy || keeping) return;
+      if (guest || o.state === "loading" || src.fromCopy || keeping) return;
       keeping = true;
-      keepOfflineCopy(id).then((r) => { body.dataset.offlineCopy = String(r.kept); player.setOfflineCopy(r.kept); });
+      keepOfflineCopy(id).then((r) => { body.dataset.offlineCopy = String(r.kept); p.setOfflineCopy(r.kept); });
     },
   });
-  if (source.fromCopy) player.setOfflineCopy(true);
+  if (src.fromCopy) p.setOfflineCopy(true);
   // A scripted frame never gets the keyboard by default: the trusted page keeps it until the presenter clicks in.
-  if (scripted) document.getElementById("stage").focus({ preventScroll: true });
-  else player.iframe.focus();
-  if (!source.fromCopy) {
+  // A guest page keeps it too, so U reaches the unlock dialog.
+  if (scripted || guest) stage.focus({ preventScroll: true });
+  else p.iframe.focus();
+  unlock?.setIndicator(scripted);
+  return p;
+}
+// After a successful unlock: ask again with the token; when the server signs the scripted document, replace the
+// frame (same position, through the URL hash) and show the indicator.
+async function onUnlocked(token) {
+  storeUnlockToken(id, token);
+  let next;
+  try { next = await load({ safe: false }); } catch { return false; }
+  if (next.scripts !== "running") {
+    if (next.unlockRejected) forgetUnlockToken(id);
+    return false;
+  }
+  player.destroy();
+  source = next;
+  player = mount(next);
+  return true;
+}
+async function start() {
+  try {
+    source = await load({ safe });
+  } catch (error) {
+    if (error instanceof SignedOutError) {
+      if (guest) { body.dataset.state = "error"; status.textContent = t.linkInvalid; return; }
+      location.href = "/login";
+      return;
+    }
+    throw error;
+  }
+  if (guest) {
+    if (source.unlockRejected) forgetUnlockToken(id);
+    stage.tabIndex = -1;
+    unlock = createUnlockDialog({
+      doc: document,
+      mount: body,
+      locale,
+      frames: () => (player ? [player.iframe] : []),
+      available: () => navigator.onLine && source !== null && !source.fromCopy,
+      submit: (password) => requestUnlock(id, password),
+      onUnlocked,
+      returnFocus: () => stage,
+    });
+    body.dataset.unlock = "ready";
+  }
+  player = mount(source);
+  if (guest && source.unlockRejected) unlock.flash(t.unlockEnded);
+  if (!guest && !source.fromCopy) {
     Promise.all([import("/_rt/screen.js"), import("/_rt/qr.js")]).then(([m, q]) => {
       remote = m.startRemoteScreen({
         deckId: id,
@@ -130,7 +193,7 @@ async function start() {
     }).catch(() => { body.dataset.remote = "unavailable"; });
   }
 }
-start().catch(() => { body.dataset.state = "error"; status.textContent = "Could not load the presentation."; });
+start().catch(() => { body.dataset.state = "error"; status.hidden = false; status.textContent = t.loadFailed; });
 `;
 
 const PAGE_CSS =
@@ -162,6 +225,7 @@ async function start() {
   if (!data) throw new Error("presenter data");
   document.title = t.presenterTitle + " · " + data.title;
   body.dataset.source = source.fromCopy ? "copy" : "network";
+  const interactiveNotice = () => (data.interactive === true && (source.fromCopy || !navigator.onLine) ? t.interactiveOffline : null);
   const presenter = createPresenter(document.getElementById("presenter"), {
     ...(source.fromCopy ? { contentHtml: source.contentHtml } : { contentUrl: source.contentUrl }),
     data,
@@ -170,11 +234,21 @@ async function start() {
     // The page is owner-only and the deck came from the network with the owner session: link back to the panel.
     // An offline copy proves no session, so no link there.
     panelUrl: source.fromCopy ? undefined : "/decks",
+    // ADR-021: offline the deck is static and nothing asks for a password; say so here, never on the audience screen.
+    interactiveNotice: interactiveNotice() ?? undefined,
     onFinish: () => { body.dataset.finished = "true"; },
     onChange: (s) => { body.dataset.slide = String(s.slide); body.dataset.step = String(s.step); body.dataset.end = String(s.atEnd); body.dataset.running = String(s.running); body.dataset.elapsed = String(Math.floor(s.elapsedMs / 1000)); },
     onOffline: (o) => { body.dataset.offline = o.state; },
   });
   if (source.fromCopy) presenter.setOfflineCopy(true);
+  for (const type of ["online", "offline"]) {
+    window.addEventListener(type, () => {
+      const text = interactiveNotice();
+      presenter.setInteractiveNotice(text);
+      body.dataset.interactiveNotice = text ? "shown" : "hidden";
+    });
+  }
+  body.dataset.interactiveNotice = interactiveNotice() ? "shown" : "hidden";
   await presenter.ready;
   status.hidden = true;
   body.dataset.state = "ready";

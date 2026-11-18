@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-11-18T00:24:03.470Z",
+  "startedAt": "2026-11-18T16:35:56.685Z",
   "engines": {
     "chromium": {
       "ok": true,
@@ -40,7 +40,7 @@
         "server back: both reconnect and the phone shows the screen's position (4/3)",
         "commands work after the restart",
         "phone offline and back: converges and keeps working",
-        "socket frames observed (500)",
+        "socket frames observed (498)",
         "notes absent from every socket frame",
         "notes absent from the content documents (laptop and phone previews)",
         "K disconnects the phone and forgets its credential",
@@ -72,7 +72,7 @@
       ],
       "latencyMs": {
         "p50": 1,
-        "max": 2,
+        "max": 1,
         "samples": [
           0,
           1,
@@ -85,7 +85,7 @@
           1,
           1,
           1,
-          2
+          1
         ]
       }
     },
@@ -162,14 +162,14 @@
         "p50": 1,
         "max": 2,
         "samples": [
-          0,
           1,
           1,
           1,
           1,
           1,
           1,
-          2,
+          1,
+          1,
           2,
           2,
           2,
@@ -197,7 +197,7 @@
         "last",
         "black screen on and off from the phone",
         "a burst of 12 taps converges (3/2)",
-        "latency click -> slide p50 14 ms (< 150)",
+        "latency click -> slide p50 15 ms (< 150)",
         "16:9: the pad has the deck's aspect ratio",
         "16:9: laser at 0.5,0.5 on 1280x720: pad mapping within 1 % and the dot within 1 px",
         "16:9: laser at 0.1,0.2 on 1280x720: pad mapping within 1 % and the dot within 1 px",
@@ -247,24 +247,24 @@
         "no console errors or page errors"
       ],
       "latencyMs": {
-        "p50": 14,
-        "max": 29,
+        "p50": 15,
+        "max": 28,
         "samples": [
-          7,
+          10,
           13,
           13,
-          13,
           14,
           14,
-          14,
-          14,
-          14,
-          14,
-          14,
-          29
+          15,
+          15,
+          15,
+          15,
+          15,
+          28,
+          28
         ]
       }
     }
   },
-  "finishedAt": "2026-11-18T00:25:49.284Z"
+  "finishedAt": "2026-11-18T16:37:31.828Z"
 }

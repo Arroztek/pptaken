@@ -63,6 +63,11 @@ export interface PresenterOptions {
    */
   panelUrl?: string | undefined;
   /**
+   * A discreet line in the bar about interactive mode (ADR-021), e.g. that it needs a connection when the view
+   * runs from the offline copy. Shown here only, never on the audience screen.
+   */
+  interactiveNotice?: string | undefined;
+  /**
    * Called by `finish()` after the black screen is sent, before the window tries to close itself. Default: none.
    */
   onFinish?(): void;
@@ -103,6 +108,8 @@ export interface Presenter {
   getOffline(): OfflineStatus;
   /** Tells the view whether an offline copy of the deck is stored (layer 2). */
   setOfflineCopy(on: boolean): void;
+  /** Shows (text) or hides (`null`) the interactive-mode line in the bar. */
+  setInteractiveNotice(text: string | null): void;
   readonly current: Player;
   readonly upcoming: Player;
   readonly ready: Promise<void>;
@@ -195,6 +202,7 @@ export const PRESENTER_CSS = `
 .pp-black{position:fixed;left:24px;bottom:24px;margin:0;padding:8px 12px;border-radius:6px;background:#000;color:#F2EFE9;border:1px solid #8B8FA0}
 .pp-offline{display:flex;align-items:center;gap:8px;color:#A3A9B8;font-size:.875rem}
 .pp-script-error{color:#FF9F43;font-size:.875rem}
+.pp-interactive{color:#FFB224;font-size:.875rem;max-width:36ch}
 .pp-offline i{flex:none;width:8px;height:8px;border-radius:50%}
 .pp-endcue{margin:0;color:#A3A9B8;font:500 .875rem/1.3 "JetBrains Mono",ui-monospace,monospace}
 .pp-panel{color:#A3A9B8;font-size:.875rem;text-decoration:underline;text-underline-offset:3px}
@@ -259,6 +267,14 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
   const scriptNotice = el(doc, "div", "pp-script-error");
   scriptNotice.setAttribute("role", "status");
   scriptNotice.hidden = true;
+  const interactiveEl = el(doc, "div", "pp-interactive");
+  interactiveEl.setAttribute("role", "status");
+  interactiveEl.setAttribute("data-pptaken-interactive-notice", "");
+  const setInteractiveNotice = (text: string | null | undefined): void => {
+    interactiveEl.textContent = text ?? "";
+    interactiveEl.hidden = !text;
+  };
+  setInteractiveNotice(options.interactiveNotice);
   const actions = el(doc, "div", "pp-actions");
   const button = (label: string, fn: () => void): HTMLButtonElement => {
     const b = el(doc, "button", "", label);
@@ -311,7 +327,7 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
     notesEl,
   );
   main.append(left, right);
-  bar.append(pos, endCue, clockBox, offlineEl, scriptNotice, actions);
+  bar.append(pos, endCue, clockBox, offlineEl, interactiveEl, scriptNotice, actions);
   if (panelLink) bar.append(panelLink);
   shell.append(bar, main, blackEl, finishedEl);
   root.replaceChildren(shell);
@@ -606,6 +622,7 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
     getState: snapshot,
     getOffline: () => current.getOffline(),
     setOfflineCopy: (on) => current.setOfflineCopy(on),
+    setInteractiveNotice: (text) => setInteractiveNotice(text),
     current,
     upcoming,
     ready,

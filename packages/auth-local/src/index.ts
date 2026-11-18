@@ -20,6 +20,8 @@ export {
   MAX_TOKEN_EXPIRY_DAYS,
   MAX_TOKEN_NAME_LENGTH,
   type McpStatus,
+  PRESENTER_PASSWORD_SETTING,
+  type PresenterPasswordChange,
   SESSION_TTL_MS,
   type TokenView,
 } from "./auth.js";

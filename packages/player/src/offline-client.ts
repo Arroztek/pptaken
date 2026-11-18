@@ -40,15 +40,26 @@ export interface ContentSource {
   scripts?: ScriptsMode;
   /** With `scripts: "running"`: the slide ids and canvas the shell must find in `ready`. */
   expect?: { slides: string[]; width: number; height: number };
+  /** Guest pages (ADR-021): the unlock token sent was refused (expired, deck edited, password changed). */
+  unlockRejected?: boolean;
 }
 
-/** What the content-url endpoint says about author scripts. */
-export type ScriptsMode = "running" | "none" | "off" | "pending" | "safe";
-const SCRIPTS_MODES: readonly string[] = ["running", "none", "off", "pending", "safe"];
+/**
+ * What the content-url endpoint says about author scripts. `locked` (pages without an owner session, ADR-021): the
+ * deck's approved scripts would run after a presenter-password unlock; the static version is served meanwhile.
+ */
+export type ScriptsMode = "running" | "none" | "off" | "pending" | "safe" | "locked";
+const SCRIPTS_MODES: readonly string[] = ["running", "none", "off", "pending", "safe", "locked"];
 
 export interface LoadOptions {
   /** Ask for the static version even when the deck's scripts are approved (`?safe=1`, presenter previews). */
   safe?: boolean;
+  /**
+   * Extra request headers: a guest page's view grant and unlock token (ADR-021). Never cookies, never the URL.
+   */
+  headers?: Record<string, string>;
+  /** Fall back to the stored offline copy when the network request fails. Default `true` (owner pages). */
+  offline?: boolean;
 }
 
 function parseExpect(value: unknown): ContentSource["expect"] | undefined {
@@ -79,15 +90,22 @@ export async function loadContent(
     const query = options.safe === true ? "?safe=1" : "";
     const res = await fetchImpl(`${deckPath(deck)}/content-url${query}`, {
       credentials: "same-origin",
+      ...(options.headers === undefined ? {} : { headers: { ...options.headers } }),
     });
     if (res.status === 401) throw new SignedOutError();
     if (!res.ok) throw new Error(`content-url ${res.status}`);
-    const body = (await res.json()) as { url?: unknown; scripts?: unknown; expect?: unknown };
+    const body = (await res.json()) as {
+      url?: unknown;
+      scripts?: unknown;
+      expect?: unknown;
+      unlockRejected?: unknown;
+    };
     if (typeof body.url !== "string") throw new Error("content-url: no url");
     const source: ContentSource = { contentUrl: body.url, fromCopy: false };
     if (typeof body.scripts === "string" && SCRIPTS_MODES.includes(body.scripts)) {
       source.scripts = body.scripts as ScriptsMode;
     }
+    if (body.unlockRejected === true) source.unlockRejected = true;
     if (source.scripts === "running") {
       const expected = parseExpect(body.expect);
       // Script mode without the server's expectations would trust the frame's `ready`: refuse it.
@@ -99,6 +117,7 @@ export async function loadContent(
     if (error instanceof SignedOutError) throw error;
     firstError = error;
   }
+  if (options.offline === false) throw firstError;
   const res = await fetchImpl(`${deckPath(deck)}/offline`, { credentials: "same-origin" }).catch(
     () => null,
   );

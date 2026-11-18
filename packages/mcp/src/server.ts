@@ -276,7 +276,7 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
       path: null,
       code: "SCRIPTS_PENDING_APPROVAL",
       message:
-        "The scripts changed: the presentation shows its static version until the owner reviews and approves them in the panel. You cannot approve them.",
+        "The scripts changed: the presentation shows its static version until the owner reviews and approves them. You cannot approve them. Tell the user to open interactive.approve_url, read the code and approve it there; do not say it already runs.",
     });
     return {
       interactive: {
@@ -740,7 +740,7 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
     name: "get_presentation_links",
     title: "Get presentation links",
     description:
-      "Returns the URLs of a presentation: urls.present (opens the player; give it to the user) and urls.manage (the owner's panel), plus its public links (none in this version). It does not create links.",
+      "Returns the URLs of a presentation: urls.present (opens the player; give it to the user) and urls.manage (the presentation's page in the owner's panel, where the owner reviews and approves its scripts), plus its public links (none in this version). It does not create links.",
     schema: presentationLinksInput,
     annotations: READ,
     write: false,

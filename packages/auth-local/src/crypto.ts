@@ -36,6 +36,7 @@ export type KeyPurpose =
   | "csrf"
   | "audience-identity"
   | "live-ticket"
+  | "presenter-unlock"
   | "generic";
 
 /** HKDF-SHA256 subkey of the instance secret for one purpose (32 bytes). */

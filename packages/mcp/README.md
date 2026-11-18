@@ -44,4 +44,5 @@ no warnings. Bump `AUTHORING_GUIDE_VERSION` with the format or the policy.
 ## Open questions
 
 - `get_presentation` `include: ["quiz"]` is not supported yet (the core has no quizzes).
-- `urls.manage` points to `/decks/<id>`; the F2 web app has no deck detail page yet.
+- `urls.manage` points to `/decks/<id>`, the presentation's page in the panel; `interactive.approve_url` is the same
+  page at `#scripts`, where the owner reads and approves the code (ADR-021).

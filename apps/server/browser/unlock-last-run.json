@@ -1,0 +1,69 @@
+{
+  "startedAt": "2026-11-18T16:37:33.555Z",
+  "engines": {
+    "chromium": {
+      "ok": true,
+      "checks": [
+        "guest page: static version, scripts locked",
+        "keys typed in the frame, forwarded fake keys and fake messages never open the dialog",
+        "synthetic (untrusted) key events are ignored",
+        "offline: the dialog is not offered",
+        "U opens the dialog: password field focused, content frame inert, aria-modal",
+        "focus stays in the dialog (Tab, Shift+Tab); keys in it never reach the player",
+        "Esc closes it, the frame is interactive again, focus returns to the stage",
+        "empty and wrong passwords (the owner password included) are refused; the field is cleared",
+        "lockout after 3 failures: \"Too many attempts. Try again in 1 seconds.\"",
+        "the right password: scripted document replaces the frame, the code ran, 'Interactive mode' shown",
+        "the token is in sessionStorage only (no cookie, no localStorage, not in the URL)",
+        "scripted content cannot open the dialog",
+        "reload: still unlocked (same tab)",
+        "an edited deck ends the unlock: static again, notice shown, token forgotten",
+        "the owner's player page never shows the unlock dialog",
+        "offline: the presenter view says interactive mode needs a connection; the audience screen does not"
+      ]
+    },
+    "firefox": {
+      "ok": true,
+      "checks": [
+        "guest page: static version, scripts locked",
+        "keys typed in the frame, forwarded fake keys and fake messages never open the dialog",
+        "synthetic (untrusted) key events are ignored",
+        "offline: the dialog is not offered",
+        "U opens the dialog: password field focused, content frame inert, aria-modal",
+        "focus stays in the dialog (Tab, Shift+Tab); keys in it never reach the player",
+        "Esc closes it, the frame is interactive again, focus returns to the stage",
+        "empty and wrong passwords (the owner password included) are refused; the field is cleared",
+        "lockout after 3 failures: \"Too many attempts. Try again in 1 seconds.\"",
+        "the right password: scripted document replaces the frame, the code ran, 'Interactive mode' shown",
+        "the token is in sessionStorage only (no cookie, no localStorage, not in the URL)",
+        "scripted content cannot open the dialog",
+        "reload: still unlocked (same tab)",
+        "an edited deck ends the unlock: static again, notice shown, token forgotten",
+        "the owner's player page never shows the unlock dialog",
+        "offline: the presenter view says interactive mode needs a connection; the audience screen does not"
+      ]
+    },
+    "webkit": {
+      "ok": true,
+      "checks": [
+        "guest page: static version, scripts locked",
+        "keys typed in the frame, forwarded fake keys and fake messages never open the dialog",
+        "synthetic (untrusted) key events are ignored",
+        "offline: the dialog is not offered",
+        "U opens the dialog: password field focused, content frame inert, aria-modal",
+        "focus stays in the dialog (Tab, Shift+Tab); keys in it never reach the player",
+        "Esc closes it, the frame is interactive again, focus returns to the stage",
+        "empty and wrong passwords (the owner password included) are refused; the field is cleared",
+        "lockout after 3 failures: \"Too many attempts. Try again in 1 seconds.\"",
+        "the right password: scripted document replaces the frame, the code ran, 'Interactive mode' shown",
+        "the token is in sessionStorage only (no cookie, no localStorage, not in the URL)",
+        "scripted content cannot open the dialog",
+        "reload: still unlocked (same tab)",
+        "an edited deck ends the unlock: static again, notice shown, token forgotten",
+        "the owner's player page never shows the unlock dialog",
+        "offline: the presenter view says interactive mode needs a connection; the audience screen does not"
+      ]
+    }
+  },
+  "ok": true
+}

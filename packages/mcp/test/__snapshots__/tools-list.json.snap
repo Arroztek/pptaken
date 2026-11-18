@@ -685,7 +685,7 @@
   {
     "name": "get_presentation_links",
     "title": "Get presentation links",
-    "description": "Returns the URLs of a presentation: urls.present (opens the player; give it to the user) and urls.manage (the owner's panel), plus its public links (none in this version). It does not create links.",
+    "description": "Returns the URLs of a presentation: urls.present (opens the player; give it to the user) and urls.manage (the presentation's page in the owner's panel, where the owner reviews and approves its scripts), plus its public links (none in this version). It does not create links.",
     "inputSchema": {
       "type": "object",
       "properties": {

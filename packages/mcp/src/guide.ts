@@ -165,5 +165,7 @@ export function scriptsGuide(status: ScriptsStatusLabel): string {
 - Extra HTML in decks with scripts: ${elements}; input type ${types}; data-* attributes. Still removed: ${policy.INTERACTIVE_REMOVED_EXAMPLES.join(" ")}.
 - Mandatory static fallback: the slide's html/css must make sense without the script. Exports, phones, the presenter preview and any deck the owner has not approved show only that.
 - Scripts run only after the owner approves them in the panel; any change to a script or to \`libs\` needs approval again. Tool results report \`interactive.status\`; you cannot approve. Keys typed in inputs stay there; arrows and space still move the slides.
+- When a result says \`pending_owner_approval\`, tell the user to open \`interactive.approve_url\` (the presentation's page in the panel), read every script there and approve it if they agree. Never say the code already runs, and never ask for or handle the owner or presenter password.
+- Without the owner signed in (presenter links, when they exist), approved scripts run only after someone types the instance's presenter password on that screen; offline copies and exports are always static.
 `;
 }

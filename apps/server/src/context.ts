@@ -38,6 +38,10 @@ export interface Services {
   contentKey: Buffer;
   /** HKDF subkey for screen tickets (the player page's socket credential). */
   liveKey: Buffer;
+  /** HKDF subkey for presenter-password unlock tokens (ADR-021). */
+  unlockKey: Buffer;
+  /** ULIDs (audit entries written by the HTTP layer). */
+  ids: { ulid(): string };
   /** Live sessions, pairing and device credentials (core use cases on the SQLite store). */
   live: LiveSessions;
   /** In-memory pub/sub of the live sessions (remote control). */
@@ -61,5 +65,12 @@ export interface Services {
     dcrPerIp: TokenBucketLimiter;
     /** Failed pairing attempts, instance-wide (key "all"): a global cap on guessing. */
     pairFailures: TokenBucketLimiter;
+    /**
+     * Presenter password unlock (ADR-021): 5 attempts per minute per IP, increasing delay after 3 failures, and a
+     * global failure cap that pauses every IP during a distributed guessing attack.
+     */
+    presenterUnlock: SignInThrottle;
+    /** Failed unlocks per deck (10 per 10 minutes): a cap that does not depend on the attacker's IPs. */
+    presenterUnlockPerDeck: TokenBucketLimiter;
   };
 }

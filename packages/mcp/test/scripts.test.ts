@@ -179,6 +179,17 @@ describe("writing scripts through the tools", () => {
     expect(r.body.warnings.map((w: { code: string }) => w.code)).toContain(
       "SCRIPTS_PENDING_APPROVAL",
     );
+    // ADR-021: the agent sends the user to the approval page and never claims the code runs.
+    const pending = r.body.warnings.find(
+      (w: { code: string }) => w.code === "SCRIPTS_PENDING_APPROVAL",
+    );
+    expect(pending.message).toMatch(/open interactive\.approve_url, read the code and approve it/);
+    expect(pending.message).toMatch(/do not say it already runs/);
+    expect(r.body.urls.manage).toBe(`https://slides.example.com/decks/${r.body.presentation_id}`);
+    const guide = scriptsGuide("needs_owner_approval");
+    expect(guide).toContain("interactive.approve_url");
+    expect(guide).toContain("Never say the code already runs");
+    expect(guide).toContain("presenter password");
     // The interactive profile kept the canvas and the range input.
     const got = await call("get_presentation", {
       presentation_id: r.body.presentation_id,

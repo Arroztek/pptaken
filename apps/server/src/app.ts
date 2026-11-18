@@ -46,6 +46,7 @@ import {
 } from "./http.js";
 import { createLogger, type Logger, type LogSink } from "./logger.js";
 import { createPptxConverter } from "./pptx.js";
+import { guestPlayerPage } from "./presenter-unlock.js";
 import { createRealtime, type RealtimeServer } from "./realtime.js";
 import { apiRoutes } from "./routes-api.js";
 import { contentRoutes, playerRoutes } from "./routes-content.js";
@@ -72,6 +73,12 @@ export interface CreateServerOptions {
   cleanupIntervalMs?: number;
   /** Replaces the isolated PowerPoint converter (tests wrap it to inject content). */
   convertPptx?: PptxConverter;
+  /**
+   * TESTS ONLY. Registers `GET /__test/guest/:deckId`: the player page as a viewer without an owner session sees
+   * it (ADR-021), so the presenter-password unlock can be tested end to end before phase F5's links exist.
+   * `main.ts` never sets it.
+   */
+  testRoutes?: boolean;
 }
 
 /** A Node HTTP server whose `upgrade` events the realtime endpoint (`/ws`) handles. */
@@ -203,6 +210,8 @@ export async function createServer(
     clock,
     contentKey: deriveKey(secret.key, "content-token"),
     liveKey: deriveKey(secret.key, "live-ticket"),
+    unlockKey: deriveKey(secret.key, "presenter-unlock"),
+    ids,
     live: createLiveSessions({
       store: createSqliteLiveStore(storage),
       clock,
@@ -249,6 +258,18 @@ export async function createServer(
       pairFailures: new TokenBucketLimiter({
         capacity: 50,
         refill: 50,
+        intervalMs: 10 * minute,
+        clock,
+      }),
+      presenterUnlock: new SignInThrottle({
+        clock,
+        perIpPerMinute: 5,
+        globalFailuresPer10Min: 30,
+        delayAfterFailures: 3,
+      }),
+      presenterUnlockPerDeck: new TokenBucketLimiter({
+        capacity: 10,
+        refill: 10,
         intervalMs: 10 * minute,
         clock,
       }),
@@ -381,6 +402,10 @@ export async function createServer(
   app.all("/api/*", (c) => apiError(c, "NOT_FOUND", "No such API route"));
   app.route("/mcp", mcpRoutes(services));
   app.route("/c", contentRoutes(services));
+  if (options.testRoutes === true) {
+    logger.warn("test routes are enabled (/__test/*): never use this in production");
+    app.get("/__test/guest/:deckId", (c) => guestPlayerPage(c, services));
+  }
   app.route("/", playerRoutes(services));
 
   // The web app (if built), with SPA fallback; otherwise a minimal page.

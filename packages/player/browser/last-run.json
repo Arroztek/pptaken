@@ -1,8 +1,8 @@
 {
-  "date": "2026-11-18T00:16:04.834Z",
+  "date": "2026-11-18T16:50:26.930Z",
   "origins": {
-    "shell": "http://localhost:57498",
-    "content": "http://127.0.0.1:57499"
+    "shell": "http://localhost:56104",
+    "content": "http://127.0.0.1:56105"
   },
   "engines": {
     "chromium": {
@@ -16,38 +16,38 @@
         {
           "label": "burst",
           "presses": 140,
-          "elapsedMs": 147,
-          "frames": 28,
+          "elapsedMs": 237,
+          "frames": 33,
           "p50": 16.7,
-          "p95": 16.7,
+          "p95": 16.8,
           "max": 16.8
         },
         {
           "label": "paced",
           "presses": 120,
-          "elapsedMs": 3431,
-          "frames": 225,
+          "elapsedMs": 3395,
+          "frames": 223,
           "p50": 16.7,
-          "p95": 16.7,
+          "p95": 16.8,
           "max": 16.8
         }
       ],
       "overview200": {
-        "openToReadyMs": 66,
-        "firstTwoFramesMs": 18.3,
+        "openToReadyMs": 62,
+        "firstTwoFramesMs": 22.7,
         "scrollCold": {
           "height": 5964,
           "p50": 16.7,
           "p95": 16.7,
-          "max": 16.8
+          "max": 16.7
         },
         "scrollWarm": {
           "height": 5964,
           "p50": 16.7,
-          "p95": 16.7,
+          "p95": 16.8,
           "max": 16.8
         },
-        "thirtyArrowDownMs": 43
+        "thirtyArrowDownMs": 29
       },
       "pdf": {
         "pages": 20,
@@ -67,8 +67,8 @@
         {
           "label": "burst",
           "presses": 140,
-          "elapsedMs": 264,
-          "frames": 35,
+          "elapsedMs": 228,
+          "frames": 33,
           "p50": 16.66,
           "p95": 16.68,
           "max": 16.68
@@ -76,16 +76,16 @@
         {
           "label": "paced",
           "presses": 120,
-          "elapsedMs": 836,
-          "frames": 70,
+          "elapsedMs": 724,
+          "frames": 62,
           "p50": 16.66,
           "p95": 16.68,
           "max": 16.68
         }
       ],
       "overview200": {
-        "openToReadyMs": 132,
-        "firstTwoFramesMs": 27,
+        "openToReadyMs": 120,
+        "firstTwoFramesMs": 19,
         "scrollCold": {
           "height": 5964,
           "p50": 16.66,
@@ -98,54 +98,55 @@
           "p95": 16.68,
           "max": 16.68
         },
-        "thirtyArrowDownMs": 142
+        "thirtyArrowDownMs": 167
       }
     },
     "webkit": {
-      "passed": 447,
+      "passed": 446,
       "failed": 0,
       "failures": [],
       "notes": [
         "frame times recorded, not asserted",
         "print layout checked; PDF output not verifiable (Playwright pdf is Chromium-only)",
-        "srcdoc: document.cookie returns '' (no exception)"
+        "srcdoc: document.cookie returns '' (no exception)",
+        "gated keys from content not testable: userActivation.isActive is always true"
       ],
       "frameTimes": [
         {
           "label": "burst",
           "presses": 140,
-          "elapsedMs": 342,
-          "frames": 43,
-          "p50": 15,
+          "elapsedMs": 235,
+          "frames": 36,
+          "p50": 16,
           "p95": 17,
-          "max": 30
+          "max": 18
         },
         {
           "label": "paced",
           "presses": 120,
-          "elapsedMs": 3111,
-          "frames": 218,
-          "p50": 16,
-          "p95": 17,
-          "max": 32
+          "elapsedMs": 2980,
+          "frames": 214,
+          "p50": 15,
+          "p95": 16,
+          "max": 17
         }
       ],
       "overview200": {
-        "openToReadyMs": 110,
-        "firstTwoFramesMs": 11,
+        "openToReadyMs": 98,
+        "firstTwoFramesMs": 21,
         "scrollCold": {
           "height": 5964,
           "p50": 16,
-          "p95": 17,
+          "p95": 16,
           "max": 17
         },
         "scrollWarm": {
           "height": 5964,
           "p50": 16,
-          "p95": 17,
+          "p95": 16,
           "max": 17
         },
-        "thirtyArrowDownMs": 164
+        "thirtyArrowDownMs": 99
       }
     }
   }

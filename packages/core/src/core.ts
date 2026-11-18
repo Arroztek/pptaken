@@ -71,8 +71,10 @@ import {
 } from "./usecases/revisions.js";
 import {
   approveScripts,
+  getScriptsReview,
   getScriptsStatus,
   revokeScripts,
+  type ScriptsReview,
   type ScriptsStatus,
 } from "./usecases/scripts.js";
 
@@ -217,6 +219,12 @@ export interface Core {
     input: { presentationId: string },
     call?: CallContext,
   ): Promise<ScriptsStatus>;
+  /** `decks:read`. The status plus every script's source, hash and size, for the approval screen (ADR-021). */
+  getScriptsReview(
+    p: Principal,
+    input: { presentationId: string },
+    call?: CallContext,
+  ): Promise<ScriptsReview>;
   /** Owner only (human). Approves the current scripts; `digest` must be the one the owner reviewed. Audited. */
   approveScripts(
     p: Principal,
@@ -269,6 +277,7 @@ export function createCore(deps: CoreDeps): Core {
     importPresentation: (p, i, c) => importPresentation(ctx, p, i, c),
     importPptx: (p, i, c) => importPptx(ctx, deps.convertPptx, p, i, c),
     getScriptsStatus: (p, i, c) => getScriptsStatus(ctx, p, i, c),
+    getScriptsReview: (p, i, c) => getScriptsReview(ctx, p, i, c),
     approveScripts: (p, i, c) => approveScripts(ctx, p, i, c),
     revokeScripts: (p, i, c) => revokeScripts(ctx, p, i, c),
     listAuditLog: (p, i, c) =>

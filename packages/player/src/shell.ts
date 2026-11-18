@@ -115,6 +115,11 @@ export interface PlayerOptions {
   /** Adds the remote-control keys (R: pair a phone, K: disconnect every remote) to the key help. */
   remoteKeys?: boolean;
   /**
+   * Adds `U` (unlock interactive mode with the presenter password, ADR-021) to the key help. The key itself is
+   * handled by the page's unlock dialog (`createUnlockDialog`), never by the shell or the content.
+   */
+  unlockKey?: boolean;
+  /**
    * Script mode (ADR-020): the document at `contentUrl` runs approved author scripts. The shell then treats the
    * frame as hostile: private port handshake, `ready` once and checked against `expect`, `preload` unverified,
    * `state` checked, every gated key, `Enter` and `f` from the frame dropped before `onKey`, navigation keys from
@@ -236,7 +241,12 @@ function nextFrame(win: Window): Promise<void> {
  * Rows of the key help overlay: `[keys, what]`. With a presenter window, its own keys are listed too (clock,
  * reset, and Esc to finish at the end of the talk).
  */
-export function keyHelpRows(t: Labels, presenter: boolean, remote: boolean): [string, string][] {
+export function keyHelpRows(
+  t: Labels,
+  presenter: boolean,
+  remote: boolean,
+  unlock = false,
+): [string, string][] {
   const rows: [string, string][] = [
     ["→ Space PgDn Enter", t.helpNext],
     ["← Backspace PgUp", t.helpPrev],
@@ -253,6 +263,7 @@ export function keyHelpRows(t: Labels, presenter: boolean, remote: boolean): [st
       ["Esc", t.helpFinish],
     );
   if (remote) rows.push(["R", t.helpRemote], ["K", t.helpKick]);
+  if (unlock) rows.push(["U", t.helpUnlock]);
   rows.push(["P", t.helpPrint], ["?", t.helpHelp], ["Esc", t.helpClose]);
   return rows;
 }
@@ -384,6 +395,7 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
       labels,
       presenterUrl !== null,
       options.remoteKeys === true,
+      options.unlockKey === true,
     )) {
       const row = table.insertRow();
       const k = row.insertCell();
