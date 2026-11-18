@@ -96,6 +96,23 @@ describe("response validation", () => {
       version: "1",
     });
     await expect(api.setupStatus()).rejects.toMatchObject({ code: "BAD_RESPONSE" });
+    // A deck written without a language comes back with lang null: the list must still load.
+    const noLang = fakeFetch(200, {
+      decks: [
+        {
+          id: "d",
+          title: "T",
+          lang: null,
+          slideCount: 1,
+          revision: 1,
+          updatedAt: NOW,
+          createdBy: "agent",
+          scripts: "none",
+        },
+      ],
+      nextCursor: null,
+    });
+    await expect(noLang.api.listDecks()).resolves.toMatchObject({ decks: [{ lang: null }] });
     const decks = fakeFetch(200, {
       decks: [
         {

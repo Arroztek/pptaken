@@ -138,7 +138,7 @@ const connectStatus = object({
 const deckSummary = object({
   id: str,
   title: str,
-  lang: str,
+  lang: nullable(str),
   slideCount: count,
   revision: count,
   updatedAt: isoDate,
@@ -166,7 +166,7 @@ export type VendoredResource = Infer<typeof vendoredResource>;
 const deckDetail = object({
   id: str,
   title: str,
-  lang: str,
+  lang: nullable(str),
   slideCount: count,
   revision: count,
   updatedAt: isoDate,

@@ -329,7 +329,7 @@
             onmore={() => openExport(deck)}
           >
             {#snippet thumbnail()}
-              <div class="thumb" lang={deck.lang} aria-hidden="true">
+              <div class="thumb" lang={deck.lang ?? undefined} aria-hidden="true">
                 <span class="thumb__rule"></span>
                 <span class="thumb__title">{deck.title}</span>
               </div>
