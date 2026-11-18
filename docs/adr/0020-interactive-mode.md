@@ -1,6 +1,6 @@
 # ADR-020 · Interactive mode (author scripts)
 
-**Status:** accepted, foundation phase (2026-11-17). Implements the `interactive` mode planned in
+**Status:** accepted, foundation phase (2026-11-17); completed by [ADR-021](0021-presenter-password-and-approval-screen.md) (approval screen, presenter password). Implements the `interactive` mode planned in
 [ADR-001 §7](0001-content-format.md) under the conditions measured by spike
 [S5](../spikes/S5-script-mode.md). Related: [S1](../spikes/S1-isolation.md), [S4](../spikes/S4-offline.md),
 [deck format](../spec/deck-format.md), [sanitizer](../spec/sanitizer.md), [player](../spec/player.md),
@@ -115,10 +115,8 @@ exports, the offline copy (service worker, `srcdoc`) and every future public lin
   POST). No MCP tool can approve. MCP writes that leave a deck `pending` return
   `interactive: { status: "pending_owner_approval", approve_url }` and a `SCRIPTS_PENDING_APPROVAL` warning
   (`SCRIPTS_DISABLED` when the instance switch is off).
-- **TODO (next phase):** the owner-side approval screen in the panel: show every script and the library list
-  with the digest, the instance capability (below) and, when there is no separate-site content origin, the
-  warning that a runaway script can freeze the presenter tab in Firefox and Safari. The strings are already in
-  `apps/web/src/i18n` (`scripts.*`).
+- **Done in [ADR-021](0021-presenter-password-and-approval-screen.md):** the owner-side approval screen in the panel
+  (`/decks/:id`) with every script, the library list, the digest, the instance capability and the freeze warning.
 
 ### 4. Content origin: optional hardening on self-hosted, mandatory in the cloud
 
@@ -240,7 +238,7 @@ the decks that need it.
 Public links with scripts (after a real-browser WebRTC lockdown check on Chrome, Firefox, Safari desktop and iOS
 over a real network, and an external security review); scripts for audience devices and the presenter previews;
 offline and exported scripted decks (needs the deck's hashes in the page CSP, S5 §5); ingest-time vendoring of CDN scripts, stylesheets, fonts and images (fetcher, HTML-artifact importer; §2);
-the owner approval screen (TODO above); a mandatory separate content origin for the cloud edition.
+the owner approval screen (done: ADR-021); a mandatory separate content origin for the cloud edition.
 
 ## Consequences
 

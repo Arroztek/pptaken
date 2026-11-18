@@ -90,11 +90,13 @@ The web app polls this endpoint every 2 seconds while the welcome page is open.
 ## Presentations (owner session required, read-only in F2)
 
 ### `GET /api/v1/decks?cursor=&q=`
-`200 { "decks": [{ "id", "title", "lang", "slideCount", "revision", "updatedAt", "createdBy" }], "nextCursor": string|null }`.
-Trashed decks are excluded. `createdBy` is `"owner"` or `"agent"`.
+`200 { "decks": [{ "id", "title", "lang", "slideCount", "revision", "updatedAt", "createdBy", "scripts" }], "nextCursor": string|null }`.
+Trashed decks are excluded. `createdBy` is `"owner"` or `"agent"`. `scripts` (ADR-021) is the trust state of the
+current revision's author scripts: `"none"`, `"pending"` or `"approved"` (the list badges).
 
 ### `GET /api/v1/decks/:id`
-`200` with the same summary plus `{ "urls": { "present": string } }`.
+`200` with the same summary plus `{ "urls": { "present": string, "manage": string } }` (`manage` is the
+presentation's page in the panel, `/decks/<id>`).
 
 ### Interactive scripts (ADR-020)
 
@@ -104,10 +106,32 @@ Owner session only (cookie; API and OAuth tokens never reach these routes), CSRF
   "approved", digest, approvedDigest, approvedAt, slides, libs, chars, capability: { contentOrigin: "same-origin" |
   "same-site" | "separate-site", separateSiteContent, freezeWarning } }`. The approval screen (next phase) shows the
   scripts and, when `freezeWarning` is true, that a runaway script can freeze the presenter tab in Firefox and
-  Safari.
+  Safari. Since ADR-021 the same response also carries what the approval screen shows: `sources: [{ slideId, index,
+  source, sha256, bytes }]` (every script verbatim, its SHA-256 and UTF-8 size), `warnings: [{ code, message, path,
+  name }]` (what the static fallback removes, at most 50) and `presenterPassword: { set }`.
 - `POST /api/v1/decks/:id/scripts/approve` `{ "digest": "<64 hex>" }` → `200` (same shape). `409` when the scripts
   changed since the digest was read; `400` when the instance switch is off or the deck has no scripts. Audited.
 - `POST /api/v1/decks/:id/scripts/revoke` → `200`. Audited.
+
+### Presenter password (ADR-021)
+
+Owner session + CSRF for management; the unlock needs no session.
+
+- `GET /api/v1/presenter/password` → `200 { "set": boolean }` (never the hash).
+- `POST /api/v1/presenter/password` `{ "password" }` → `200 { "set": true, "change": "set" | "changed" }`. `400`
+  when it does not meet the password policy or equals the owner password. Stored as a scrypt hash. Audited
+  (`presenter_password.set` / `.change`). A new owner password equal to it is refused (`POST /auth/password`,
+  `pptaken reset-password`).
+- `DELETE /api/v1/presenter/password` → `204` (idempotent; audited `presenter_password.remove` when one existed).
+  Every unlock token ends. `pptaken reset-password --clear-presenter-password` does the same from the CLI.
+- `POST /api/v1/presenter/unlock` `{ "deckId", "password" }` (no session; CSRF header and app origin required) →
+  `200 { "token", "deckId", "expiresAt" }` with `Cache-Control: no-store`. Every failure is `401 { code:
+  "UNAUTHENTICATED", message: "Unlock failed" }`: no presenter password set, wrong password (the owner password
+  included), unknown deck, scripts not approved or changed, instance switch off. `429` with `Retry-After` when
+  limited: 5 attempts per minute per IP with an increasing delay after 3 failures, 30 failures per 10 minutes
+  instance-wide, 10 failures per 10 minutes per deck. Audited (`presenter.unlock`, ok or denied). The token
+  (HMAC, purpose `unlock`, at most 8 hours) is bound to the deck, its approved digest and the presenter password
+  epoch; it is not an API credential.
 
 Every GET route of the app origin is side-effect free (a scripted frame on the app origin can navigate itself to
 them, with the session cookie in WebKit); `apps/server/test/scripts.test.ts` enumerates them against a reviewed list.
@@ -125,6 +149,14 @@ them, with the session cookie in WebKit); `apps/server/test/scripts.test.ts` enu
   `sdoc` token bound to that digest, and `expect` is what the shell must find in `ready`. Otherwise the token is a
   `doc` token and `/c/…` serves the static version (scripts and libraries removed, HTML re-sanitized with the safe
   profile). The content route re-checks the switch and the approval on every request: a revocation applies at once.
+- Without an owner session (ADR-021; future presenter/public links, today only the test-only guest page) the
+  `content-url` request must carry a view grant for that deck in `X-PPTaken-View` (otherwise `401`); it gets the
+  static version, with `scripts: "locked"` when the deck's approved scripts could run after an unlock. With a valid
+  unlock token in `X-PPTaken-Unlock` it gets `scripts: "running"` under the same rules as the owner. When an unlock
+  token was sent and no longer works (edited deck, revocation, expiry, password changed or removed) the answer adds
+  `"unlockRejected": true`. Both credentials travel in headers, never in cookies or URLs.
+- Test-only: `GET /__test/guest/:deckId` (registered only with `createServer(..., { testRoutes: true })`, never by
+  `main.ts`) serves the guest player page with an 8-hour view grant.
 - The player page CSP's `frame-src` is exactly the content origin when `PPTAKEN_CONTENT_URL` is set, `'self'`
   otherwise.
 
@@ -132,7 +164,7 @@ them, with the session cookie in WebKit); `apps/server/test/scripts.test.ts` enu
 
 `apps/server` serves the built web app. Routes handled by the web app (client-side): `/` (redirects to `/welcome`
 before setup, to the presentation list after), `/welcome` (setup wizard and "Connect your agent"), `/login`,
-`/decks`, `/tokens` ("Access & connections": agent tokens and connected applications), `/security` (password
+`/decks`, `/decks/:id` (a presentation and its approval screen), `/tokens` ("Access & connections": agent tokens and connected applications), `/security` (password
 change) and `/connect/<id>` (OAuth consent,
 ADR-0018). Unknown non-API paths fall back to the web app's `index.html`.
 

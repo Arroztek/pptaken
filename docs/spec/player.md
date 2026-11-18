@@ -703,3 +703,39 @@ phones always load the static version too.
 **Tests.** `test/scripts.test.ts` (document, CSP, wrapper, hashing, libraries, protocol, key policy, lockdown
 lists) and the adversarial corpus `browser/scripts.mjs` (`pnpm --filter @pptaken/player test:scripts`), see
 ADR-020.
+
+## Presenter-password unlock (ADR-021)
+
+Module `unlock.ts` (served as `/_player/unlock.js`, part of `SHELL_FILES`). Used by the player page only when it is
+served **without an owner session** (`<body data-viewer="guest" data-view="<view grant>">`: future presenter/public
+links; today only the test route `GET /__test/guest/:deckId`). The owner's own pages never create it.
+
+- `createUnlockDialog({ doc, mount, locale, frames, available, submit, onUnlocked, returnFocus })` returns
+  `{ open, close, isOpen, setIndicator, setIndicatorVisible, flash, destroy }`.
+- **Key**: `U` with no modifier (`isUnlockKey`: `key` is `u`/`U`, no Ctrl/Alt/Meta/Shift, not a repeat, not IME
+  composition, `isTrusted !== false`), caught in the capture phase on the trusted document and acted on after the
+  event is dispatched. `U` is not a `KeyCode`: the runtime never forwards it and the protocol cannot carry it; the
+  module listens to no messages. Typing targets are ignored. `keyHelpRows(..., unlock = true)` lists it
+  (`PlayerOptions.unlockKey`).
+- **Dialog**: plain DOM over a full-viewport backdrop (`[data-pptaken-unlock]`, `data-open` while open), role
+  `dialog` + `aria-modal`, title, explanation, "not the owner password" note, a password field
+  (`autocomplete="off"`), an error line (`role="alert"`), Cancel / Unlock and the page's host name. While open the
+  content frames are `inert`, Tab/Shift+Tab cycle inside, focus that leaves comes back, keys inside never reach the
+  player, Esc closes and focus returns to the stage. The field is cleared after every attempt.
+- **Availability**: `available()` is `navigator.onLine && !source.fromCopy`; offline the key does nothing.
+- **Request**: `requestUnlock(deck, password)` → `POST /api/v1/presenter/unlock` (JSON, CSRF header,
+  `credentials: "omit"`); outcomes `ok` (token shape checked), `failed` (any 4xx), `locked` (429 with
+  `Retry-After`), `network` (fetch error or 5xx).
+- **Token**: `sessionStorage["pptaken.unlock:<deck>"]` only (`readUnlockToken`, `storeUnlockToken`,
+  `forgetUnlockToken`, all in try/catch); sent as `X-PPTaken-Unlock` by `loadContent(..., { headers, offline:
+  false })` together with `X-PPTaken-View`.
+- **After an unlock** the page asks for `content-url` again; when the server answers `scripts: "running"` it
+  destroys the static player and mounts the scripted one (script mode, `expect`, watchdog) at the same position (the
+  hash), and shows the trusted indicator `[data-pptaken-interactive]` "Interactive mode" (hidden on black). When a
+  stored token is refused on load (`unlockRejected`) it is forgotten and a notice says the unlock ended.
+- **Presenter view**: presenter data carries `interactive: true` when the deck's approved scripts can run online;
+  when the view runs from the offline copy or the browser is offline, the bar shows "Interactive mode needs a
+  connection. Unlock before you go offline." (`[data-pptaken-interactive-notice]`, `setInteractiveNotice`). The
+  audience screen never shows it.
+- **Tests**: `test/unlock.test.ts` (key, request, storage, guest loading, presenter data) and the end-to-end run
+  `apps/server/browser/unlock-e2e.mjs` (Chromium, Firefox, WebKit).

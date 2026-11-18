@@ -252,3 +252,20 @@ Threat model entries added with it (see [ADR-020](../adr/0020-interactive-mode.m
 | T24 | A script freezes the presenter's tab (busy loop, DOM/allocation bombs) | D | Medium | Heartbeat watchdog that replaces the frame with a plain element and loads the static version (where the frame is out of process); `?safe=1`; size limits; warning and optional separate-site content origin; documented freeze in WebKit/Safari and Firefox without a separate site |
 | T25 | An agent approves its own scripts, or changes them after approval | S, E | High | Approval is a core use case that refuses every actor but the owner (audited as `denied`); only the panel session (cookie + CSRF) reaches it; no MCP tool; any script or library change produces a new digest and the deck renders static until approved again |
 | T26 | A scripted frame navigates to app-origin GET URLs (WebKit sends the `SameSite=Lax` cookie) when content shares the app origin | T | Medium | Every app GET route reviewed as side-effect free (server test enumerates them); state changes need POST + CSRF; app pages have `frame-ancestors 'none'`; the separate content origin removes the channel |
+
+### 12.1 Presenter password and unlock (ADR-021)
+
+A second, instance-wide secret, chosen by the owner, unlocks approved scripts on screens without the owner's
+session (future presenter/public links). It cannot sign in, it is refused when equal to the owner password (both
+ways), it is stored as a scrypt hash, and changing or removing it ends every unlock. Unlock tokens (HMAC, dedicated
+subkey, at most 8 h) are bound to the deck, its approved digest and the password epoch, live in `sessionStorage`,
+travel in a header, and only upgrade a view grant of the same deck to its scripted document. Offline never prompts.
+See [ADR-021](../adr/0021-presenter-password-and-approval-screen.md).
+
+| # | Threat | Type | Impact | Controls |
+|---|---|---|---|---|
+| T27 | The presenter password is phished by content drawing a fake dialog | S | Medium | The real dialog is trusted-page DOM over the whole viewport with the host name, opened only by a trusted `U` from the page; the frame is cross-origin and `inert` while it is open; static content has no scripts or text inputs; after an unlock only owner-approved code runs. Residual: approved code could draw a fake prompt inside the canvas |
+| T28 | The presenter password is keylogged on a foreign PC | I | Medium | Separate from the owner password, cannot open the panel or the API, unlocks only already-approved code of decks the screen can already show; changing it ends every unlock; guide advises changing it after untrusted PCs |
+| T29 | Brute force of the presenter password | S | Medium | Password policy, scrypt; 5 attempts/min per IP with backoff after 3 failures, 30 failures/10 min instance-wide, 10 failures/10 min per deck; one generic failure; constant work (decoy hash, deck always read) |
+| T30 | Theft or replay of an unlock token (including after an edit) | S, E | Medium | `sessionStorage` only, never a cookie or URL; 8 h; useless without a view grant of the same deck; not a Bearer credential; subject rebuilt from current state, so a script edit, revocation, switch off or password change ends it; audited |
+| T31 | Confusion between owner and presenter secrets | E | High | Equal values refused at set time (both directions); the unlock path never creates sessions or touches the panel; separate settings and HKDF subkeys; `reset-password --clear-presenter-password` |
