@@ -19,7 +19,9 @@
     "test:oauth": "pnpm build && node browser/oauth-e2e.mjs",
     "test:remote": "pnpm run build && node browser/remote.mjs",
     "test:pptx": "pnpm run build && node browser/pptx-e2e.mjs",
-    "test:unlock": "pnpm run build && node browser/unlock-e2e.mjs"
+    "test:unlock": "pnpm run build && node browser/unlock-e2e.mjs",
+    "test:vendor": "pnpm run build && node browser/vendor-e2e.mjs",
+    "smoke:vendor": "pnpm run build && node scripts/vendor-smoke.mjs"
   },
   "dependencies": {
     "@hono/node-server": "2.1.8",

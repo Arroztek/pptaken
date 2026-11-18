@@ -88,6 +88,7 @@ export async function offlineBundle(
   for (const text of [
     document.theme?.css ?? "",
     ...document.slides.flatMap((x) => [x.html, x.css ?? ""]),
+    ...(document.theme?.fontFaces ?? []).map((f) => f.src),
   ]) {
     for (const ref of assetRefsOf(text)) if (SHA256.test(ref)) refs.add(ref);
   }

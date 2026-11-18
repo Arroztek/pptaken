@@ -20,6 +20,7 @@ import {
   createUlidGenerator,
   type PptxConverter,
   systemClock,
+  type VendorFetcher,
 } from "@pptaken/core";
 import { RealtimeHub } from "@pptaken/realtime";
 import {
@@ -58,6 +59,11 @@ import { presenterRoutes } from "./routes-present.js";
 import { remotePageRoutes } from "./routes-remote.js";
 import { type CimdFetcherOverride, fetchClientMetadataDocument } from "./safe-fetch.js";
 import { WebApp } from "./static.js";
+import {
+  createVendorFetcher,
+  type VendorFetcherOptions,
+  type VendorTransport,
+} from "./vendor-fetch.js";
 
 export interface CreateServerOptions {
   logSink?: LogSink;
@@ -71,6 +77,12 @@ export interface CreateServerOptions {
   fetchClientMetadata?: CimdFetcherOverride;
   /** Interval of the OAuth clean-up job (default 10 minutes; 0 disables it). */
   cleanupIntervalMs?: number;
+  /**
+   * Replaces the ingest-time vendoring fetcher (ADR-022). Tests inject a fake network here; `main.ts` never sets it.
+   */
+  vendorFetcher?: VendorFetcher;
+  /** Replaces only the network layer of the real vendoring fetcher (tests: fake DNS and HTTP, real checks). */
+  vendorNetwork?: { resolve?: VendorFetcherOptions["resolve"]; transport?: VendorTransport };
   /** Replaces the isolated PowerPoint converter (tests wrap it to inject content). */
   convertPptx?: PptxConverter;
   /**
@@ -137,7 +149,29 @@ export async function createServer(
     maxBlobBytes: 10 * 1024 * 1024,
   });
   const ids = createUlidGenerator((n) => new Uint8Array(randomBytes(n)), clock);
+  const vendor =
+    options.vendorFetcher ??
+    createVendorFetcher({
+      enabled: config.vendorFetch,
+      allowHosts: config.vendorAllowHosts,
+      denyHosts: config.vendorDenyHosts,
+      // Per actor: 300 downloads per 10 minutes (one write may need up to 100).
+      limiter: new TokenBucketLimiter({
+        capacity: 300,
+        refill: 300,
+        intervalMs: 10 * 60_000,
+        clock,
+      }),
+      now: () => clock.now(),
+      ...(options.vendorNetwork?.resolve === undefined
+        ? {}
+        : { resolve: options.vendorNetwork.resolve }),
+      ...(options.vendorNetwork?.transport === undefined
+        ? {}
+        : { transport: options.vendorNetwork.transport }),
+    });
   const core = createCore({
+    vendor,
     store: storage,
     blobs,
     clock,

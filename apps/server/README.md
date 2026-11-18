@@ -11,6 +11,8 @@ pnpm --filter @pptaken/server test                       # integration tests (re
 pnpm --filter @pptaken/server test:browser               # Playwright: Chromium, Firefox, WebKit
 pnpm --filter @pptaken/server test:remote                # Playwright: remote control, laptop + phone contexts
 pnpm --filter @pptaken/server test:unlock                # Playwright: presenter-password unlock (ADR-021), 3 engines
+pnpm --filter @pptaken/server test:vendor                # Playwright: vendoring + HTML import (ADR-022), 3 engines, 0 third-party requests
+pnpm --filter @pptaken/server smoke:vendor               # MANUAL only: one real Google Fonts + jsDelivr fetch
 ```
 
 `createServer(config, options)` (from `src/app.ts`) builds everything for tests; `src/main.ts` is the CLI entry.
@@ -49,6 +51,9 @@ pnpm --filter @pptaken/server test:unlock                # Playwright: presenter
 | `PPTAKEN_WEB_DIR` | `../web/dist` (relative to this package) | |
 | `PPTAKEN_CONTENT_URL` | none | separate cookie-less origin for `/c/*` (recommended; needs `PPTAKEN_PUBLIC_URL`). On a different **site** it also isolates scripted decks in Firefox (ADR-020) |
 | `PPTAKEN_SCRIPTS` | `off` | interactive mode (ADR-020): `owner` lets approved author scripts run in the owner's own session; `off` stores them but always serves the static version |
+| `PPTAKEN_VENDOR_FETCH` | `on` | ingest-time vendoring (ADR-022): `on` downloads the external fonts, stylesheets, images and CDN scripts a deck references once, stores them and rewrites the deck; `off` refuses writes that reference external resources |
+| `PPTAKEN_VENDOR_ALLOW_HOSTS` | (empty) | comma-separated hosts (and their subdomains) vendoring may fetch from; empty: any public https host |
+| `PPTAKEN_VENDOR_DENY_HOSTS` | (empty) | comma-separated hosts (and their subdomains) vendoring never fetches from |
 | `PPTAKEN_ALLOWED_HOSTS` | none | extra Host names (comma-separated) |
 | `PPTAKEN_FONTS_DIR` | `../../packages/ui/fonts` | |
 | `PPTAKEN_SECRET_KEY` / `PPTAKEN_SECRET_KEY_FILE` | none | inject the 256-bit secret (hex or base64) instead of `secret.key` |

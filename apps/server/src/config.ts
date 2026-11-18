@@ -39,6 +39,15 @@ export interface ServerConfig {
    * `owner` (they run in the owner's own session once the owner approved the deck's scripts digest).
    */
   scripts: "off" | "owner";
+  /**
+   * Ingest-time vendoring (ADR-022, PPTAKEN_VENDOR_FETCH): `on` (default) fetches the external resources a deck
+   * references once and stores them; `off` refuses writes that reference external resources.
+   */
+  vendorFetch: boolean;
+  /** PPTAKEN_VENDOR_ALLOW_HOSTS: when non-empty, only these hosts (and subdomains) are fetched. */
+  vendorAllowHosts: string[];
+  /** PPTAKEN_VENDOR_DENY_HOSTS: these hosts (and subdomains) are never fetched. */
+  vendorDenyHosts: string[];
   host: string;
   port: number;
   dataDir: string;
@@ -200,8 +209,26 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     if (!/^[a-z0-9.-]+$/.test(h))
       throw new ConfigError(`PPTAKEN_ALLOWED_HOSTS: invalid host name "${h}"`);
   }
+  const vendor = (env.PPTAKEN_VENDOR_FETCH || "on").toLowerCase();
+  if (vendor !== "on" && vendor !== "off") {
+    throw new ConfigError('PPTAKEN_VENDOR_FETCH must be "on" (default) or "off"');
+  }
+  const hostList = (name: string): string[] => {
+    const list = (env[name] ?? "")
+      .split(",")
+      .map((h) => h.trim().toLowerCase().replace(/^\*\./, ""))
+      .filter((h) => h !== "");
+    for (const h of list) {
+      if (!/^[a-z0-9.-]{1,253}$/.test(h))
+        throw new ConfigError(`${name}: invalid host name "${h}"`);
+    }
+    return list;
+  };
   return {
     version: packageVersion(),
+    vendorFetch: vendor === "on",
+    vendorAllowHosts: hostList("PPTAKEN_VENDOR_ALLOW_HOSTS"),
+    vendorDenyHosts: hostList("PPTAKEN_VENDOR_DENY_HOSTS"),
     publicUrl,
     oauthIssuer: oauthIssuerOf(publicUrl),
     contentUrl,

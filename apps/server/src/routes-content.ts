@@ -6,7 +6,13 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { signToken, verifyToken } from "@pptaken/auth-local";
-import { DEFAULT_WORKSPACE_ID, isDomainError, type Principal, scriptsDigest } from "@pptaken/core";
+import {
+  DEFAULT_WORKSPACE_ID,
+  isDomainError,
+  isServableAssetType,
+  type Principal,
+  scriptsDigest,
+} from "@pptaken/core";
 import {
   assetHeaders,
   BUILD_PLACEHOLDER,
@@ -459,6 +465,33 @@ function fontFacesOf(s: Services): ReturnType<typeof loadFontFaces> {
   return faces;
 }
 
+/**
+ * The vendored scripts of a deck (ADR-022), read from the deck's assets by SHA-256. The builder re-verifies every
+ * file's hash against the `libs` reference before inlining it, so a swapped blob cannot run.
+ */
+async function vendoredScriptsOf(
+  s: Services,
+  deckId: string,
+  deck: { libs?: { sha256: string }[] | undefined },
+): Promise<Map<string, { js: string }>> {
+  const out = new Map<string, { js: string }>();
+  for (const lib of deck.libs ?? []) {
+    try {
+      const { asset, content } = await s.core.getAsset(contentReader, {
+        sha256: lib.sha256,
+        presentationId: deckId,
+      });
+      if (asset.mediaType !== "text/javascript") continue;
+      out.set(lib.sha256, {
+        js: new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(content),
+      });
+    } catch {
+      // Not stored for this deck (a bundled library, or missing): the builder uses its own or refuses.
+    }
+  }
+  return out;
+}
+
 /** Routes served on the content origin (or on the app origin when no separate content origin is configured). */
 export function contentRoutes(s: Services): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
@@ -488,6 +521,9 @@ export function contentRoutes(s: Services): Hono<AppEnv> {
         sha256: sha,
         presentationId: deckId,
       });
+      // Only images and fonts are served (ADR-022): vendored scripts are inlined in the scripted document and
+      // vendored stylesheets are merged into the deck's CSS, never loaded from here.
+      if (!isServableAssetType(asset.mediaType)) return notFoundText();
       return c.body(new Uint8Array(content), 200, {
         ...assetHeaders(),
         "Content-Type": asset.mediaType,
@@ -572,6 +608,7 @@ export function contentRoutes(s: Services): Hono<AppEnv> {
     if (scripted) {
       const built = buildDeckDocument(servedDeck, {
         scripts: true,
+        vendoredScripts: await vendoredScriptsOf(s, deckId, servedDeck),
         assetBaseUrl,
         fontBaseUrl,
         fontFaces,

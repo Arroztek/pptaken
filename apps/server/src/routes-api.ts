@@ -495,7 +495,15 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
     const sum = ULID.test(id) ? await summary(id) : null;
     if (sum === null) return apiError(c, "NOT_FOUND", "Presentation not found");
     const base = publicOrigin(c, s.config);
-    return c.json({ ...sum, urls: { present: `${base}/p/${id}`, manage: `${base}/decks/${id}` } });
+    // Ingest-time vendoring (ADR-022): the provenance of the current revision's external resources and the
+    // operator switch, for the panel's "Vendored resources" section.
+    const revision = await s.storage.revisions.get(DEFAULT_WORKSPACE_ID, id, sum.revision);
+    return c.json({
+      ...sum,
+      urls: { present: `${base}/p/${id}`, manage: `${base}/decks/${id}` },
+      vendorFetch: s.config.vendorFetch ? "on" : "off",
+      vendored: revision?.document.vendored ?? [],
+    });
   });
 
   // The signed content URL of the current revision for the owner's player page. Side-effect free (it only signs).
@@ -581,6 +589,7 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
     approvedAt: iso(st.approvedAt),
     slides: st.slides,
     libs: st.libs,
+    deckScript: st.deckScript,
     chars: st.chars,
     capability: {
       contentOrigin: s.config.contentOrigin,
@@ -619,6 +628,7 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
         {
           ...scriptsJson(review),
           sources: review.sources,
+          deckSource: review.deckSource,
           warnings,
           presenterPassword: { set: await s.auth.hasPresenterPassword() },
         },

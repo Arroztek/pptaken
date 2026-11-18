@@ -1,0 +1,45 @@
+{
+  "startedAt": "2026-11-18T20:42:28.690Z",
+  "engines": {
+    "chromium": {
+      "ok": true,
+      "checks": [
+        "import: 2 slides by slide-class, 4 resources vendored over the fake network",
+        "owner: the vendored font loads from the instance's asset URL",
+        "owner: the deck script ran after the vendored library",
+        "owner: the CDN library's runtime fetch is neutralized by the lockdown (fetch is undefined)",
+        "owner: the converted onclick widget calls the vendored library (2 clicks → bars:2)",
+        "guest: static document (runtime only, no library, no deck script), vendored font and image still load from the instance",
+        "no request to any third-party host from either context (intercepted and counted: 0)"
+      ],
+      "thirdParty": []
+    },
+    "firefox": {
+      "ok": true,
+      "checks": [
+        "import: 2 slides by slide-class, 4 resources vendored over the fake network",
+        "owner: the vendored font loads from the instance's asset URL",
+        "owner: the deck script ran after the vendored library",
+        "owner: the CDN library's runtime fetch is neutralized by the lockdown (fetch is undefined)",
+        "owner: the converted onclick widget calls the vendored library (2 clicks → bars:2)",
+        "guest: static document (runtime only, no library, no deck script), vendored font and image still load from the instance",
+        "no request to any third-party host from either context (intercepted and counted: 0)"
+      ],
+      "thirdParty": []
+    },
+    "webkit": {
+      "ok": true,
+      "checks": [
+        "import: 2 slides by slide-class, 4 resources vendored over the fake network",
+        "owner: the vendored font loads from the instance's asset URL",
+        "owner: the deck script ran after the vendored library",
+        "owner: the CDN library's runtime fetch is neutralized by the lockdown (fetch is undefined)",
+        "owner: the converted onclick widget calls the vendored library (2 clicks → bars:2)",
+        "guest: static document (runtime only, no library, no deck script), vendored font and image still load from the instance",
+        "no request to any third-party host from either context (intercepted and counted: 0)"
+      ],
+      "thirdParty": []
+    }
+  },
+  "finishedAt": "2026-11-18T20:42:49.333Z"
+}

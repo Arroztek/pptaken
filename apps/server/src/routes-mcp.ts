@@ -38,6 +38,10 @@ export function mcpRoutes(s: Services): Hono<AppEnv> {
             status: s.config.scripts === "owner" ? "needs_owner_approval" : "off",
             separateSiteContent: s.config.contentOrigin === "separate-site",
           },
+          vendoring: {
+            enabled: s.config.vendorFetch,
+            allowHosts: s.config.vendorAllowHosts,
+          },
           rateLimit: ({ principal, write }) => {
             const key = principal.tokenId ?? "owner";
             const calls = s.limits.mcpCallsPerToken.take(key);

@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-11-18T16:35:19.489Z",
+  "startedAt": "2026-11-18T19:14:37.540Z",
   "engines": {
     "chromium": {
       "ok": true,
@@ -100,7 +100,7 @@
         "Esc at the end closes the presenter and blacks the audience screen",
         "ready offline: service-worker (1 images, 6 fonts), copy true",
         "player page CSP allows only the runtime hash and data: fonts in addition",
-        "presenter ready offline: service-worker",
+        "presenter ready offline: ready",
         "offline: all 20 slides and every step, images shown",
         "offline: overview opened, slide selected",
         "offline: black screen on and off",
