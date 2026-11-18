@@ -141,7 +141,9 @@ Improvement over `ppt`: there the room code was permanent (stored in `localStora
 | T5 | An attendee takes control of the remote | S, T | High | One-time 2-minute secret never shown by default, hashed device credential, approval of every device with a matching two-digit code, at most 2 remotes, kick (ADR-017) |
 | T6 | Public link leak (forwarding, history, capture) | I | Medium | Default expiry; revocation; no notes; `noindex`; `no-referrer`; optional pinned revision |
 | T7 | Speaker notes leak | I | High | Notes are not included in `/v/`, nor in `/c/`, nor on the real-time socket, nor in the HTML export unless explicitly chosen. An **approved** remote device gets them over HTTP with its device credential (ADR-017); tests check every socket frame and content document |
-| T8 | SSRF through `add_asset` with a URL or through CIMD (requesting `http://169.254.169.254/…` or internal services) | I, E | High | `https` only; resolve DNS and **block private, loopback, link-local and metadata ranges**; pin the resolved IP (anti *DNS rebinding*); no redirects to blocked ranges; 10 s timeout; maximum size; type verification by signature |
+| T8 | SSRF through `add_asset` with a URL, CIMD or vendoring (ADR-022, see T8b) (requesting `http://169.254.169.254/…` or internal services) | I, E | High | `https` only; resolve DNS and **block private, loopback, link-local and metadata ranges**; pin the resolved IP (anti *DNS rebinding*); no redirects to blocked ranges; 10 s timeout; maximum size; type verification by signature |
+| T8b | Ingest-time vendoring (ADR-022): an agent (possibly prompt-injected) names URLs the server fetches: SSRF at any redirect hop, DNS rebinding, blind requests to public hosts, amplification (huge or endless bodies, many URLs) | I, E, D | High | The T8 rules on **every hop** (at most 3 redirects, each re-checked; connection pinned; mixed DNS answers refused; IPv4-mapped/NAT64/6to4 judged by the embedded IPv4); `https`/443 only; no decompression (encoded bodies refused); per-kind streaming caps; 10 s per request and 60 s per write; 100 URLs / 40 MB per write; 8 in flight; 300 fetches per actor per 10 min; allow/deny host lists and an off switch (`PPTAKEN_VENDOR_FETCH`); every fetch audited (`vendor.fetch`, denied for refusals) |
+| T8c | Vendored content as an attack vector: a CDN script, stylesheet, font, image or SVG that carries code, markup or a polyglot; a CDN that changes a file later | T, E | High | Checked by magic bytes and container structure (no trailing data; SVG and HTML pages refused); CSS sanitized like authored CSS; scripts pinned by SHA-256 in `libs` and in the **approval digest** (re-vendored different bytes need a new approval), run only inside the ADR-020 lockdown/CSP/Trusted Types sandbox, inlined (the asset route never serves scripts or stylesheets); viewers never contact the original hosts |
 | T9 | Spam or offensive audience content on the projector | T | Medium–high (reputation) | The projector only shows what the presenter opens; hide/delete; limits; filter; pause; kick |
 | T10 | Cheating in the quiz (reading the answer, voting several times, bots) | T | Low | Correct answer held on the server; one answer per participant; server clock; per-IP limits |
 | T11 | Brute force of the audience code or the password | S | Medium | Per-IP limits; codes valid only during the session; the audience code grants no privileges |
@@ -269,3 +271,24 @@ See [ADR-021](../adr/0021-presenter-password-and-approval-screen.md).
 | T29 | Brute force of the presenter password | S | Medium | Password policy, scrypt; 5 attempts/min per IP with backoff after 3 failures, 30 failures/10 min instance-wide, 10 failures/10 min per deck; one generic failure; constant work (decoy hash, deck always read) |
 | T30 | Theft or replay of an unlock token (including after an edit) | S, E | Medium | `sessionStorage` only, never a cookie or URL; 8 h; useless without a view grant of the same deck; not a Bearer credential; subject rebuilt from current state, so a script edit, revocation, switch off or password change ends it; audited |
 | T31 | Confusion between owner and presenter secrets | E | High | Equal values refused at set time (both directions); the unlock path never creates sessions or touches the panel; separate settings and HKDF subkeys; `reset-password --clear-presenter-password` |
+
+### 12.2 Ingest-time vendoring and the HTML importer (ADR-022)
+
+External resources an agent references (fonts, stylesheets, images, CDN scripts) are fetched **once, at write
+time**, by the SSRF-safe vendoring fetcher, checked by content, stored as assets and the deck is rewritten to the
+stored copies; viewers never contact third parties. Threats T8b and T8c in §6 carry the controls. In short:
+
+- every hop of every request gets the full T8 check (redirects ≤ 3, pinned connection, public unicast only);
+- the off switch `PPTAKEN_VENDOR_FETCH=off` refuses writes with external resources; allow/deny host lists;
+- budgets per kind, per write and per actor; no decompression; every fetch audited (`vendor.fetch`);
+- vendored scripts are `libs` entries pinned by SHA-256, part of the approval digest, inlined only in the owner's
+  approved scripted document and never served by the asset route; ES modules, SVG image URLs and HTML pages
+  served as resources are refused;
+- the importer (`import_html_deck`) parses with parse5/css-tree and produces ordinary deck input, which then goes
+  through the same validation, vendoring and sanitizer as any write; JSX artifacts are refused.
+
+Residual risks: the instance's IP and the fact that a deck is being written are visible to the hosts an agent
+names (as with CIMD); an agent can use the instance to send bounded GETs to public hosts (rate-limited, audited);
+the escaping of `</script`/`<script`/`<!--` in inlined libraries assumes those sequences occur in literals (when
+they are real code the library fails to parse: it never runs differently); fonts and scripts keep their own
+licences and the deck author is responsible for redistributing them.

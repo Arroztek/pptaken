@@ -96,7 +96,11 @@ current revision's author scripts: `"none"`, `"pending"` or `"approved"` (the li
 
 ### `GET /api/v1/decks/:id`
 `200` with the same summary plus `{ "urls": { "present": string, "manage": string } }` (`manage` is the
-presentation's page in the panel, `/decks/<id>`).
+presentation's page in the panel, `/decks/<id>`), and, for ingest-time vendoring (ADR-022), `vendorFetch: "on" |
+"off"` (the operator switch `PPTAKEN_VENDOR_FETCH`) and `vendored`: the provenance list of the current revision
+(`[{ kind, url, status: "vendored" | "failed", finalUrl?, redirects?, sha256?, bytes?, mediaType?, fetchedAt,
+error?, via? }]`, see the deck format). The panel shows it as "Vendored resources"; URLs are displayed as text and
+never followed.
 
 ### Interactive scripts (ADR-020)
 
@@ -108,7 +112,9 @@ Owner session only (cookie; API and OAuth tokens never reach these routes), CSRF
   scripts and, when `freezeWarning` is true, that a runaway script can freeze the presenter tab in Firefox and
   Safari. Since ADR-021 the same response also carries what the approval screen shows: `sources: [{ slideId, index,
   source, sha256, bytes }]` (every script verbatim, its SHA-256 and UTF-8 size), `warnings: [{ code, message, path,
-  name }]` (what the static fallback removes, at most 50) and `presenterPassword: { set }`.
+  name }]` (what the static fallback removes, at most 50) and `presenterPassword: { set }`. Since ADR-022:
+  `deckScript` (boolean), `deckSource: { source, sha256, bytes } | null` (the deck-level script) and, per library,
+  `finalUrl` (after redirects) and `bytes`.
 - `POST /api/v1/decks/:id/scripts/approve` `{ "digest": "<64 hex>" }` → `200` (same shape). `409` when the scripts
   changed since the digest was read; `400` when the instance switch is off or the deck has no scripts. Audited.
 - `POST /api/v1/decks/:id/scripts/revoke` → `200`. Audited.

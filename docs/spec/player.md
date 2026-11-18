@@ -693,6 +693,19 @@ shows a plain notice (never an iframe: it could share the busy process), calls `
 process (desktop Chromium for every transport, Firefox for a cross-site content origin); elsewhere the whole tab
 freezes for as long as the script runs (S5 §3, measured again by `browser/scripts.mjs`).
 
+**Vendored libraries and the deck script (ADR-022).** `BuildOptions.vendoredScripts` maps the SHA-256 of each
+vendored script stored for the deck to its text (the server reads it from the deck's assets). The builder verifies
+the bytes against the `libs` reference, then embeds them with `embeddableScript` (`</script` → `<\/script`,
+`<script` → `<script`, `<!--` → `<\!--`: same meaning inside strings, template and regular-expression literals
+and identifiers; NUL or lone surrogates refuse the build) and lists the SHA-256 of the **embedded** text in
+`script-src`. Libraries are never loaded by URL (the asset route does not serve scripts). After the libraries comes
+the deck-level `script`, unwrapped (global scope, line breaks normalized), then the wrapped slide scripts.
+
+**Vendored fonts (ADR-022).** `theme.fontFaces` becomes `@font-face` rules on `<assetBaseUrl><sha256>` (every
+value re-validated; `font-display:swap`), in the first `<style>` with the bundled faces; `font-src` already allows
+the asset path and the asset route sends `Access-Control-Allow-Origin: *`. Offline documents and the HTML export
+inline them as `data:` URIs.
+
 **Errors** reach the main page (`onScriptError`) and the presenter window over the sync channel
 (`script-error {slide}`), which shows a discreet notice; nothing appears on the audience screen.
 

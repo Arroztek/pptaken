@@ -78,7 +78,9 @@ exports, the offline copy (service worker, `srcdoc`) and every future public lin
   the approval screen lists their source URLs and hashes. **Built now:** the data model, the hash check, the
   digest and the CSP-hash plumbing (`BuildOptions.vendoredScripts`: stored scripts by hash; the builder verifies
   each file's SHA-256 against the reference before inlining it and hashing it into `script-src`), and the core
-  check `checkVendoredScripts` (`packages/core/src/deck.ts`) whose known set is the extension point. **Next phase
+  check `checkVendoredScripts` (`packages/core/src/deck.ts`) whose known set is the extension point. **Done in
+  [ADR-022](0022-vendoring-and-html-importer.md)** (fetcher, asset kinds, importer, vendored fonts and a deck-level
+  script; ES modules remain unsupported). **Former next phase
   (extension points):** (1) the URL fetcher (reuse `apps/server/src/safe-fetch.ts`, the SSRF-safe CIMD fetcher) and
   a `text/javascript`/`text/css` asset kind in the core's asset store; (2) an HTML-artifact importer that rewrites
   `<script src>`, `<link rel=stylesheet>`, `@import`, `url()`, ES `import` specifiers and Google Fonts links into
@@ -237,7 +239,7 @@ the decks that need it.
 
 Public links with scripts (after a real-browser WebRTC lockdown check on Chrome, Firefox, Safari desktop and iOS
 over a real network, and an external security review); scripts for audience devices and the presenter previews;
-offline and exported scripted decks (needs the deck's hashes in the page CSP, S5 §5); ingest-time vendoring of CDN scripts, stylesheets, fonts and images (fetcher, HTML-artifact importer; §2);
+offline and exported scripted decks (needs the deck's hashes in the page CSP, S5 §5); ingest-time vendoring of CDN scripts, stylesheets, fonts and images (fetcher, HTML-artifact importer; §2: done in ADR-022);
 the owner approval screen (done: ADR-021); a mandatory separate content origin for the cloud edition.
 
 ## Consequences

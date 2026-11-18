@@ -3,7 +3,8 @@
 Your agent can add JavaScript to slides: live charts, small simulations, sliders that change a diagram. PPTaken
 treats that code as untrusted until **you** read it and approve it, and it runs only where it is safe to. This guide
 explains how to turn it on, review it and present it. The decisions behind it are in
-[ADR-020](../adr/0020-interactive-mode.md) and [ADR-021](../adr/0021-presenter-password-and-approval-screen.md).
+[ADR-020](../adr/0020-interactive-mode.md), [ADR-021](../adr/0021-presenter-password-and-approval-screen.md) and
+[ADR-022](../adr/0022-vendoring-and-html-importer.md).
 
 ## 1. Turn it on
 
@@ -18,10 +19,14 @@ panel shows the code and explains how to turn it on.
 
 ## 2. What your agent does
 
-Your agent writes each slide's code in its `script` field and lists libraries (for example the bundled uPlot) in
-`libs`. It cannot approve anything. After every change to the code, its tool result says
-`pending_owner_approval` with an `approve_url`; a good agent tells you to open that link and read the code. It
-should never tell you the code already runs.
+Your agent writes each slide's code in its `script` field, shared helpers in the deck-level `script`, and lists
+libraries in `libs`: a CDN URL of the library's classic build (for example
+`https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js`) or the bundled uPlot. PPTaken downloads each library
+**once**, when the deck is written, stores it and pins its SHA-256 (ADR-022): you approve exactly those bytes, and
+nobody who views the deck ever contacts the CDN. It can also bring a whole HTML artifact with `import_html_deck`
+(see [Bring your Claude artifact](bring-your-artifact.md)). It cannot approve anything. After every change to the
+code or to a library, its tool result says `pending_owner_approval` with an `approve_url`; a good agent tells you to
+open that link and read the code. It should never tell you the code already runs.
 
 ## 3. Review and approve
 
@@ -34,7 +39,9 @@ scripts** section shows:
 - the **fingerprint** (SHA-256 over every script and library): your approval binds to this exact value;
 - every script, with line numbers, its size and its own fingerprint (long scripts show the first 200 lines and a
   "Show all" button);
-- the libraries, with version, fingerprint and the address they were copied from (viewers never contact it);
+- the deck script (shared code that runs once before the slide scripts), when there is one;
+- the libraries, with version, fingerprint, size, the address they were copied from, the address that finally
+  answered and any redirects (viewers never contact them);
 - what the static version leaves out (for example a `<canvas>`), so you can check the slides still make sense
   without the code.
 

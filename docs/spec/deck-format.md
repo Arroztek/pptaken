@@ -17,7 +17,8 @@ Design background: [ADR-001](../adr/0001-content-format.md).
   "targetMinutes": 20,                // optional, 1..600
   "theme": {                          // optional
     "css": ":root { --accent: #FFB224 }",     // shared CSS, ≤ 64 KB
-    "fonts": ["Inter", "JetBrains Mono"]      // from the bundled catalog, ≤ 4, unique
+    "fonts": ["Inter", "JetBrains Mono"],     // bundled fonts used, ≤ 4, unique
+    "fontFaces": [ … ]                        // vendored fonts (see Fonts)
   },
   "slides": [                         // required, 1..200
     {
@@ -56,20 +57,44 @@ document order. The player counts the steps; nothing else needs to be declared.
 
 ## Fonts
 
-Fonts are used by name from a closed catalog bundled with the player: Inter, IBM Plex Sans,
-Bricolage Grotesque, Space Grotesk, Source Serif 4, Fraunces, JetBrains Mono, IBM Plex Mono,
-Atkinson Hyperlegible. External fonts are not allowed.
+Bundled fonts are used by name: Inter, IBM Plex Sans, Bricolage Grotesque, Space Grotesk, Source Serif 4, Fraunces,
+JetBrains Mono, IBM Plex Mono, Atkinson Hyperlegible (`theme.fonts` lists the ones a deck uses). Since ADR-022 any
+other family works once it is **vendored** into `theme.fontFaces`:
 
-## Assets
+```jsonc
+"theme": {
+  "fontFaces": [                         // ≤ 96; filled by the server when it vendors fonts
+    { "family": "Lora", "src": "asset:<sha256>", "format": "woff2",
+      "weight": "400 700", "style": "normal", "unicodeRange": "U+0000-00FF, U+0131",
+      "source": "https://fonts.gstatic.com/…" }   // provenance only
+  ],
+  "googleFonts": [{ "family": "Lora", "weights": [400, 700], "italic": false }]   // input only, ≤ 8, not stored
+}
+```
 
-Images are uploaded separately and referenced as `asset:<hex id>` (16 to 64 lowercase hex characters, the
-content hash) in slide HTML and CSS. External URLs are not allowed, so decks work offline and do not leak the
-audience's IP address.
+The server fills `fontFaces` from a stylesheet URL (`@import url(https://fonts.googleapis.com/css2?…)`,
+`<link rel=stylesheet>`), an `@font-face` with an https `src`, or `theme.googleFonts` (it builds the css2 URL).
+Families declared in `fontFaces` are accepted by the sanitizer like the bundled ones; any other family name is
+removed with a warning (a bare family name is never resolved to a download on its own).
 
+## Assets and external resources
+
+Images, fonts and scripts are stored on the instance and referenced as `asset:<hex id>` (16 to 64 lowercase hex
+characters, the content hash; `fontFaces[].src` uses the full 64). They are added by `add_asset` (base64 or an https
+URL) or **vendored at write time** (ADR-022): https URLs in slide HTML (`<img src/srcset>`, `<picture>`, SVG
+`<image href>`, `<link rel=stylesheet>`, `<script src>`), in CSS (`url()`, `@import`, `@font-face`) and in `libs`
+are fetched once by the server, checked by content, stored, and the deck is rewritten to the stored copies. The
+stored deck never references a third party at view time, so decks work offline and do not leak the audience's IP
+address. Video, audio, iframes and embeds are removed with a warning.
+
+`vendored` (optional, written by the server, ≤ 300 entries) is the provenance of those resources:
+`[{ kind: "script" | "stylesheet" | "font" | "image", url, status: "vendored" | "failed", finalUrl?, redirects?,
+sha256?, bytes?, mediaType?, fetchedAt, error?, via? }]`. It is never used at view time; a value sent by a client is
+ignored and recomputed.
 ## Content rules (enforced by the sanitizer and the sandbox, not by the schema)
 
 Slide content is untrusted. The server removes scripts, event-handler attributes, frames, forms, `@import` and
-external `url()`, and reports what it removed as warnings. The player also runs the content in a sandboxed
+external `url()` that were not vendored, and reports what it removed as warnings. The player also runs the content in a sandboxed
 iframe with a network-free CSP. See [`docs/spikes/S1-isolation.md`](../spikes/S1-isolation.md).
 
 ## Interactive mode: `script` and `libs` (ADR-020)
@@ -79,12 +104,15 @@ older server **rejects** a deck that uses them instead of dropping the code sile
 
 - `slides[].script`: the slide's JavaScript, an inline classic script. At most 128 KB per slide and 1 MB per deck
   (UTF-16 code units). It must not contain `<script`, `</script` or `<!--` (inside a string write
-  `"</script>"`), NUL or lone surrogates. There is no `src`: no CDN, no network.
+  `"</script>"`), NUL or lone surrogates. Libraries come through `libs`; nothing is fetched at view time.
 - `libs`: an ordered list (at most 16) of **vendored script assets** `{ "name", "version"?, "sha256", "source"? }`:
   scripts stored on the instance, referenced by the SHA-256 of the file, with the https URL they were vendored from
   (provenance; viewers never contact it). A bundled id is accepted as shorthand and stored expanded; this version
   bundles `uplot@1` (uPlot 1.6.32, MIT, global `uPlot`). A reference to a script the instance does not store is
-  refused. Fetching CDN dependencies of an artifact once at ingest ("vendoring") is the next phase (ADR-020 §2).
+  refused. As input, an entry may also be an https URL of a classic (UMD/IIFE) build: the server vendors it on write
+  (ADR-022) and stores `{ name, version?, sha256, source, finalUrl, bytes }` in its place.
+- `script` (deck level, ADR-022): one classic script run once in the global scope, after `libs` and before the
+  slide scripts; at most 512 KB, counted in the 1 MB total; same rules as `slides[].script`.
 
 The code runs **only** in the owner's own session, after the owner approved the deck's scripts digest, on an
 instance where the operator enabled it (`PPTAKEN_SCRIPTS=owner`). Everywhere else (presenter previews, phones,
