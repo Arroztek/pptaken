@@ -316,12 +316,51 @@ describe("vendored scripts (ADR-020 §2)", () => {
         vendoredScripts: new Map([[sha, { js: `${js} evil();` }]]),
       }),
     ).toThrow(/hash mismatch/);
+    // ADR-022: NUL cannot be embedded (the HTML parser would change it, and the hash with it).
     expect(() =>
-      buildDeckDocument(deck({ ...withLib, libs: [{ name: "x", sha256: b64hex("</script>") }] }), {
+      buildDeckDocument(deck({ ...withLib, libs: [{ name: "x", sha256: b64hex("a\u0000b") }] }), {
         scripts: true,
-        vendoredScripts: new Map([[b64hex("</script>"), { js: "</script>" }]]),
+        vendoredScripts: new Map([[b64hex("a\u0000b"), { js: "a\u0000b" }]]),
       }),
     ).toThrow(/cannot be inlined/);
+  });
+
+  it("escapes </script and <script inside CDN code and hashes the embedded text (ADR-022)", () => {
+    const js = 'var a="</script><script>x()</script>";var r=/<script/i;';
+    const built = buildDeckDocument(
+      deck({ ...withLib, libs: [{ name: "x", sha256: b64hex(js) }] }),
+      {
+        scripts: true,
+        vendoredScripts: new Map([[b64hex(js), { js }]]),
+      },
+    );
+    const embedded = 'var a="<\\/script><\\u0073cript>x()<\\/script>";var r=/<\\u0073cript/i;';
+    expect(built.html).toContain(`<script>${embedded}</script>`);
+    expect(built.csp).toContain(
+      `'sha256-${createHash("sha256").update(embedded).digest("base64")}'`,
+    );
+    // The document has exactly one closing tag per script element (nothing escaped its element).
+    expect(built.html.match(/<\/script>/g)?.length).toBe(built.html.match(/<script>/g)?.length);
+  });
+
+  it("runs the deck-level script after the libraries and before the slide scripts (ADR-022)", () => {
+    const built = buildDeckDocument(
+      deck({
+        ...withLib,
+        script: "window.shared = 1;",
+        slides: [{ id: "a", title: "", html: "<p>a</p>", script: "slide.root;" }],
+      }),
+      { scripts: true, vendoredScripts: new Map([[sha, { js }]]) },
+    );
+    const lib = built.html.indexOf(js);
+    const shared = built.html.indexOf("window.shared = 1;");
+    const slide = built.html.indexOf('pptaken.register("a"');
+    expect(lib).toBeGreaterThan(0);
+    expect(shared).toBeGreaterThan(lib);
+    expect(slide).toBeGreaterThan(shared);
+    expect(built.csp).toContain(
+      `'sha256-${createHash("sha256").update("window.shared = 1;").digest("base64")}'`,
+    );
   });
 });
 

@@ -12,12 +12,13 @@
 // - T7: speaker notes are removed before building (they are never in a content document).
 
 import { type Deck, FONT_CATALOG, type FontName } from "@pptaken/schema";
-import { buildDeckDocument, type FontFaceSpec } from "./builder.js";
+import { buildDeckDocument, type FontFaceSpec, vendoredFontFaceCss } from "./builder.js";
 import { OFFLINE_DOCUMENT_CSP } from "./offline.js";
 
 /** Raster types the core accepts as assets (the same set the HTML export inlines). */
 const MEDIA_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/avif"]);
 const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
+const FONT_TYPES = new Set(["font/woff2", "font/woff", "font/ttf", "font/otf"]);
 
 export interface OfflineAsset {
   mediaType: string;
@@ -103,6 +104,27 @@ export function buildOfflineDocument(deck: Deck, options: OfflineDocumentOptions
     return `@font-face{font-family:"${face.family}";font-style:${style};font-weight:${face.weight};font-display:swap;src:url(data:font/woff2;base64,${face.base64}) format("woff2");${range}}`;
   });
 
+  // Vendored font faces (ADR-022): inlined as data: URIs from `assets` (font media types only).
+  for (const face of deck.theme?.fontFaces ?? []) {
+    const hex = /^asset:([0-9a-f]{64})$/.exec(face.src)?.[1];
+    const asset = hex === undefined ? undefined : assets.get(hex);
+    if (asset === undefined || !FONT_TYPES.has(asset.mediaType) || !BASE64.test(asset.base64)) {
+      if (hex !== undefined) missing.add(hex);
+      continue;
+    }
+    const css = vendoredFontFaceCss(
+      { ...deck, theme: { fontFaces: [face] } },
+      "https://offline.invalid/",
+    ).replace(
+      `url(https://offline.invalid/${hex})`,
+      `url(data:${asset.mediaType};base64,${asset.base64})`,
+    );
+    if (css !== "") faces.push(css);
+  }
+  if (inner.theme?.fontFaces !== undefined) {
+    const { fontFaces: _f, ...theme } = inner.theme;
+    inner.theme = theme;
+  }
   // The builder checks the nonce and refuses unsanitized CSS; no asset or font base URL: nothing is fetched.
   const built = buildDeckDocument(inner, { nonce: options.nonce });
   const head = "<head>\n";

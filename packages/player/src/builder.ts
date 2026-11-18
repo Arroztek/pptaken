@@ -9,10 +9,14 @@ import {
   type AspectRatio,
   canvasSize,
   type Deck,
+  embeddableScript,
   FONT_CATALOG,
+  FONT_FAMILY_PATTERN,
+  FONT_WEIGHT_PATTERN,
   type FontName,
   LIB_CATALOG,
   scriptProblem,
+  UNICODE_RANGE_PATTERN,
 } from "@pptaken/schema";
 import { assertAssetBaseUrl, assertNonce, type CspOptions, contentSecurityPolicy } from "./csp.js";
 import { LIB_SOURCES } from "./libs-source.js";
@@ -163,6 +167,38 @@ function fontFaceCss(base: string, faces: readonly FontFaceSpec[]): string {
     .join(String.fromCharCode(10));
 }
 
+const VENDORED_SRC = /^asset:([0-9a-f]{64})$/;
+const FORMATS = new Set(["woff2", "woff", "truetype", "opentype"]);
+const STYLES = new Set(["normal", "italic", "oblique"]);
+
+/**
+ * `@font-face` rules for the deck's vendored faces (`theme.fontFaces`, ADR-022). Every value is re-validated here
+ * (the schema checked them on write); a face that does not pass is skipped, never interpolated.
+ */
+export function vendoredFontFaceCss(deck: Deck, assetBase: string): string {
+  const out: string[] = [];
+  for (const face of deck.theme?.fontFaces ?? []) {
+    const hex = VENDORED_SRC.exec(face.src)?.[1];
+    if (
+      hex === undefined ||
+      !FONT_FAMILY_PATTERN.test(face.family) ||
+      !FORMATS.has(face.format) ||
+      (face.weight !== undefined && !FONT_WEIGHT_PATTERN.test(face.weight)) ||
+      (face.style !== undefined && !STYLES.has(face.style)) ||
+      (face.unicodeRange !== undefined && !UNICODE_RANGE_PATTERN.test(face.unicodeRange))
+    ) {
+      continue;
+    }
+    const weight = face.weight === undefined ? "" : `font-weight:${face.weight};`;
+    const style = face.style === undefined ? "" : `font-style:${face.style};`;
+    const range = face.unicodeRange === undefined ? "" : `unicode-range:${face.unicodeRange};`;
+    out.push(
+      `@font-face{font-family:"${face.family}";${style}${weight}font-display:swap;src:url(${assetBase}${hex}) format("${face.format}");${range}}`,
+    );
+  }
+  return out.join("\n");
+}
+
 /** Escapes text for HTML text content and double-quoted attribute values. */
 export function escapeHtml(text: string): string {
   return text
@@ -225,8 +261,11 @@ export function buildDeckDocument(deck: Deck, options: BuildOptions): DeckDocume
   if (options.fontFaces !== undefined && options.fontFaces.length > 0 && fontBase === undefined) {
     throw new TypeError("fontFaces requires fontBaseUrl");
   }
-  const fontCss =
+  const bundledFontCss =
     fontBase !== undefined && options.fontFaces ? fontFaceCss(fontBase, options.fontFaces) : "";
+  // Vendored font faces of the deck (ADR-022): stored as assets, served from the asset path (font-src allows it).
+  const vendoredFontCss = base === undefined ? "" : vendoredFontFaceCss(deck, base);
+  const fontCss = [bundledFontCss, vendoredFontCss].filter((t) => t !== "").join("\n");
   const ratio: AspectRatio = deck.aspectRatio === "4:3" ? "4:3" : "16:9";
   const { width, height } = canvasSize(ratio);
 
@@ -261,13 +300,24 @@ export function buildDeckDocument(deck: Deck, options: BuildOptions): DeckDocume
     (deck.libs ?? []).forEach((ref, index) => {
       const lib = stored.get(ref.sha256);
       if (lib === undefined) throw new TypeError(`libs[${index}]: vendored script not available`);
-      // The stored bytes must be exactly the referenced ones, and fit in an inline <script>.
+      // The stored bytes must be exactly the referenced ones (the digest binds that hash). CDN code may contain
+      // "</script" or "<script" inside strings: it is escaped without changing what it does (ADR-022), and the
+      // CSP hash is computed over the text actually embedded.
       if (sha256Hex(lib.js) !== ref.sha256) throw new TypeError(`libs[${index}]: hash mismatch`);
-      if (/<\/?script|<!--/i.test(lib.js)) throw new TypeError(`libs[${index}]: cannot be inlined`);
+      const js = embeddableScript(lib.js);
+      if (js === null) throw new TypeError(`libs[${index}]: cannot be inlined`);
       if (lib.css) libCss.push(checkedCss(lib.css, `libs[${index}]`));
-      tail.push(`<script>${lib.js}</script>`);
-      hashes.push(scriptHash(lib.js));
+      tail.push(`<script>${js}</script>`);
+      hashes.push(scriptHash(js));
     });
+    // The deck-level script (ADR-022): once, in the global scope, after the libraries and before the slides.
+    if (deck.script !== undefined) {
+      const problem = scriptProblem(deck.script);
+      if (problem !== null) throw new TypeError(`script: ${problem}`);
+      const text = deck.script.replace(/\r\n?/g, "\n");
+      tail.push(`<script>${text}</script>`);
+      hashes.push(scriptHash(text));
+    }
     deck.slides.forEach((slide, index) => {
       if (slide.script === undefined) return;
       const text = wrapAuthorScript(slide.id, slide.script, `slides[${index}].script`);

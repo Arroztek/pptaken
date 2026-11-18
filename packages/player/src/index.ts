@@ -15,6 +15,7 @@ export {
   type FontFaceSpec,
   scriptHash,
   type VendoredScriptSource,
+  vendoredFontFaceCss,
   wrapAuthorScript,
 } from "./builder.js";
 export {

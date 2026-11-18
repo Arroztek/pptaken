@@ -1,11 +1,11 @@
 {
-  "date": "2026-11-18T16:38:01.721Z",
+  "date": "2026-11-18T19:15:19.276Z",
   "origins": {
-    "app": "http://localhost:54471",
-    "content": "http://127.0.0.1:54472",
-    "listener": "http://[::1]:54469",
-    "stun": 50965,
-    "turn": 54470
+    "app": "http://localhost:59953",
+    "content": "http://127.0.0.1:59954",
+    "listener": "http://[::1]:59951",
+    "stun": 54261,
+    "turn": 59952
   },
   "engines": {
     "chromium": {
@@ -42,7 +42,7 @@
           "ok": true,
           "slider": "11",
           "afterSlider": [
-            106,
+            153,
             0,
             0,
             "present"
@@ -58,7 +58,7 @@
           "id": "api.onStep-and-setSteps",
           "ok": true,
           "last": [
-            1490,
+            1537,
             0,
             1,
             "present"
@@ -685,7 +685,7 @@
           "ok": true,
           "positions": [
             [
-              40,
+              56,
               0,
               0,
               "present"
@@ -720,7 +720,7 @@
           "ok": true,
           "opens": 0,
           "last": [
-            1264,
+            1284,
             1,
             0,
             "present"
@@ -730,7 +730,7 @@
           "id": "proto.flood-rate-limited",
           "ok": true,
           "pressed": 60,
-          "elapsedMs": 43,
+          "elapsedMs": 54,
           "moves": 10,
           "worstPerSecond": 10
         },
@@ -738,9 +738,9 @@
           "id": "abuse.busy.documented-freeze",
           "ok": true,
           "gapMs": 8000,
-          "watchdogAtMs": 9043,
-          "fallbackAtMs": 8799,
-          "responsiveMs": 5,
+          "watchdogAtMs": 9029,
+          "fallbackAtMs": 8793,
+          "responsiveMs": 3,
           "faults": [
             "unresponsive"
           ]
@@ -749,9 +749,9 @@
           "id": "abuse.busy.fallback-after-watchdog",
           "ok": true,
           "gapMs": 8000,
-          "watchdogAtMs": 9043,
-          "fallbackAtMs": 8799,
-          "responsiveMs": 5,
+          "watchdogAtMs": 9029,
+          "fallbackAtMs": 8793,
+          "responsiveMs": 3,
           "faults": [
             "unresponsive"
           ]
@@ -759,7 +759,7 @@
         {
           "id": "abuse.alloc.page-recovers",
           "ok": true,
-          "gapMs": 299,
+          "gapMs": 388,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
           "responsiveMs": 3,
@@ -777,10 +777,10 @@
         {
           "id": "abuse.dom.page-recovers",
           "ok": true,
-          "gapMs": 2844,
-          "watchdogAtMs": 3896,
-          "fallbackAtMs": 3870,
-          "responsiveMs": 4,
+          "gapMs": 3661,
+          "watchdogAtMs": 4725,
+          "fallbackAtMs": 4732,
+          "responsiveMs": 3,
           "faults": [
             "unresponsive"
           ]
@@ -788,10 +788,10 @@
         {
           "id": "abuse.dom.fallback-after-watchdog",
           "ok": true,
-          "gapMs": 2844,
-          "watchdogAtMs": 3896,
-          "fallbackAtMs": 3870,
-          "responsiveMs": 4,
+          "gapMs": 3661,
+          "watchdogAtMs": 4725,
+          "fallbackAtMs": 4732,
+          "responsiveMs": 3,
           "faults": [
             "unresponsive"
           ]
@@ -1050,21 +1050,21 @@
         },
         "flood": {
           "pressed": 60,
-          "elapsedMs": 43,
+          "elapsedMs": 54,
           "moves": 10,
           "worstPerSecond": 10
         },
         "abuse.busy": {
           "gapMs": 8000,
-          "watchdogAtMs": 9043,
-          "fallbackAtMs": 8799,
-          "responsiveMs": 5,
+          "watchdogAtMs": 9029,
+          "fallbackAtMs": 8793,
+          "responsiveMs": 3,
           "faults": [
             "unresponsive"
           ]
         },
         "abuse.alloc": {
-          "gapMs": 299,
+          "gapMs": 388,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
           "responsiveMs": 3,
@@ -1078,10 +1078,10 @@
           "faults": []
         },
         "abuse.dom": {
-          "gapMs": 2844,
-          "watchdogAtMs": 3896,
-          "fallbackAtMs": 3870,
-          "responsiveMs": 4,
+          "gapMs": 3661,
+          "watchdogAtMs": 4725,
+          "fallbackAtMs": 4732,
+          "responsiveMs": 3,
           "faults": [
             "unresponsive"
           ]
@@ -1138,7 +1138,7 @@
           "id": "api.onStep-and-setSteps",
           "ok": true,
           "last": [
-            1818,
+            1778,
             0,
             1,
             "present"
@@ -1765,7 +1765,7 @@
           "ok": true,
           "positions": [
             [
-              59,
+              89,
               0,
               0,
               "present"
@@ -1800,7 +1800,7 @@
           "ok": true,
           "opens": 0,
           "last": [
-            1292,
+            1342,
             1,
             0,
             "present"
@@ -1817,10 +1817,10 @@
         {
           "id": "abuse.busy.contained",
           "ok": true,
-          "gapMs": 21,
-          "watchdogAtMs": 3582,
-          "fallbackAtMs": 8778,
-          "responsiveMs": 4,
+          "gapMs": 22,
+          "watchdogAtMs": 3597,
+          "fallbackAtMs": 8781,
+          "responsiveMs": 3,
           "faults": [
             "unresponsive"
           ]
@@ -1828,10 +1828,10 @@
         {
           "id": "abuse.busy.fallback-after-watchdog",
           "ok": true,
-          "gapMs": 21,
-          "watchdogAtMs": 3582,
-          "fallbackAtMs": 8778,
-          "responsiveMs": 4,
+          "gapMs": 22,
+          "watchdogAtMs": 3597,
+          "fallbackAtMs": 8781,
+          "responsiveMs": 3,
           "faults": [
             "unresponsive"
           ]
@@ -1858,10 +1858,23 @@
           "id": "abuse.dom.page-recovers",
           "ok": true,
           "gapMs": 22,
-          "watchdogAtMs": null,
-          "fallbackAtMs": null,
-          "responsiveMs": 3,
-          "faults": []
+          "watchdogAtMs": 3575,
+          "fallbackAtMs": 4746,
+          "responsiveMs": 4,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.dom.fallback-after-watchdog",
+          "ok": true,
+          "gapMs": 22,
+          "watchdogAtMs": 3575,
+          "fallbackAtMs": 4746,
+          "responsiveMs": 4,
+          "faults": [
+            "unresponsive"
+          ]
         }
       ],
       "measurements": {
@@ -2122,10 +2135,10 @@
           "worstPerSecond": 10
         },
         "abuse.busy": {
-          "gapMs": 21,
-          "watchdogAtMs": 3582,
-          "fallbackAtMs": 8778,
-          "responsiveMs": 4,
+          "gapMs": 22,
+          "watchdogAtMs": 3597,
+          "fallbackAtMs": 8781,
+          "responsiveMs": 3,
           "faults": [
             "unresponsive"
           ]
@@ -2146,10 +2159,12 @@
         },
         "abuse.dom": {
           "gapMs": 22,
-          "watchdogAtMs": null,
-          "fallbackAtMs": null,
-          "responsiveMs": 3,
-          "faults": []
+          "watchdogAtMs": 3575,
+          "fallbackAtMs": 4746,
+          "responsiveMs": 4,
+          "faults": [
+            "unresponsive"
+          ]
         }
       }
     },
@@ -2187,7 +2202,7 @@
           "ok": true,
           "slider": "11",
           "afterSlider": [
-            392,
+            497,
             0,
             0,
             "present"
@@ -2203,7 +2218,7 @@
           "id": "api.onStep-and-setSteps",
           "ok": true,
           "last": [
-            1875,
+            1968,
             0,
             1,
             "present"
@@ -2830,7 +2845,7 @@
           "ok": true,
           "positions": [
             [
-              108,
+              119,
               0,
               0,
               "present"
@@ -2865,7 +2880,7 @@
           "ok": true,
           "opens": 0,
           "last": [
-            1349,
+            1362,
             1,
             0,
             "present"
@@ -2875,17 +2890,17 @@
           "id": "proto.flood-rate-limited",
           "ok": true,
           "pressed": 60,
-          "elapsedMs": 67,
+          "elapsedMs": 103,
           "moves": 10,
           "worstPerSecond": 10
         },
         {
           "id": "abuse.busy.documented-freeze",
           "ok": true,
-          "gapMs": 8011,
-          "watchdogAtMs": 8776,
-          "fallbackAtMs": 8785,
-          "responsiveMs": 4,
+          "gapMs": 8012,
+          "watchdogAtMs": 8764,
+          "fallbackAtMs": 8780,
+          "responsiveMs": 5,
           "faults": [
             "unresponsive"
           ]
@@ -2893,10 +2908,10 @@
         {
           "id": "abuse.busy.fallback-after-watchdog",
           "ok": true,
-          "gapMs": 8011,
-          "watchdogAtMs": 8776,
-          "fallbackAtMs": 8785,
-          "responsiveMs": 4,
+          "gapMs": 8012,
+          "watchdogAtMs": 8764,
+          "fallbackAtMs": 8780,
+          "responsiveMs": 5,
           "faults": [
             "unresponsive"
           ]
@@ -2904,29 +2919,42 @@
         {
           "id": "abuse.alloc.page-recovers",
           "ok": true,
-          "gapMs": 152,
-          "watchdogAtMs": null,
-          "fallbackAtMs": null,
-          "responsiveMs": 4,
-          "faults": []
-        },
-        {
-          "id": "abuse.raf.page-recovers",
-          "ok": true,
-          "gapMs": 107,
+          "gapMs": 266,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
           "responsiveMs": 5,
           "faults": []
         },
         {
-          "id": "abuse.dom.page-recovers",
+          "id": "abuse.raf.page-recovers",
           "ok": true,
-          "gapMs": 2633,
+          "gapMs": 99,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
-          "responsiveMs": 19,
+          "responsiveMs": 6,
           "faults": []
+        },
+        {
+          "id": "abuse.dom.page-recovers",
+          "ok": true,
+          "gapMs": 3860,
+          "watchdogAtMs": 4885,
+          "fallbackAtMs": 4899,
+          "responsiveMs": 5,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.dom.fallback-after-watchdog",
+          "ok": true,
+          "gapMs": 3860,
+          "watchdogAtMs": 4885,
+          "fallbackAtMs": 4899,
+          "responsiveMs": 5,
+          "faults": [
+            "unresponsive"
+          ]
         }
       ],
       "measurements": {
@@ -3182,39 +3210,41 @@
         },
         "flood": {
           "pressed": 60,
-          "elapsedMs": 67,
+          "elapsedMs": 103,
           "moves": 10,
           "worstPerSecond": 10
         },
         "abuse.busy": {
-          "gapMs": 8011,
-          "watchdogAtMs": 8776,
-          "fallbackAtMs": 8785,
-          "responsiveMs": 4,
+          "gapMs": 8012,
+          "watchdogAtMs": 8764,
+          "fallbackAtMs": 8780,
+          "responsiveMs": 5,
           "faults": [
             "unresponsive"
           ]
         },
         "abuse.alloc": {
-          "gapMs": 152,
-          "watchdogAtMs": null,
-          "fallbackAtMs": null,
-          "responsiveMs": 4,
-          "faults": []
-        },
-        "abuse.raf": {
-          "gapMs": 107,
+          "gapMs": 266,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
           "responsiveMs": 5,
           "faults": []
         },
-        "abuse.dom": {
-          "gapMs": 2633,
+        "abuse.raf": {
+          "gapMs": 99,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
-          "responsiveMs": 19,
+          "responsiveMs": 6,
           "faults": []
+        },
+        "abuse.dom": {
+          "gapMs": 3860,
+          "watchdogAtMs": 4885,
+          "fallbackAtMs": 4899,
+          "responsiveMs": 5,
+          "faults": [
+            "unresponsive"
+          ]
         }
       }
     },
@@ -3252,7 +3282,7 @@
           "ok": true,
           "slider": "11",
           "afterSlider": [
-            420,
+            546,
             0,
             0,
             "present"
@@ -3268,7 +3298,7 @@
           "id": "api.onStep-and-setSteps",
           "ok": true,
           "last": [
-            1877,
+            2060,
             0,
             1,
             "present"
@@ -3895,7 +3925,7 @@
           "ok": true,
           "positions": [
             [
-              112,
+              155,
               0,
               0,
               "present"
@@ -3930,7 +3960,7 @@
           "ok": true,
           "opens": 0,
           "last": [
-            1355,
+            1411,
             1,
             0,
             "present"
@@ -3940,16 +3970,16 @@
           "id": "proto.flood-rate-limited",
           "ok": true,
           "pressed": 60,
-          "elapsedMs": 66,
+          "elapsedMs": 93,
           "moves": 10,
           "worstPerSecond": 10
         },
         {
           "id": "abuse.busy.documented-freeze",
           "ok": true,
-          "gapMs": 8017,
-          "watchdogAtMs": 8769,
-          "fallbackAtMs": 8779,
+          "gapMs": 8007,
+          "watchdogAtMs": 8760,
+          "fallbackAtMs": 8773,
           "responsiveMs": 4,
           "faults": [
             "unresponsive"
@@ -3958,9 +3988,9 @@
         {
           "id": "abuse.busy.fallback-after-watchdog",
           "ok": true,
-          "gapMs": 8017,
-          "watchdogAtMs": 8769,
-          "fallbackAtMs": 8779,
+          "gapMs": 8007,
+          "watchdogAtMs": 8760,
+          "fallbackAtMs": 8773,
           "responsiveMs": 4,
           "faults": [
             "unresponsive"
@@ -3969,7 +3999,7 @@
         {
           "id": "abuse.alloc.page-recovers",
           "ok": true,
-          "gapMs": 191,
+          "gapMs": 243,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
           "responsiveMs": 4,
@@ -3978,20 +4008,33 @@
         {
           "id": "abuse.raf.page-recovers",
           "ok": true,
-          "gapMs": 92,
+          "gapMs": 100,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
-          "responsiveMs": 5,
+          "responsiveMs": 4,
           "faults": []
         },
         {
           "id": "abuse.dom.page-recovers",
           "ok": true,
-          "gapMs": 2582,
-          "watchdogAtMs": null,
-          "fallbackAtMs": null,
-          "responsiveMs": 22,
-          "faults": []
+          "gapMs": 3157,
+          "watchdogAtMs": 4113,
+          "fallbackAtMs": 4123,
+          "responsiveMs": 5,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.dom.fallback-after-watchdog",
+          "ok": true,
+          "gapMs": 3157,
+          "watchdogAtMs": 4113,
+          "fallbackAtMs": 4123,
+          "responsiveMs": 5,
+          "faults": [
+            "unresponsive"
+          ]
         }
       ],
       "measurements": {
@@ -4247,39 +4290,41 @@
         },
         "flood": {
           "pressed": 60,
-          "elapsedMs": 66,
+          "elapsedMs": 93,
           "moves": 10,
           "worstPerSecond": 10
         },
         "abuse.busy": {
-          "gapMs": 8017,
-          "watchdogAtMs": 8769,
-          "fallbackAtMs": 8779,
+          "gapMs": 8007,
+          "watchdogAtMs": 8760,
+          "fallbackAtMs": 8773,
           "responsiveMs": 4,
           "faults": [
             "unresponsive"
           ]
         },
         "abuse.alloc": {
-          "gapMs": 191,
+          "gapMs": 243,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
           "responsiveMs": 4,
           "faults": []
         },
         "abuse.raf": {
-          "gapMs": 92,
+          "gapMs": 100,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
-          "responsiveMs": 5,
+          "responsiveMs": 4,
           "faults": []
         },
         "abuse.dom": {
-          "gapMs": 2582,
-          "watchdogAtMs": null,
-          "fallbackAtMs": null,
-          "responsiveMs": 22,
-          "faults": []
+          "gapMs": 3157,
+          "watchdogAtMs": 4113,
+          "fallbackAtMs": 4123,
+          "responsiveMs": 5,
+          "faults": [
+            "unresponsive"
+          ]
         }
       }
     },
@@ -4317,7 +4362,7 @@
           "ok": true,
           "slider": "11",
           "afterSlider": [
-            137,
+            173,
             0,
             0,
             "present"
@@ -4333,7 +4378,7 @@
           "id": "api.onStep-and-setSteps",
           "ok": true,
           "last": [
-            1532,
+            1598,
             0,
             1,
             "present"
@@ -4960,7 +5005,7 @@
           "ok": true,
           "positions": [
             [
-              101,
+              120,
               0,
               0,
               "present"
@@ -4995,7 +5040,7 @@
           "ok": true,
           "opens": 0,
           "last": [
-            1332,
+            1365,
             1,
             0,
             "present"
@@ -5005,17 +5050,17 @@
           "id": "proto.flood-rate-limited",
           "ok": true,
           "pressed": 60,
-          "elapsedMs": 100,
+          "elapsedMs": 174,
           "moves": 10,
           "worstPerSecond": 10
         },
         {
           "id": "abuse.busy.documented-freeze",
           "ok": true,
-          "gapMs": 8006,
-          "watchdogAtMs": 9029,
-          "fallbackAtMs": 8797,
-          "responsiveMs": 4,
+          "gapMs": 8042,
+          "watchdogAtMs": 9034,
+          "fallbackAtMs": 8815,
+          "responsiveMs": 6,
           "faults": [
             "unresponsive"
           ]
@@ -5023,10 +5068,10 @@
         {
           "id": "abuse.busy.fallback-after-watchdog",
           "ok": true,
-          "gapMs": 8006,
-          "watchdogAtMs": 9029,
-          "fallbackAtMs": 8797,
-          "responsiveMs": 4,
+          "gapMs": 8042,
+          "watchdogAtMs": 9034,
+          "fallbackAtMs": 8815,
+          "responsiveMs": 6,
           "faults": [
             "unresponsive"
           ]
@@ -5034,16 +5079,16 @@
         {
           "id": "abuse.alloc.page-recovers",
           "ok": true,
-          "gapMs": 203,
+          "gapMs": 271,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
-          "responsiveMs": 4,
+          "responsiveMs": 6,
           "faults": []
         },
         {
           "id": "abuse.raf.page-recovers",
           "ok": true,
-          "gapMs": 60,
+          "gapMs": 49,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
           "responsiveMs": 5,
@@ -5052,10 +5097,10 @@
         {
           "id": "abuse.dom.page-recovers",
           "ok": true,
-          "gapMs": 2795,
-          "watchdogAtMs": 4537,
-          "fallbackAtMs": 4600,
-          "responsiveMs": 5,
+          "gapMs": 2955,
+          "watchdogAtMs": 4782,
+          "fallbackAtMs": 4794,
+          "responsiveMs": 3,
           "faults": [
             "unresponsive"
           ]
@@ -5063,10 +5108,10 @@
         {
           "id": "abuse.dom.fallback-after-watchdog",
           "ok": true,
-          "gapMs": 2795,
-          "watchdogAtMs": 4537,
-          "fallbackAtMs": 4600,
-          "responsiveMs": 5,
+          "gapMs": 2955,
+          "watchdogAtMs": 4782,
+          "fallbackAtMs": 4794,
+          "responsiveMs": 3,
           "faults": [
             "unresponsive"
           ]
@@ -5325,38 +5370,38 @@
         },
         "flood": {
           "pressed": 60,
-          "elapsedMs": 100,
+          "elapsedMs": 174,
           "moves": 10,
           "worstPerSecond": 10
         },
         "abuse.busy": {
-          "gapMs": 8006,
-          "watchdogAtMs": 9029,
-          "fallbackAtMs": 8797,
-          "responsiveMs": 4,
+          "gapMs": 8042,
+          "watchdogAtMs": 9034,
+          "fallbackAtMs": 8815,
+          "responsiveMs": 6,
           "faults": [
             "unresponsive"
           ]
         },
         "abuse.alloc": {
-          "gapMs": 203,
+          "gapMs": 271,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
-          "responsiveMs": 4,
+          "responsiveMs": 6,
           "faults": []
         },
         "abuse.raf": {
-          "gapMs": 60,
+          "gapMs": 49,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
           "responsiveMs": 5,
           "faults": []
         },
         "abuse.dom": {
-          "gapMs": 2795,
-          "watchdogAtMs": 4537,
-          "fallbackAtMs": 4600,
-          "responsiveMs": 5,
+          "gapMs": 2955,
+          "watchdogAtMs": 4782,
+          "fallbackAtMs": 4794,
+          "responsiveMs": 3,
           "faults": [
             "unresponsive"
           ]

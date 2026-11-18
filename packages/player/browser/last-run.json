@@ -1,8 +1,8 @@
 {
-  "date": "2026-11-18T16:50:26.930Z",
+  "date": "2026-11-18T19:27:53.721Z",
   "origins": {
-    "shell": "http://localhost:56104",
-    "content": "http://127.0.0.1:56105"
+    "shell": "http://localhost:61478",
+    "content": "http://127.0.0.1:61479"
   },
   "engines": {
     "chromium": {
@@ -16,30 +16,30 @@
         {
           "label": "burst",
           "presses": 140,
-          "elapsedMs": 237,
-          "frames": 33,
+          "elapsedMs": 208,
+          "frames": 31,
           "p50": 16.7,
-          "p95": 16.8,
+          "p95": 16.7,
           "max": 16.8
         },
         {
           "label": "paced",
           "presses": 120,
-          "elapsedMs": 3395,
-          "frames": 223,
+          "elapsedMs": 3355,
+          "frames": 220,
           "p50": 16.7,
-          "p95": 16.8,
+          "p95": 16.7,
           "max": 16.8
         }
       ],
       "overview200": {
-        "openToReadyMs": 62,
-        "firstTwoFramesMs": 22.7,
+        "openToReadyMs": 61,
+        "firstTwoFramesMs": 26.6,
         "scrollCold": {
           "height": 5964,
           "p50": 16.7,
-          "p95": 16.7,
-          "max": 16.7
+          "p95": 16.8,
+          "max": 16.8
         },
         "scrollWarm": {
           "height": 5964,
@@ -47,7 +47,7 @@
           "p95": 16.8,
           "max": 16.8
         },
-        "thirtyArrowDownMs": 29
+        "thirtyArrowDownMs": 50
       },
       "pdf": {
         "pages": 20,
@@ -67,7 +67,7 @@
         {
           "label": "burst",
           "presses": 140,
-          "elapsedMs": 228,
+          "elapsedMs": 231,
           "frames": 33,
           "p50": 16.66,
           "p95": 16.68,
@@ -76,7 +76,7 @@
         {
           "label": "paced",
           "presses": 120,
-          "elapsedMs": 724,
+          "elapsedMs": 731,
           "frames": 62,
           "p50": 16.66,
           "p95": 16.68,
@@ -84,8 +84,8 @@
         }
       ],
       "overview200": {
-        "openToReadyMs": 120,
-        "firstTwoFramesMs": 19,
+        "openToReadyMs": 131,
+        "firstTwoFramesMs": 23,
         "scrollCold": {
           "height": 5964,
           "p50": 16.66,
@@ -98,7 +98,7 @@
           "p95": 16.68,
           "max": 16.68
         },
-        "thirtyArrowDownMs": 167
+        "thirtyArrowDownMs": 183
       }
     },
     "webkit": {
@@ -115,25 +115,25 @@
         {
           "label": "burst",
           "presses": 140,
-          "elapsedMs": 235,
-          "frames": 36,
-          "p50": 16,
+          "elapsedMs": 307,
+          "frames": 41,
+          "p50": 15,
           "p95": 17,
-          "max": 18
+          "max": 30
         },
         {
           "label": "paced",
           "presses": 120,
-          "elapsedMs": 2980,
-          "frames": 214,
+          "elapsedMs": 3107,
+          "frames": 221,
           "p50": 15,
           "p95": 16,
-          "max": 17
+          "max": 31
         }
       ],
       "overview200": {
-        "openToReadyMs": 98,
-        "firstTwoFramesMs": 21,
+        "openToReadyMs": 108,
+        "firstTwoFramesMs": 17,
         "scrollCold": {
           "height": 5964,
           "p50": 16,
@@ -143,10 +143,10 @@
         "scrollWarm": {
           "height": 5964,
           "p50": 16,
-          "p95": 16,
+          "p95": 17,
           "max": 17
         },
-        "thirtyArrowDownMs": 99
+        "thirtyArrowDownMs": 114
       }
     }
   }
