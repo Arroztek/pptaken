@@ -179,7 +179,7 @@ export function scriptsGuide(status: ScriptsStatusLabel): string {
   return `
 ## Interactive scripts (status: needs_owner_approval)
 - A slide's code goes in its \`script\` field: an inline classic script, at most ${kb(LIMITS.maxSlideScript)} per slide and ${kb(LIMITS.maxDeckScripts)} per deck, without "<script", "</script" or "<!--". \`<script>\` in \`html\` is removed.
-- It runs once as \`function (slide) { … }\` with \`slide = { root, onEnter(fn(step)), onLeave(fn), onStep(fn(step)), setSteps(n) }\`; \`root\` is the slide's \`<section>\`. Call \`setSteps\` during setup only. Use \`addEventListener\`, never on* attributes.
+- It runs once as \`function (slide) { … }\` with \`slide = { root, onEnter(fn(step)), onLeave(fn), onStep(fn(step)), setSteps(n) }\`; \`root\` is the slide's \`<section>\` and is a PROPERTY of \`slide\`, not a free variable: start the script with \`var root = slide.root;\` (a bare \`root\` throws a ReferenceError and the slide silently stays static). Call \`setSteps\` during setup only. Use \`addEventListener\`, never on* attributes.
 - No network at runtime: fetch, XHR, WebSocket, WebRTC, workers, eval/new Function, iframes, \`<script>\`/\`<link>\` elements and \`document.write\` are blocked. Libraries go in \`libs\`, in load order: an https CDN URL of a classic UMD/IIFE build (vendored on write, then part of what the owner approves) or a bundled id: ${libs}.
 - Shared code (helpers, global functions) can go in the deck-level \`script\`: it runs once in the global scope after \`libs\` and before the slide scripts.
 - Extra HTML in decks with scripts: ${elements}; input type ${types}; data-* attributes. Still removed: ${policy.INTERACTIVE_REMOVED_EXAMPLES.join(" ")}.
