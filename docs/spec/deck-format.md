@@ -27,9 +27,11 @@ Design background: [ADR-001](../adr/0001-content-format.md).
       "css": "h1 { color: #5746AF }", // optional, ≤ 64 KB, scoped to this slide
       "notes": "Say hello. **Smile.**",   // optional Markdown, ≤ 16 KB, never shown to the audience
       "section": "Opening",           // optional, ≤ 100 chars
-      "durationHintSec": 60           // optional, 1..3600
+      "durationHintSec": 60,          // optional, 1..3600
+      "script": "slide.onEnter(…)"    // optional, interactive mode only (see below)
     }
-  ]
+  ],
+  "libs": ["uplot@1"]                 // optional, interactive mode only: vendored scripts (id or reference)
 }
 ```
 
@@ -70,6 +72,39 @@ Slide content is untrusted. The server removes scripts, event-handler attributes
 external `url()`, and reports what it removed as warnings. The player also runs the content in a sandboxed
 iframe with a network-free CSP. See [`docs/spikes/S1-isolation.md`](../spikes/S1-isolation.md).
 
+## Interactive mode: `script` and `libs` (ADR-020)
+
+Two optional fields, a compatible addition to version 1 (no `schemaVersion` bump). Objects are strict, so an
+older server **rejects** a deck that uses them instead of dropping the code silently (fail closed).
+
+- `slides[].script`: the slide's JavaScript, an inline classic script. At most 128 KB per slide and 1 MB per deck
+  (UTF-16 code units). It must not contain `<script`, `</script` or `<!--` (inside a string write
+  `"</script>"`), NUL or lone surrogates. There is no `src`: no CDN, no network.
+- `libs`: an ordered list (at most 16) of **vendored script assets** `{ "name", "version"?, "sha256", "source"? }`:
+  scripts stored on the instance, referenced by the SHA-256 of the file, with the https URL they were vendored from
+  (provenance; viewers never contact it). A bundled id is accepted as shorthand and stored expanded; this version
+  bundles `uplot@1` (uPlot 1.6.32, MIT, global `uPlot`). A reference to a script the instance does not store is
+  refused. Fetching CDN dependencies of an artifact once at ingest ("vendoring") is the next phase (ADR-020 §2).
+
+The code runs **only** in the owner's own session, after the owner approved the deck's scripts digest, on an
+instance where the operator enabled it (`PPTAKEN_SCRIPTS=owner`). Everywhere else (presenter previews, phones,
+exports, offline copies, future public links) the slide is shown without it: its `html`/`css` are the
+**mandatory static fallback**. Any change to a script or to `libs` returns the deck to "pending approval".
+
+Each script runs once, at load, as `function (slide) { … }` with:
+
+| Member | Meaning |
+|---|---|
+| `root` | the slide's `<section>` element |
+| `onEnter(fn(step))` | the slide became the current one (present mode) |
+| `onStep(fn(step))` | the revealed step count changed while the slide is current |
+| `onLeave(fn())` | the slide stopped being the current one (or the mode left present) |
+| `setSteps(n)` | the slide has `n` steps (at least its `data-step` groups); call it during setup only |
+
+Exceptions are caught per slide and reported to the presenter view (no details). Keys typed in a form control stay
+there (except `Escape`, `b`, `f`); other keys go to the player. Decks with scripts or libraries are sanitized
+with the `interactive` profile (canvas, a few controls, `data-*`; see the [sanitizer](sanitizer.md)).
+
 ## Limits
 
 | Item | Limit |
@@ -78,6 +113,8 @@ iframe with a network-free CSP. See [`docs/spikes/S1-isolation.md`](../spikes/S1
 | Slide HTML / slide CSS / theme CSS | 256 KB / 64 KB / 64 KB (counted in UTF-16 code units) |
 | Notes per slide | 16 KB |
 | Fonts per theme | 4 |
+| Script per slide / all scripts | 128 KB / 1 MB (UTF-16 code units) |
+| Vendored scripts per deck | 16 (stored on the instance) |
 
 ## Versioning
 

@@ -23,3 +23,29 @@ What agents need to know:
 - Only `data-step` is allowed among `data-*` attributes.
 
 The exact allowlists, limits, warning codes and the decisions behind them are in the package README.
+
+## Profiles: `safe` and `interactive` (ADR-020)
+
+`sanitizeSlideHtml(html, { profile })` and `sanitizeDeck(deck, { profile })` take a profile; `safe` is the default
+and is unchanged. `interactive` is a strict superset for decks that declare author scripts or libraries:
+
+- extra elements, with only these attributes (plus the global ones): `canvas` (width, height), `button` (type
+  `button` only, disabled, value), `input` (type `range`, `number` or `checkbox` only: an input without one of them
+  is removed; min, max, step, value, checked, disabled), `select` (disabled, multiple, size), `option` (value,
+  selected, disabled, label), `label` (for), `output` (for), `progress` (value, max), `meter` (value, min, max, low,
+  high, optimum);
+- `data-*` attributes (lowercase, at most 32 characters after `data-`), except the reserved `data-slide`,
+  `data-section`, `data-width`, `data-height`, `data-scripts` and `data-pptaken*`;
+- still removed in both profiles: `<script>` (the warning points to the slide's `script` field), every `on*`
+  attribute (the scripted document's CSP also has `script-src-attr 'none'`), links (`<a href>`), forms, frames,
+  media, `<textarea>`, other input types.
+
+The lists are policy constants (`INTERACTIVE_ELEMENT_ATTRIBUTES`, `INTERACTIVE_INPUT_TYPES`,
+`INTERACTIVE_REMOVED_EXAMPLES`); the MCP authoring guide prints them, and a contract test sanitizes every listed
+item (allowed: no warning; removed: a warning).
+
+**One stored rendering, re-sanitized at serve time.** The core sanitizes a deck with scripts or libraries with
+the `interactive` profile on ingest, and every other deck with `safe`. Whenever the scripts must not run (every
+path except the owner's approved session), the server serves `staticDeck(deck)`: scripts and libraries removed and
+the HTML re-sanitized with the `safe` profile, so canvas, controls and `data-*` disappear. Storing two renderings
+was rejected (double storage, drift); re-sanitizing is deterministic and only costs time for scripted decks.

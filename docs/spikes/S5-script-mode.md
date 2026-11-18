@@ -234,3 +234,29 @@ shell page keeps a tight `frame-src` (the shell's CSP, not the content's, is wha
 - How long transient activation lasts per engine (here it was consumed by `window.open` after ~0.6 s; gated keys
   should not rely on it anyway).
 - The remote-control approval forgery through `screen.ts` (inferred from the measured gesture behaviour, not run).
+
+## Implementation status (2026-11-17, ADR-020 foundation phase)
+
+Implemented as [ADR-020](../adr/0020-interactive-mode.md): owner-private only, off by default
+(`PPTAKEN_SCRIPTS=owner` to enable), consent bound to a scripts digest, static fallback everywhere else. Every
+mitigation of "New mitigations required" above is built and re-measured by `packages/player/browser/scripts.mjs`
+(same method as this harness: real attacker listener on `[::1]`, STUN/TURN counters, real builder/runtime/shell;
+engines Chromium 158 headless shell and full, Firefox 159 with and without Fission, WebKit 27.2; raw output in
+`packages/player/browser/scripts-last-run.json`).
+
+| Mitigation | Implementation | Measured (all five engine variants unless noted) |
+|---|---|---|
+| 1. Hash-only scripts | `contentSecurityPolicy({ scriptHashes })`, no nonce in the document | nonce probe: every `script.nonce` empty, stolen-nonce `<script src>` impossible, 0 hits |
+| (new) integrity-hash channel | Trusted Types `default` policy + creation/parsing lockdown | **New finding:** with hash-only CSP alone, `<script src integrity=allowed>` reaches the attacker in all three engines and `<link rel=preload/modulepreload integrity>` in Chromium and Firefox. With the lockdown: 15 creation/parsing paths refused, 0 hits |
+| 2. CSP otherwise unchanged + `webrtc 'block'` | plus `script-src-attr 'none'`, `worker-src 'none'`, `object-src 'none'`, `X-DNS-Prefetch-Control: off` | net probe: 0 hits for fetch, XHR, WebSocket, EventSource, beacon, image, CSS, font, workers, `import()`, WebTransport; `eval`/`new Function` blocked |
+| 3. Runtime lockdown | `packages/player/src/lockdown.ts`, runs from `<head>` | RTC constructors `undefined` and not restorable; realm probe: no iframe (DOM or HTML), `fetch` cannot be rewritten, `new Document()` cannot create `<link>`. STUN/TURN: 0 packets in the probe; the control page leaks 4 UDP + 1 TCP in Chromium (so the measurement can see a leak there) |
+| 4. `frame-src` exactly the content origin | `playerCsp(contentOrigin)` | navigation to the attacker: 0 hits for 11 techniques × 2 transports. To the content origin: reached (residual, as before). To the app origin when content shares it: reached, **with the `SameSite=Lax` cookie in WebKit** (residual; GET routes reviewed side-effect free by a server test) |
+| 5. Protocol hardening | private `MessageChannel` handshake, `expect`, gated keys dropped before `onKey`, 10/s limit | forged hello/ready(200)/preload/state(150)/select/keys on `window`, a poisoned `MessagePort.prototype.postMessage`, synthetic key events and forged gated keys during a real click: no effect; real gated keys typed in the frame: dropped; 60 keys in ~0.1 s: 10 navigations |
+| 6. Watchdog | 1 s beat, 3.5 s, plain notice, static fallback | busy loop 8 s: full Chromium contains it (parent gap 21 ms, watchdog at 3.6 s while the loop runs); headless Chromium, Firefox, Firefox+Fission and WebKit freeze the parent for the whole loop (8 s) and recover afterwards (watchdog fires after the loop, fallback shown). 10^6 nodes: full Chromium 37 ms gap; others 3.3–3.7 s freeze, then fallback. rAF storm: parent responsive everywhere (≤ 105 ms), no watchdog. 1 GB allocation: no crash; ≤ 280 ms gap except headless Chromium (5.7 s) |
+| 7. Resource limits | schema 128 KB/slide, 1 MB/deck, 16 vendored scripts; sanitizer limits unchanged | — |
+
+Differences from the original measurements: Firefox with Fission froze for the cross-site busy loop here
+(localhost → 127.0.0.1), where the spike measured 27 ms; treat Firefox as unprotected until measured with a real
+separate site. Still **not verified**: real Chrome/Firefox/Safari builds, iOS and Android; WebRTC egress in
+Firefox (its control page sent nothing even with `media.peerconnection.ice.loopback` on) and WebKit (no
+`RTCPeerConnection` in this build); DNS-based leaks; browser hang dialogs.

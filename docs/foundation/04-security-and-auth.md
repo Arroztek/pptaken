@@ -237,3 +237,18 @@ Behind a reverse proxy, the real IP is taken from `X-Forwarded-For` **only** if 
 - [ ] External review (even informal, by an experienced peer) of the sanitizer, the OAuth server and the pairing.
 - [ ] `SECURITY.md`, private reporting enabled, CodeQL, secret scanning, Renovate, SBOM and signatures working.
 - [ ] A public "Security model" document on the docs site (this file, cleaned up).
+
+## 12. Interactive mode (author scripts, ADR-020)
+
+Owner-private only in this version; public links, phones, exports and offline copies never run author scripts.
+Threat model entries added with it (see [ADR-020](../adr/0020-interactive-mode.md) and
+[spike S5](../spikes/S5-script-mode.md)):
+
+| # | Threat | Type | Impact | Controls |
+|---|---|---|---|---|
+| T21 | A prompt-injected agent writes a script that exfiltrates (owner IP via WebRTC/STUN, keystrokes typed in the frame, timing) | I | High | Off by default (`PPTAKEN_SCRIPTS`); human approval bound to the scripts digest; hash-only CSP with no nonce, `connect-src 'none'`, `worker-src 'none'`, `script-src-attr 'none'`, `webrtc 'block'`, Trusted Types, `X-DNS-Prefetch-Control: off`; runtime lockdown of WebRTC, network constructors, beacons, popups and of element creation/parsing (`<script>`, `<link>`, `<meta>`, frames) before any author code; adversarial corpus in three engines |
+| T22 | A script loads code or leaks data through an external `<script>`/`<link rel=preload>` whose `integrity` names an allowed hash | I, E | High | Found while implementing (all three engines reach the attacker with hash-only CSP alone): Trusted Types default policy + creation/parsing lockdown; corpus probe per creation path |
+| T23 | A script drives the trusted shell (forged ready/state/keys, approving a remote, opening windows) | T, E | High | Private MessagePort handshake before any author code; `ready` once and checked against the server's slide list; `state` checked; every gated key, `Enter` and `f` from the frame dropped before `onKey`; navigation keys rate-limited; synthetic events ignored |
+| T24 | A script freezes the presenter's tab (busy loop, DOM/allocation bombs) | D | Medium | Heartbeat watchdog that replaces the frame with a plain element and loads the static version (where the frame is out of process); `?safe=1`; size limits; warning and optional separate-site content origin; documented freeze in WebKit/Safari and Firefox without a separate site |
+| T25 | An agent approves its own scripts, or changes them after approval | S, E | High | Approval is a core use case that refuses every actor but the owner (audited as `denied`); only the panel session (cookie + CSRF) reaches it; no MCP tool; any script or library change produces a new digest and the deck renders static until approved again |
+| T26 | A scripted frame navigates to app-origin GET URLs (WebKit sends the `SameSite=Lax` cookie) when content shares the app origin | T | Medium | Every app GET route reviewed as side-effect free (server test enumerates them); state changes need POST + CSRF; app pages have `frame-ancestors 'none'`; the separate content origin removes the channel |

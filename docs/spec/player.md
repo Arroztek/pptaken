@@ -651,3 +651,55 @@ Open questions:
   neighbouring slides in the DOM.
 - **Unexpected navigation** is detected after the fact; the separate cookie-less origin is what makes it harmless.
 - **Click to advance** and pointer/touch input are not handled in F1.
+
+## Interactive mode (author scripts, ADR-020)
+
+Off unless the server builds a **scripted document** (`buildDeckDocument(deck, { scripts: true })`), which it does
+only for the owner's approved session. The page passes `createPlayer({ contentUrl, scripts: true, expect,
+fallbackUrl, onScriptError })`; with `contentHtml` (offline) script mode is never used.
+
+**Scripted document.** `<html data-pptaken-scripts>`; the runtime in `<head>` without a nonce; each library's
+stylesheet in `<head>` and its script, then one wrapped script per slide (`pptaken.register("<id>",
+function (slide) { … });`, line breaks normalized to LF) as the last elements of `<body>`; scripted sections carry
+`data-pptaken-script`. CSP (`contentSecurityPolicy({ scriptHashes })`): `script-src` lists only the SHA-256 of the
+runtime, each library and each wrapped script (no nonce, no `'strict-dynamic'`, no `'unsafe-eval'`), plus
+`script-src-attr 'none'; worker-src 'none'; object-src 'none'; webrtc 'block'; require-trusted-types-for 'script';
+trusted-types default`. Every content document also gets `X-DNS-Prefetch-Control: off`.
+
+**Runtime in script mode**, before any author script: captures the intrinsics it needs, runs the lockdown
+(`lockdown.ts`: WebRTC and every `RTC*` global, `fetch`, XHR, WebSocket, EventSource, WebTransport, workers,
+`BroadcastChannel`, `open`, `customElements`, `XSLTProcessor`, `navigator.sendBeacon`/`connection`/devices,
+`document.write/open/execCommand`, element creation and HTML parsing of `script`, `link`, `meta`, `base`, frames,
+`object`, `embed`, `form`; a Trusted Types `default` policy), opens a `MessageChannel` and posts `hello` with its
+port (the first message, from `<head>`), and defines `pptaken.register`. At `DOMContentLoaded` it calls each
+registered setup with `{ root, onEnter, onLeave, onStep, setSteps }` (errors caught per slide), then posts `ready`
+with the declared step counts. It beats every second, reports author errors as `{ type: "error", slide }` (after
+`ready`, at most 5 per slide, no text), never forwards synthetic (`isTrusted === false`) key events, and keeps keys
+typed in form controls inside the frame except `Escape`, `b` and `f`.
+
+**Protocol additions** (iframe → shell): `hello` (window, exactly one transferred port), then on the port only:
+`beat`, `error {slide}` and the usual messages. **Shell in script mode**: the first window message from the frame
+must be `hello` with a port, otherwise `onFault("protocol")`; every later window message is ignored. `ready` is
+accepted once and must match `expect` (slide ids and canvas from the server), otherwise `protocol`. `preload` sets
+the indicator to `unverified`, never `ready`. `state` must be inside the deck and equal the position the shell
+asked for. From the frame, only `FRAME_KEYS_IN_SCRIPT_MODE` (navigation, `b`, `.`, `Escape`) are accepted, at most
+10 per second, and they never reach `onKey` (so the remote control's `R`, `K`, `Enter` approval and `Escape`
+denial cannot be driven by the frame); every gated key, `Enter` and `f` work from the trusted page only. `Escape`
+from the frame moves focus to the host element. In static mode the gate also runs before `onKey` now.
+
+**Watchdog.** Without a `beat` for 3.5 s while the page is visible (and not printing), the shell removes the frame,
+shows a plain notice (never an iframe: it could share the busy process), calls `onFault("unresponsive")` and, with
+`fallbackUrl`, mounts the static version at the same position. It only helps where the frame runs in another
+process (desktop Chromium for every transport, Firefox for a cross-site content origin); elsewhere the whole tab
+freezes for as long as the script runs (S5 §3, measured again by `browser/scripts.mjs`).
+
+**Errors** reach the main page (`onScriptError`) and the presenter window over the sync channel
+(`script-error {slide}`), which shows a discreet notice; nothing appears on the audience screen.
+
+**Offline and export.** Script mode is online only: the offline document, the service worker copy and the
+`.html`/`.pkn` exports are built from `staticDeck(deck)` (no scripts). The presenter window's previews and paired
+phones always load the static version too.
+
+**Tests.** `test/scripts.test.ts` (document, CSP, wrapper, hashing, libraries, protocol, key policy, lockdown
+lists) and the adversarial corpus `browser/scripts.mjs` (`pnpm --filter @pptaken/player test:scripts`), see
+ADR-020.

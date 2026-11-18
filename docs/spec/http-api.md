@@ -96,12 +96,37 @@ Trashed decks are excluded. `createdBy` is `"owner"` or `"agent"`.
 ### `GET /api/v1/decks/:id`
 `200` with the same summary plus `{ "urls": { "present": string } }`.
 
+### Interactive scripts (ADR-020)
+
+Owner session only (cookie; API and OAuth tokens never reach these routes), CSRF header on POST.
+
+- `GET /api/v1/decks/:id/scripts` → `200 { presentationId, revision, enabled, state: "none" | "pending" |
+  "approved", digest, approvedDigest, approvedAt, slides, libs, chars, capability: { contentOrigin: "same-origin" |
+  "same-site" | "separate-site", separateSiteContent, freezeWarning } }`. The approval screen (next phase) shows the
+  scripts and, when `freezeWarning` is true, that a runaway script can freeze the presenter tab in Firefox and
+  Safari.
+- `POST /api/v1/decks/:id/scripts/approve` `{ "digest": "<64 hex>" }` → `200` (same shape). `409` when the scripts
+  changed since the digest was read; `400` when the instance switch is off or the deck has no scripts. Audited.
+- `POST /api/v1/decks/:id/scripts/revoke` → `200`. Audited.
+
+Every GET route of the app origin is side-effect free (a scripted frame on the app origin can navigate itself to
+them, with the session cookie in WebKit); `apps/server/test/scripts.test.ts` enumerates them against a reviewed list.
+
 ## Presenting (owner session required)
 
 - `GET /p/:deckId` serves the trusted player page for a presentation (shell that embeds the content iframe).
+  `?safe=1` forces the static version of a scripted deck.
 - `GET /c/:deckId/:revision` serves the isolated content document with the CSP headers from `@pptaken/player`,
   authorized by a short-lived signed content token in the query string. The shell page obtains the URL (with its
-  token) from `GET /api/v1/decks/:id/content-url` → `200 { "url": string }`.
+  token) from `GET /api/v1/decks/:id/content-url[?safe=1]` → `200 { "url": string, "scripts": "none" | "off" |
+  "pending" | "safe" | "running", "expect"?: { "slides": string[], "width": number, "height": number } }`.
+  `scripts: "running"` (interactive mode, ADR-020) only when the instance switch is on (`PPTAKEN_SCRIPTS=owner`), the
+  deck has scripts, their current digest is the approved one and `safe` was not asked; the URL then carries an
+  `sdoc` token bound to that digest, and `expect` is what the shell must find in `ready`. Otherwise the token is a
+  `doc` token and `/c/…` serves the static version (scripts and libraries removed, HTML re-sanitized with the safe
+  profile). The content route re-checks the switch and the approval on every request: a revocation applies at once.
+- The player page CSP's `frame-src` is exactly the content origin when `PPTAKEN_CONTENT_URL` is set, `'self'`
+  otherwise.
 
 ## Static files and pages
 
@@ -213,6 +238,10 @@ A file download.
   or the revision is not kept), `UNAUTHENTICATED`, `SETUP_REQUIRED`, `RATE_LIMITED`.
 - The web app uses a plain `<a href download>` to this URL (same origin, the cookie goes along).
 
+Interactive mode (ADR-020): exports are the static version in this phase. When the deck has scripts or libraries
+they are omitted (the HTML is re-sanitized with the safe profile) and the response carries
+`X-PPTaken-Scripts: omitted`.
+
 ### `POST /api/v1/decks/import`
 Creates a **new** presentation (revision 1) from a `.pkn` archive; it never overwrites one.
 
@@ -240,6 +269,11 @@ Creates a **new** presentation (revision 1) from a `.pkn` archive; it never over
   `FORBIDDEN` (CSRF), `UNAUTHENTICATED`, `SETUP_REQUIRED`, `RATE_LIMITED`. No new error code was added.
 
 ### The `.pkn` archive (format version 1)
+
+Interactive mode (ADR-020): a manifest may list `"requires": ["scripts"]` (written when `deck.json` has scripts
+or libraries); a reader refuses any requirement it does not know. Importing an archive with scripts keeps them and
+the new presentation starts in `pending` (an approval never travels with a file). PowerPoint imports never keep
+scripts.
 A ZIP (stored or deflated entries, UTF-8 names) with exactly:
 
 - `manifest.json`: `{ "format": "pptaken.archive", "formatVersion": 1, "exportedAt": ISO-8601, "generator":
