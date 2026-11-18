@@ -91,7 +91,7 @@ silently because they are expected noise.
 | `REMOVED_ATTRIBUTE` | Attribute removed (event handler, unknown attribute or invalid value) |
 | `REMOVED_CSS_RULE` | Rule or at-rule removed (`@import`, `@font-face`, selector escaping the slide...) |
 | `REMOVED_CSS_PROPERTY` | Declaration removed (unknown property or unsafe value) |
-| `REMOVED_FONT_FAMILY` | Font family not in the bundled catalog removed from a `font`/`font-family` list |
+| `REMOVED_FONT_FAMILY` | Font family neither in the bundled catalog nor vendored into `theme.fontFaces` (ADR-022) removed from a `font`/`font-family` list |
 | `REMOVED_URL` | URL removed (only `asset:<hex>`, and `#id` fragments for SVG paint, are allowed) |
 | `INVALID_ASSET_REF` | Image whose source is not a valid `asset:<hex>` reference; the image was removed |
 | `INPUT_TOO_LARGE` | Field above its size limit; emptied |

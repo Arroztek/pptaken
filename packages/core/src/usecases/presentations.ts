@@ -4,6 +4,7 @@ import {
   type AspectRatio,
   DECK_SCHEMA_VERSION,
   type Deck,
+  type GoogleFont,
   type Slide,
   type Theme,
   type VendoredScript,
@@ -46,9 +47,19 @@ import {
   runRead,
   runWrite,
 } from "./context.js";
+import {
+  linkVendoredAssets,
+  probeEnvelope,
+  type VendoredAsset,
+  type VendorReportEntry,
+  vendorDeckInput,
+} from "./vendoring.js";
 
 // ---------------------------------------------------------------------------------------------------------------
 // Types
+
+/** A theme as sent by an agent: `googleFonts` is vendored into `fontFaces` on write (ADR-022). */
+export type ThemeInput = Theme & { googleFonts?: GoogleFont[] };
 
 /** A slide as sent by an agent: `id` and `title` are optional. */
 export type SlideInput = Omit<Slide, "id" | "title"> & { id?: string; title?: string };
@@ -58,12 +69,21 @@ export interface CreatePresentationInput {
   /** BCP-47 tag; defaults to the instance language (`CoreConfig.defaultLang`) when configured. */
   lang?: string;
   aspectRatio?: AspectRatio;
-  theme?: Theme;
+  theme?: ThemeInput;
   /** 1..maxSlides slides. Missing ids are generated (`slide-1`, `slide-2`…). */
   slides: SlideInput[];
   targetMinutes?: number;
-  /** Vendored scripts for author scripts (interactive mode, ADR-020): bundled ids or full references. */
+  /**
+   * Vendored scripts for author scripts (interactive mode, ADR-020): bundled ids, full references, or https CDN URLs
+   * that the server vendors on write (ADR-022).
+   */
   libs?: (string | VendoredScript)[];
+  /** Deck-level script run once before the slide scripts (ADR-022). */
+  script?: string;
+  /** Internal (HTML import): warnings of an earlier stage, listed first. */
+  extraWarnings?: CoreWarning[];
+  /** Internal (HTML import): the audit action. */
+  auditAction?: string;
   /** Repeating a call with the same key (same principal) returns the first result instead of creating again. */
   idempotencyKey?: string;
   /** Revision summary (default: "Created with N slides"). */
@@ -147,9 +167,11 @@ export interface UpdatePresentationInput {
   lang?: string | null;
   aspectRatio?: AspectRatio;
   /** Replaces the whole theme; `null` removes it. */
-  theme?: Theme | null;
+  theme?: ThemeInput | null;
   /** `null` removes the target. */
   targetMinutes?: number | null;
+  /** Replaces the deck-level script (ADR-022); `null` removes it. */
+  script?: string | null;
   /** Replaces the vendored script list (interactive mode); `null` removes it. */
   libs?: (string | VendoredScript)[] | null;
   /** New slide order; must contain exactly the current slide ids. */
@@ -200,8 +222,48 @@ function withoutUndefined<T extends Record<string, unknown>>(value: T): T {
   return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T;
 }
 
-async function knownAssets(repos: Repositories, ws: string, deckId: string): Promise<string[]> {
-  return (await repos.assets.listForDeck(ws, deckId)).map((a) => a.sha256);
+/**
+ * The shared tail of every edit: validate (before any network access), vendor external resources (ADR-022),
+ * validate again, sanitize. Returns what `commitRevision` needs.
+ */
+async function vendorAndCheck(
+  ctx: Ctx,
+  principal: Principal,
+  call: CallContext | undefined,
+  deckId: string,
+  next: unknown,
+  current: Deck,
+): Promise<{
+  document: Deck;
+  warnings: CoreWarning[];
+  assets: VendoredAsset[];
+  report: VendorReportEntry[];
+}> {
+  const max = ctx.config.limits.maxSlides;
+  validateDeck(probeEnvelope(next), max);
+  const vendored = await vendorDeckInput(ctx, principal, call, {
+    deckId,
+    input: next,
+    previous: current,
+  });
+  const parsed = validateDeck(vendored.envelope, max);
+  const linked = await ctx.store.assets.listForDeck(principal.workspaceId, deckId);
+  const scripts = [
+    ...linked.filter((a) => a.mediaType === "text/javascript").map((a) => a.sha256),
+    ...vendored.scripts,
+  ];
+  const { deck, warnings } = sanitizeAndCheck(
+    parsed,
+    max,
+    [...linked.map((a) => a.sha256), ...vendored.assets.map((a) => a.sha256)],
+    scripts,
+  );
+  return {
+    document: deck,
+    warnings: [...vendored.warnings, ...warnings],
+    assets: vendored.assets,
+    report: vendored.report,
+  };
 }
 
 async function loadRevisionDocument(
@@ -271,20 +333,34 @@ export async function createPresentation(
         })()
       : input.slides;
 
-    const parsed = validateDeck(
-      withoutUndefined({
-        schemaVersion: DECK_SCHEMA_VERSION,
-        title: input.title,
-        lang: input.lang ?? ctx.config.defaultLang,
-        aspectRatio: input.aspectRatio,
-        theme: input.theme,
-        targetMinutes: input.targetMinutes,
-        slides,
-        libs: input.libs,
-      }),
+    const envelope = withoutUndefined({
+      schemaVersion: DECK_SCHEMA_VERSION,
+      title: input.title,
+      lang: input.lang ?? ctx.config.defaultLang,
+      aspectRatio: input.aspectRatio,
+      theme: input.theme,
+      targetMinutes: input.targetMinutes,
+      slides,
+      libs: input.libs,
+      script: input.script,
+    });
+    // Validate before any network access, then vendor external resources (ADR-022), then validate the result.
+    validateDeck(probeEnvelope(envelope), ctx.config.limits.maxSlides);
+    const id = ctx.ids.ulid();
+    const vendored = await vendorDeckInput(ctx, principal, call, {
+      deckId: id,
+      input: envelope,
+      previous: null,
+    });
+    const parsed = validateDeck(vendored.envelope, ctx.config.limits.maxSlides);
+    const sanitized = sanitizeAndCheck(
+      parsed,
       ctx.config.limits.maxSlides,
+      vendored.assets.map((a) => a.sha256),
+      vendored.scripts,
     );
-    const { deck, warnings } = sanitizeAndCheck(parsed, ctx.config.limits.maxSlides, []);
+    const deck = sanitized.deck;
+    const warnings = [...(input.extraWarnings ?? []), ...vendored.warnings, ...sanitized.warnings];
     const summary = summaryOf(input.summary, `Created with ${deck.slides.length} slide(s)`);
 
     return ctx.store.transaction(async (tx) => {
@@ -293,7 +369,6 @@ export async function createPresentation(
         if (replay !== null) return replay;
       }
       const now = ctx.clock.now();
-      const id = ctx.ids.ulid();
       await tx.decks.insert({
         workspaceId: ws,
         id,
@@ -306,6 +381,7 @@ export async function createPresentation(
         deletedAt: null,
         createdBy: actorRef(principal),
       });
+      await linkVendoredAssets(ctx, tx, ws, id, vendored.assets, now);
       await tx.revisions.insert({
         workspaceId: ws,
         deckId: id,
@@ -324,6 +400,7 @@ export async function createPresentation(
         slideCount: deck.slides.length,
         warnings,
         scripts,
+        vendored: vendored.report,
         replayed: false,
       };
       if (idemKey !== undefined) {
@@ -336,12 +413,22 @@ export async function createPresentation(
           createdAt: now,
         });
       }
-      await audit(ctx, tx, principal, call, "presentation.create", `deck:${id}`, "ok", {
-        revision: 1,
-        ...(scripts.digest === null
-          ? {}
-          : { scriptsDigest: scripts.digest, scriptsState: "pending" }),
-      });
+      await audit(
+        ctx,
+        tx,
+        principal,
+        call,
+        input.auditAction ?? "presentation.create",
+        `deck:${id}`,
+        "ok",
+        {
+          revision: 1,
+          ...(vendored.report.length === 0 ? {} : { vendored: vendored.report.length }),
+          ...(scripts.digest === null
+            ? {}
+            : { scriptsDigest: scripts.digest, scriptsState: "pending" }),
+        },
+      );
       return result;
     });
   });
@@ -506,23 +593,21 @@ export async function updatePresentation(
     set("theme", input.theme);
     set("targetMinutes", input.targetMinutes);
     set("libs", input.libs);
+    set("script", input.script);
     if (input.slideOrder !== undefined) {
       next.slides = reorder(current.slides, input.slideOrder);
       changed.push("slideOrder");
     }
     if (changed.length === 0) {
       throw validationError("Nothing to update", {
-        hint: "Send at least one of title, lang, aspectRatio, theme, targetMinutes, libs or slideOrder. Use `update_slides` to edit slides.",
+        hint: "Send at least one of title, lang, aspectRatio, theme, targetMinutes, libs, script or slideOrder. Use `update_slides` to edit slides.",
       });
     }
-    const parsed = validateDeck(next, ctx.config.limits.maxSlides);
-    const assets = await knownAssets(ctx.store, ws, id);
-    const { deck: clean, warnings } = sanitizeAndCheck(parsed, ctx.config.limits.maxSlides, assets);
+    const written = await vendorAndCheck(ctx, principal, call, id, next, current);
     return commitRevision(ctx, principal, call, {
       deckId: id,
       expectedRevision: expected,
-      document: clean,
-      warnings,
+      ...written,
       summary: summaryOf(input.summary, `Updated ${changed.join(", ")}`),
       action: "presentation.update",
       detail: { fields: changed },
@@ -590,9 +675,14 @@ export async function updateSlides(
     assertExpected(deck, expected);
     const current = await loadRevisionDocument(ctx.store, ws, id, expected);
     const edit = applySlideEdits(current.slides, upserts, removals);
-    const parsed = validateDeck({ ...current, slides: edit.slides }, ctx.config.limits.maxSlides);
-    const assets = await knownAssets(ctx.store, ws, id);
-    const { deck: clean, warnings } = sanitizeAndCheck(parsed, ctx.config.limits.maxSlides, assets);
+    const written = await vendorAndCheck(
+      ctx,
+      principal,
+      call,
+      id,
+      { ...current, slides: edit.slides },
+      current,
+    );
     const parts: string[] = [];
     if (edit.inserted.length > 0) parts.push(`inserted ${edit.inserted.join(", ")}`);
     if (edit.updated.length > 0) parts.push(`edited ${edit.updated.join(", ")}`);
@@ -600,8 +690,7 @@ export async function updateSlides(
     return commitRevision(ctx, principal, call, {
       deckId: id,
       expectedRevision: expected,
-      document: clean,
-      warnings,
+      ...written,
       summary: summaryOf(input.summary, `Slides: ${parts.join("; ")}`),
       action: "presentation.update_slides",
       detail: {

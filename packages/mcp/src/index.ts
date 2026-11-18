@@ -11,6 +11,7 @@ export {
   MAX_ASSET_BASE64_BYTES,
   type ScriptsStatusLabel,
   scriptsGuide,
+  vendoringGuide,
 } from "./guide.js";
 export {
   type CreateMcpServerOptions,

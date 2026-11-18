@@ -20,15 +20,28 @@ export const SCRIPTS_DIGEST_PATTERN = /^[0-9a-f]{64}$/;
  * Labels (name, version) are not part of it: the hash is what runs. Slide
  * HTML and CSS are not part of it (ADR-020, residual risks).
  */
-export function scriptsDigest(deck: Pick<Deck, "slides" | "libs">): string | null {
+export function scriptsDigest(deck: DigestInput): string | null {
   const libs = (deck.libs ?? []).map((lib) => [lib.sha256, lib.source ?? ""]);
   const slides = deck.slides.flatMap((slide) =>
     slide.script === undefined ? [] : [[slide.id, sha256Hex(utf8Encode(slide.script))]],
   );
-  if (libs.length === 0 && slides.length === 0) return null;
-  const canonical = JSON.stringify({ v: SCRIPTS_DIGEST_VERSION, libs, slides });
+  if (libs.length === 0 && slides.length === 0 && deck.script === undefined) return null;
+  // The deck-level script (ADR-022) adds a `deck` member only when present, so the digests of decks without one
+  // are unchanged (their approvals stay valid).
+  const canonical =
+    deck.script === undefined
+      ? JSON.stringify({ v: SCRIPTS_DIGEST_VERSION, libs, slides })
+      : JSON.stringify({
+          v: SCRIPTS_DIGEST_VERSION,
+          libs,
+          deck: sha256Hex(utf8Encode(deck.script)),
+          slides,
+        });
   return sha256Hex(utf8Encode(canonical));
 }
+
+/** What the digest reads from a deck. */
+export type DigestInput = Pick<Deck, "slides" | "libs"> & { script?: string | undefined };
 
 /** The state of a deck whose current digest is `digest`, given the digest the owner approved (if any). */
 export function scriptsStateOf(digest: string | null, approvedDigest: string | null): ScriptsState {
@@ -44,20 +57,21 @@ export interface ScriptsSummary {
   slides: string[];
   /** The vendored scripts, in load order (label, hash and provenance, for the approval screen). */
   libs: VendoredScript[];
-  /** Total script characters (UTF-16 code units). */
+  /** True when the deck has a deck-level script (ADR-022). */
+  deckScript: boolean;
+  /** Total script characters (UTF-16 code units), the deck script included. */
   chars: number;
 }
 
-export function scriptsSummary(
-  deck: Pick<Deck, "slides" | "libs">,
-  approvedDigest: string | null,
-): ScriptsSummary {
+export function scriptsSummary(deck: DigestInput, approvedDigest: string | null): ScriptsSummary {
   const digest = scriptsDigest(deck);
   return {
     digest,
     state: scriptsStateOf(digest, approvedDigest),
     slides: deck.slides.filter((s) => s.script !== undefined).map((s) => s.id),
     libs: (deck.libs ?? []).map((lib) => ({ ...lib })),
-    chars: deck.slides.reduce((n, s) => n + (s.script?.length ?? 0), 0),
+    deckScript: deck.script !== undefined,
+    chars:
+      (deck.script?.length ?? 0) + deck.slides.reduce((n, s) => n + (s.script?.length ?? 0), 0),
   };
 }

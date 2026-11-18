@@ -4,13 +4,15 @@
 // package reduces risk, it does not replace isolation.
 
 import { type Deck, hasScripts, type Slide } from "@pptaken/schema";
-import { type CssResult, sanitizeCss } from "./css.js";
+import { type CssResult, sanitizeCss, withVendoredFonts } from "./css.js";
 import { type HtmlResult, sanitizeSlideHtml } from "./html.js";
 import type { SanitizerProfile } from "./policy.js";
 import type { Warning } from "./warnings.js";
 
-export { type CssOptions, type CssResult, sanitizeCss } from "./css.js";
+export { type CssOptions, type CssResult, sanitizeCss, withVendoredFonts } from "./css.js";
+export * from "./external.js";
 export { type HtmlOptions, type HtmlResult, sanitizeSlideHtml } from "./html.js";
+export * from "./importer.js";
 export * as policy from "./policy.js";
 export { SANITIZER_LIMITS, type SanitizerProfile } from "./policy.js";
 export {
@@ -48,6 +50,12 @@ export function defaultSlideScope(slideId: string): string {
  * Warnings carry a `path` such as `slides[3].html`, `slides[3].css` or `theme.css`.
  */
 export function sanitizeDeck(deck: Deck, options: DeckOptions = {}): DeckResult {
+  // Families vendored into the deck (ADR-022) are accepted like the bundled catalog.
+  const families = (deck.theme?.fontFaces ?? []).map((f) => f.family);
+  return withVendoredFonts(families, () => sanitizeDeckFields(deck, options));
+}
+
+function sanitizeDeckFields(deck: Deck, options: DeckOptions): DeckResult {
   const scopeOf = options.slideScope ?? defaultSlideScope;
   const profile: SanitizerProfile = options.profile === "interactive" ? "interactive" : "safe";
   const warnings: Warning[] = [];
@@ -97,7 +105,7 @@ export function sanitizeDeck(deck: Deck, options: DeckOptions = {}): DeckResult 
  */
 export function staticDeck(deck: Deck, options: Omit<DeckOptions, "profile"> = {}): DeckResult {
   if (!hasScripts(deck)) return { deck, warnings: [] };
-  const { libs: _libs, ...rest } = deck;
+  const { libs: _libs, script: _script, ...rest } = deck;
   const stripped: Deck = {
     ...rest,
     slides: deck.slides.map(({ script: _script, ...slide }) => slide),

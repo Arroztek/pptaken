@@ -17,7 +17,7 @@ import {
   validateDeck,
 } from "../deck.js";
 import { DomainError, internalError, limitExceeded, notFound, validationError } from "../errors.js";
-import { normalizeMediaType, RASTER_MEDIA_TYPES, sniffImage } from "../media.js";
+import { normalizeMediaType, RASTER_MEDIA_TYPES, sniffFont, sniffImage } from "../media.js";
 import type { AssetRecord } from "../ports.js";
 import { type CallContext, type Principal, requireOwner, requireScope } from "../principal.js";
 import { scriptsSummary } from "../scripts.js";
@@ -103,6 +103,10 @@ export interface ImportPresentationResult extends Omit<RevisionWriteResult, "war
 function assetTexts(deck: Deck): { text: string; path: string; slideId?: string }[] {
   const out: { text: string; path: string; slideId?: string }[] = [];
   if (deck.theme?.css) out.push({ text: deck.theme.css, path: "theme.css" });
+  // Vendored font files (ADR-022) travel with the deck like images.
+  (deck.theme?.fontFaces ?? []).forEach((face, i) =>
+    out.push({ text: face.src, path: `theme.fontFaces[${i}].src` }),
+  );
   deck.slides.forEach((s, i) => {
     out.push({ text: s.html, path: `slides[${i}].html`, slideId: s.id });
     if (s.css !== undefined) out.push({ text: s.css, path: `slides[${i}].css`, slideId: s.id });
@@ -255,6 +259,18 @@ function verifyAsset(ctx: Ctx, raw: unknown, path: string): VerifiedAsset {
         hint: "The archive was modified or damaged. Export it again from the original instance.",
       });
     }
+  }
+  // A vendored font file (ADR-022): checked by its container, never by the declared type alone.
+  const font = sniffFont(bytes);
+  if (font.ok) {
+    if (declared !== font.mediaType) {
+      throw unsupported(
+        `${path}: declared type ${declared.slice(0, 60)} does not match the content (${font.mediaType})`,
+        "The archive was modified or damaged. Export it again from the original instance.",
+        `${path}.mediaType`,
+      );
+    }
+    return { sha256, mediaType: font.mediaType, width: null, height: null, bytes };
   }
   const sniff = sniffImage(bytes);
   if (!sniff.ok) {
@@ -456,6 +472,7 @@ export async function storeImported(
       assetCount: kept.length,
       warnings,
       scripts: scriptsSummary(deck, null),
+      vendored: [],
     };
   });
 }
@@ -463,7 +480,7 @@ export async function storeImported(
 /** Removes `libs` and every slide's `script` from an untrusted deck envelope (shape unchecked). */
 function withoutScripts(input: unknown): unknown {
   if (typeof input !== "object" || input === null || Array.isArray(input)) return input;
-  const { libs: _libs, ...rest } = input as Record<string, unknown>;
+  const { libs: _libs, script: _script, ...rest } = input as Record<string, unknown>;
   const slides = rest.slides;
   if (!Array.isArray(slides)) return rest;
   return {

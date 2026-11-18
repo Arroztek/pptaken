@@ -14,6 +14,7 @@ import {
   SERVER_INSTRUCTIONS,
   scriptsGuide,
   TOOL_NAMES,
+  vendoringGuide,
 } from "../src/index.js";
 
 /** Rough token estimate: about 4 characters per token for English prose and JSON. */
@@ -74,9 +75,9 @@ async function connect(
 }
 
 describe("server metadata", () => {
-  it("has five lines of instructions and lists the ten tools in a fixed order", async () => {
+  it("has six lines of instructions and lists the eleven tools in a fixed order", async () => {
     const { client } = await connect();
-    expect(SERVER_INSTRUCTIONS.split("\n")).toHaveLength(5);
+    expect(SERVER_INSTRUCTIONS.split("\n")).toHaveLength(6);
     expect(client.getInstructions()).toBe(SERVER_INSTRUCTIONS);
     const list = await client.listTools();
     expect(list.tools.map((t) => t.name)).toEqual([...TOOL_NAMES]);
@@ -114,7 +115,7 @@ describe("authoring guide", () => {
     const { call } = await connect();
     const r = await call("get_authoring_guide");
     expect(r.isError).toBe(false);
-    expect(r.body.guide).toBe(AUTHORING_GUIDE + scriptsGuide("off"));
+    expect(r.body.guide).toBe(AUTHORING_GUIDE + vendoringGuide(false) + scriptsGuide("off"));
   });
 
   it("its example renders without sanitizer warnings", async () => {

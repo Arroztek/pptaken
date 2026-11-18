@@ -145,11 +145,12 @@ export async function restoreRevision(
         hint: "Call `list_revisions` to see the revisions that are kept.",
       });
     }
-    const assets = (await ctx.store.assets.listForDeck(ws, id)).map((a) => a.sha256);
+    const linked = await ctx.store.assets.listForDeck(ws, id);
     const { deck: clean, warnings } = sanitizeAndCheck(
       old.document,
       ctx.config.limits.maxSlides,
-      assets,
+      linked.map((a) => a.sha256),
+      linked.filter((a) => a.mediaType === "text/javascript").map((a) => a.sha256),
     );
     return commitRevision(ctx, principal, call, {
       deckId: id,

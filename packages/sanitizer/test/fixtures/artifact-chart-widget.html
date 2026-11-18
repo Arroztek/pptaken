@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Ventas 2026</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;700&display=swap');
+    body { margin: 0; font-family: 'Source Serif 4', Georgia, serif; background: #fff; }
+    section { width: 100vw; height: 100vh; padding: 60px; box-sizing: border-box; }
+    .chart-box { width: 70vw; height: 60vh; }
+    .controls { display: flex; gap: 24px; align-items: center; font-size: 28px; }
+  </style>
+</head>
+<body>
+  <section>
+    <h1>Ventas 2026</h1>
+    <p>Resumen trimestral</p>
+  </section>
+  <section>
+    <h2>Por trimestre</h2>
+    <div class="chart-box"><canvas id="sales"></canvas></div>
+  </section>
+  <section>
+    <h2>Simulador</h2>
+    <div class="controls">
+      <label for="growth">Crecimiento</label>
+      <input type="range" id="growth" min="0" max="50" value="10" oninput="update(this.value)">
+      <output id="out">10%</output>
+      <button id="reset" onclick="reset()">Reiniciar</button>
+    </div>
+  </section>
+  <script>
+    const chart = new Chart(document.getElementById('sales'), {
+      type: 'bar',
+      data: { labels: ['T1', 'T2', 'T3', 'T4'], datasets: [{ label: 'Ventas', data: [12, 19, 7, 15] }] },
+      options: { responsive: true, maintainAspectRatio: false, animation: false }
+    });
+    function update(v) { document.getElementById('out').textContent = v + '%'; }
+    function reset() { document.getElementById('growth').value = 10; update(10); }
+    // A string with a closing tag inside must not break the script element.
+    const tpl = '<b>' + "</" + "b>";
+  </script>
+</body>
+</html>

@@ -51,8 +51,9 @@ describe("core dependency rules", () => {
   });
 
   it("uses no Node or browser I/O globals", () => {
+    // `fetch(` as a global call; a method of a port (`vendor.fetch(…)`, ADR-022) is not I/O done by the core.
     const forbidden =
-      /\b(?:process\.|Buffer\b|fetch\s*\(|setTimeout\s*\(|setInterval\s*\(|XMLHttpRequest|WebSocket|globalThis\.crypto)/;
+      /\b(?:process\.|Buffer\b|(?<![.\w])fetch\s*\((?![\w$]+\s*:)|setTimeout\s*\(|setInterval\s*\(|XMLHttpRequest|WebSocket|globalThis\.crypto)/;
     const withoutComments = (code: string) =>
       code.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:"'`])\/\/.*$/gm, "$1");
     const violations = files.filter((file) =>

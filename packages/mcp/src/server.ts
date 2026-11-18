@@ -19,6 +19,8 @@ import {
   requireScope,
   type ScriptsSummary,
   type SlideUpsert,
+  type ThemeInput,
+  type VendorReportEntry,
 } from "@pptaken/core";
 import { LIMITS } from "@pptaken/schema";
 import { type ZodType, z } from "zod";
@@ -29,6 +31,7 @@ import {
   MAX_ASSET_BASE64_BYTES,
   type ScriptsStatusLabel,
   scriptsGuide,
+  vendoringGuide,
 } from "./guide.js";
 import {
   addAssetInput,
@@ -36,6 +39,7 @@ import {
   deletePresentationInput,
   emptyInput,
   getPresentationInput,
+  importHtmlDeckInput,
   listPresentationsInput,
   presentationLinksInput,
   updatePresentationInput,
@@ -49,6 +53,7 @@ export const SERVER_INSTRUCTIONS = [
   "2. Call create_presentation with all the slides in one call.",
   "3. Give the returned urls.present to the user: it opens the presentation, ready to present.",
   "4. To edit, call get_presentation, then update_slides or update_presentation with expected_revision.",
+  "5. To bring an existing HTML artifact as is, call import_html_deck with its whole HTML.",
 ].join("\n");
 
 export interface RateLimitDecision {
@@ -69,6 +74,11 @@ export interface McpServerConfig {
    * separate site (Firefox isolates the frame); without it a runaway script can freeze the presenter tab.
    */
   scripts?: { status: ScriptsStatusLabel; separateSiteContent: boolean };
+  /**
+   * Ingest-time vendoring (ADR-022): whether the server downloads external resources (PPTAKEN_VENDOR_FETCH) and
+   * the operator's host allow list (empty: any public host).
+   */
+  vendoring?: { enabled: boolean; allowHosts?: readonly string[] };
   /** Called at the start of every tool call (agent-connection status). Errors are ignored. */
   onActivity?: (input: {
     principal: Principal;
@@ -152,6 +162,7 @@ function toBody(
     const body = error.toJSON();
     if (body.path !== undefined) {
       if (assetCall && body.path === "bytes") body.path = "source.base64";
+      else if (assetCall && body.path === "url") body.path = "source.url";
       else if (assetCall && body.path === "mediaType") body.path = "source.media_type";
       else body.path = snakePath(body.path);
     }
@@ -174,6 +185,40 @@ function warningsOf(warnings: readonly CoreWarning[]) {
     message: w.message,
     ...(w.slideId === undefined ? {} : { slide_id: w.slideId }),
   }));
+}
+
+/** The tool's snake_case theme as the core's theme input. */
+function themeOf(theme: {
+  css?: string | undefined;
+  fonts?: ThemeInput["fonts"] | undefined;
+  google_fonts?: ThemeInput["googleFonts"] | undefined;
+  font_faces?: ThemeInput["fontFaces"] | undefined;
+}): ThemeInput {
+  return defined({
+    css: theme.css,
+    fonts: theme.fonts,
+    googleFonts: theme.google_fonts,
+    fontFaces: theme.font_faces,
+  }) as ThemeInput;
+}
+
+/** The vendoring report of a write (ADR-022), when it touched external resources. */
+function vendoredOf(report: readonly VendorReportEntry[]): Record<string, unknown> {
+  if (report.length === 0) return {};
+  return {
+    vendored: report.map((r) =>
+      defined({
+        kind: r.kind,
+        url: r.url,
+        status: r.status,
+        final_url: r.finalUrl !== undefined && r.finalUrl !== r.url ? r.finalUrl : undefined,
+        bytes: r.bytes,
+        sha256: r.sha256,
+        error: r.error,
+        message: r.message,
+      }),
+    ),
+  };
 }
 
 /** Drops `undefined` properties (exactOptionalPropertyTypes). */
@@ -250,6 +295,36 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
   });
 
   const scriptsStatus: ScriptsStatusLabel = config.scripts?.status ?? "off";
+  const vendoringOn = config.vendoring?.enabled === true;
+
+  /** What `whoami` reports about ingest-time vendoring (ADR-022). */
+  const vendoringInfo = () => {
+    const v = core.config.vendor;
+    if (!vendoringOn) {
+      return {
+        enabled: false,
+        note: "External URLs (fonts, scripts, stylesheets, images) are refused on this instance: use add_asset with base64, the bundled fonts and the bundled libraries.",
+      };
+    }
+    return {
+      enabled: true,
+      accepts: ["stylesheet", "font", "image", "script"],
+      allowed_hosts: config.vendoring?.allowHosts?.length
+        ? config.vendoring.allowHosts
+        : "any public https host",
+      max_urls_per_write: v.maxUrls,
+      max_bytes_per_write: v.maxBytes,
+      max_bytes: {
+        script: 2 * 1024 * 1024,
+        stylesheet: 512 * 1024,
+        font: 2 * 1024 * 1024,
+        image: 8 * 1024 * 1024,
+      },
+      html_import: "import_html_deck",
+      not_supported:
+        "network at runtime (fetch, XHR, WebSocket), iframes and embeds, video/audio, ES modules (use UMD builds), SVG image URLs (inline the SVG), JSX/React needing a transpiler",
+    };
+  };
 
   /**
    * The interactive-mode part of a write result: what the owner must do, and a warning with a distinct code.
@@ -355,6 +430,7 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
         authoring_guide_version: AUTHORING_GUIDE_VERSION,
         scripts: scriptsStatus,
         script_libraries: libraryCatalog(),
+        vendoring: vendoringInfo(),
         ...(scriptsStatus === "needs_owner_approval" && config.scripts?.separateSiteContent !== true
           ? {
               scripts_warning:
@@ -391,7 +467,7 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
       requireScope(principal, "decks:read");
       return {
         version: AUTHORING_GUIDE_VERSION,
-        guide: AUTHORING_GUIDE + scriptsGuide(scriptsStatus),
+        guide: AUTHORING_GUIDE + vendoringGuide(vendoringOn) + scriptsGuide(scriptsStatus),
       };
     },
   });
@@ -417,11 +493,11 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
           title: a.title,
           lang: a.lang,
           aspectRatio: a.aspect_ratio,
-          theme:
-            a.theme === undefined ? undefined : defined({ css: a.theme.css, fonts: a.theme.fonts }),
+          theme: a.theme === undefined ? undefined : themeOf(a.theme),
           targetMinutes: a.target_minutes,
           idempotencyKey: a.idempotency_key,
           libs: a.libs,
+          script: a.script,
           slides: a.slides.map((s) =>
             defined({
               id: s.id,
@@ -445,6 +521,7 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
         slide_count: result.slideCount,
         urls: urlsOf(result.presentationId),
         ...interactive,
+        ...vendoredOf(result.vendored),
         warnings,
         ...(result.replayed ? { replayed: true } : {}),
       };
@@ -546,10 +623,7 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
     },
     write: true,
     run: async (a) => {
-      const theme =
-        a.theme === undefined || a.theme === null
-          ? a.theme
-          : defined({ css: a.theme.css, fonts: a.theme.fonts });
+      const theme = a.theme === undefined || a.theme === null ? a.theme : themeOf(a.theme);
       const r = await core.updatePresentation(
         principal,
         defined({
@@ -561,6 +635,7 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
           theme,
           targetMinutes: a.target_minutes,
           libs: a.libs,
+          script: a.script,
           slideOrder: a.slide_order,
         }),
         call,
@@ -572,6 +647,7 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
         revision: r.revision,
         slide_count: r.slideCount,
         ...interactive,
+        ...vendoredOf(r.vendored),
         warnings,
       };
     },
@@ -623,6 +699,7 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
         revision: r.revision,
         slide_count: r.slideCount,
         ...interactive,
+        ...vendoredOf(r.vendored),
         warnings,
       };
     },
@@ -661,7 +738,7 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
     name: "add_asset",
     title: "Upload an image",
     description:
-      "Uploads an image (PNG, JPEG, WebP, AVIF or GIF, at most 1 MB decoded) for a presentation as source { base64, media_type } and returns its ref (asset:<sha256>) to use in <img src> or background-image:url(); then save the slide with update_slides. Uploading the same bytes twice returns the same ref. SVG: write it inline in the slide instead.",
+      "Uploads an image (PNG, JPEG, WebP, AVIF or GIF) for a presentation as source { base64, media_type } (at most 1 MB decoded) or source { url } (an https URL the server downloads once, at most 8 MB) and returns its ref (asset:<sha256>) to use in <img src> or background-image:url(); then save the slide with update_slides. Uploading the same bytes twice returns the same ref. SVG: write it inline in the slide instead.",
     schema: addAssetInput,
     annotations: {
       readOnlyHint: false,
@@ -673,14 +750,20 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
     run: async (a) => {
       const source = a.source;
       if (source.url !== undefined) {
-        throw new DomainError(
-          "FETCH_BLOCKED",
-          "Downloading images from a URL is not available yet",
-          {
-            path: "source.url",
-            hint: "Upload the image as base64 instead: source { base64, media_type }, at most 1 MB decoded.",
-          },
+        // Ingest-time vendoring (ADR-022): downloaded once by the SSRF-safe fetcher, checked by content.
+        const r = await core.addAssetFromUrl(
+          principal,
+          defined({ presentationId: a.presentation_id, url: source.url, filename: a.filename }),
+          call,
         );
+        return {
+          ref: r.ref,
+          media_type: r.mediaType,
+          width: r.width,
+          height: r.height,
+          bytes: r.bytes,
+          ...(r.deduplicated ? { deduplicated: true } : {}),
+        };
       }
       if (source.base64 === undefined) {
         throw new DomainError("VALIDATION_ERROR", "source.base64 is required", {
@@ -760,6 +843,49 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
     },
   });
 
+  // 11. import_html_deck (ADR-022)
+  register({
+    name: "import_html_deck",
+    title: "Import an HTML artifact as a presentation",
+    description:
+      'Creates a presentation from a whole HTML document as you would write it in an artifact (inline <style>, Google Fonts <link>, CDN <script src>, https images, inline scripts). The server splits it into slides (data-slide, class "slide", sibling <section>s, then <h1>/<h2>, else one slide), downloads every external resource once and stores it, and returns presentation_id, urls, the heuristic used, a vendoring report and warnings. Scripts never run until the owner approves them (interactive.approve_url). Prefer create_presentation when you write a new deck; use this to bring an existing artifact.',
+    schema: importHtmlDeckInput,
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+    write: true,
+    run: async (a) => {
+      const result = await core.importHtml(
+        principal,
+        defined({
+          html: a.html,
+          title: a.title,
+          lang: a.lang,
+          aspectRatio: a.aspect_ratio,
+          split: a.split,
+          idempotencyKey: a.idempotency_key,
+        }),
+        call,
+      );
+      const warnings = warningsOf(result.warnings);
+      const interactive = interactiveOf(result.presentationId, result.scripts, warnings);
+      return {
+        presentation_id: result.presentationId,
+        revision: result.revision,
+        slide_count: result.slideCount,
+        heuristic: result.heuristic,
+        urls: urlsOf(result.presentationId),
+        ...interactive,
+        vendored: vendoredOf(result.vendored).vendored ?? [],
+        warnings,
+        ...(result.replayed ? { replayed: true } : {}),
+      };
+    },
+  });
+
   return server;
 }
 
@@ -775,6 +901,7 @@ export const TOOL_NAMES = [
   "delete_presentation",
   "add_asset",
   "get_presentation_links",
+  "import_html_deck",
 ] as const;
 
 /** Tools that write (rate-limited separately). */
@@ -784,4 +911,5 @@ export const WRITE_TOOLS: ReadonlySet<string> = new Set([
   "update_slides",
   "delete_presentation",
   "add_asset",
+  "import_html_deck",
 ]);

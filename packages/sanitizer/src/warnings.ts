@@ -12,7 +12,7 @@ export const WARNING_CODES = [
   "REMOVED_CSS_RULE",
   /** A CSS declaration was removed (unknown property or unsafe value). */
   "REMOVED_CSS_PROPERTY",
-  /** A font family that is not in the bundled catalog was removed from a `font-family`/`font` value. */
+  /** A font family neither bundled nor vendored (`theme.fontFaces`) was removed from a `font-family`/`font` value. */
   "REMOVED_FONT_FAMILY",
   /** A URL was removed: only `asset:<hex>` references (and `#id` fragments in SVG paint) are allowed. */
   "REMOVED_URL",

@@ -27,13 +27,17 @@ The HTTP layer (`apps/server`) builds one server per request (stateless) with th
   core paths are converted to snake_case. Unexpected errors become `INTERNAL` with `details.request_id` and no cause.
 - **Annotations**: read tools `readOnlyHint`; `create_presentation`, `update_presentation` write;
   `update_slides` and `delete_presentation` `destructiveHint: true`; `add_asset` `idempotentHint: true`
-  (deduplicated by SHA-256); every tool `openWorldHint: false`.
+  (deduplicated by SHA-256); every tool `openWorldHint: false` except `import_html_deck` (it makes the server
+  download the artifact's external resources).
 - **Scopes** are checked by the core; `get_authoring_guide` needs `decks:read`; `whoami` needs none.
-- **`add_asset`**: base64 only, at most 1 MB decoded per call (checked before decoding). `source.url` answers
-  `FETCH_BLOCKED` ("not available yet"): URL downloads need the SSRF defences of T8 and come later.
+- **`add_asset`**: base64 (at most 1 MB decoded per call, checked before decoding) or `source.url` (an https URL the
+  server downloads once through the SSRF-safe vendoring fetcher, ADR-022; `FETCH_BLOCKED`/`FETCH_FAILED` on refusal).
+- **Vendoring (ADR-022)**: write tools return `vendored` (each external URL: kind, status, bytes, hash, error) when a
+  write referenced external resources; `import_html_deck` imports a whole HTML artifact; `whoami.vendoring` and the
+  guide's "External resources" section describe the instance's policy (`McpServerConfig.vendoring`).
 - **Rate limits and activity** are callbacks (`config.rateLimit`, `config.onActivity`) so this package has no
   state; a limited call answers `RATE_LIMITED` with `details.retry_after_sec`.
-- **`instructions`**: five lines (guide → create → give `urls.present` → edit with `expected_revision`).
+- **`instructions`**: six lines (guide → create → give `urls.present` → edit with `expected_revision` → import an artifact).
 
 ## Authoring guide
 

@@ -13,7 +13,7 @@
 // - T7: speaker notes are removed unless `includeNotes` is set; they are then shown only by the outer page.
 
 import { randomBytes } from "node:crypto";
-import { buildDeckDocument, escapeHtml } from "@pptaken/player";
+import { buildDeckDocument, escapeHtml, vendoredFontFaceCss } from "@pptaken/player";
 import { type Deck, FONT_CATALOG, type FontName } from "@pptaken/schema";
 import { exportFilenames } from "./filename.js";
 import { pptakenShell, type ShellConfig } from "./shell.js";
@@ -249,6 +249,28 @@ export function exportHtml(input: ExportHtmlInput): ExportedHtml {
       `@font-face{font-family:"${face.family}";font-style:${style};font-weight:${face.weight};font-display:block;src:url(data:font/woff2;base64,${base64(face.bytes)}) format("woff2");${range}}`,
     );
     embedded.add(face.family);
+  }
+
+  // 2b. Vendored font faces of the deck (ADR-022), from the exported assets.
+  for (const face of deck.theme?.fontFaces ?? []) {
+    const hex = /^asset:([0-9a-f]{64})$/.exec(face.src)?.[1];
+    const asset = hex === undefined ? undefined : input.assets?.get(hex);
+    if (asset === undefined || !/^font\/(?:woff2|woff|ttf|otf)$/.test(asset.mediaType)) continue;
+    const rule = vendoredFontFaceCss(
+      { ...deck, theme: { fontFaces: [face] } },
+      "https://export.invalid/",
+    );
+    if (rule === "") continue;
+    faceRules.push(
+      rule.replace(
+        `url(https://export.invalid/${hex})`,
+        `url(data:${asset.mediaType};base64,${base64(asset.bytes)})`,
+      ),
+    );
+  }
+  if (inner.theme?.fontFaces !== undefined) {
+    const { fontFaces: _f, ...theme } = inner.theme;
+    inner.theme = theme;
   }
 
   // 3. The deck document (fresh nonce), with the CSP meta and the font faces first in <head>.

@@ -113,7 +113,7 @@ export function sanitizeSlideHtml(input: string, options: HtmlOptions = {}): Htm
 }
 
 /** The context element: slide HTML is inserted as the children of a `<section>` in the deck document. */
-function contextElement(): Element {
+export function contextElement(): Element {
   return adapter.createElement("section", NS.HTML, []);
 }
 
@@ -161,7 +161,7 @@ const isSpace = (c: number): boolean =>
  * of unclosed elements (the adoption agency algorithm walks the stack of open elements). The estimate errs on
  * the high side (it ignores raw-text elements), which can only reject more, never parse more.
  */
-function precheckCost(input: string): void {
+export function precheckCost(input: string): void {
   const n = input.length;
   // Open element names; an end tag only closes something when that name is open (as in the parser), so
   // stray end tags cannot hide nesting.

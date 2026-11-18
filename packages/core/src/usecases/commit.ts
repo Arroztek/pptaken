@@ -6,6 +6,7 @@ import { presentationNotFound, revisionConflict } from "../errors.js";
 import type { CallContext, Principal } from "../principal.js";
 import { type ScriptsSummary, scriptsSummary } from "../scripts.js";
 import { actorRef, audit, type Ctx } from "./context.js";
+import { linkVendoredAssets, type VendoredAsset, type VendorReportEntry } from "./vendoring.js";
 
 /** Result of every use case that writes a new revision. */
 export interface RevisionWriteResult {
@@ -17,6 +18,8 @@ export interface RevisionWriteResult {
   warnings: CoreWarning[];
   /** The author scripts of the new revision and their trust state (interactive mode, ADR-020). */
   scripts: ScriptsSummary;
+  /** External resources this write vendored, reused or failed to vendor (ADR-022); empty when none. */
+  vendored: VendorReportEntry[];
 }
 
 /**
@@ -35,6 +38,9 @@ export async function commitRevision(
     summary: string;
     action: string;
     detail?: Record<string, unknown>;
+    /** Vendored assets to insert and link in the same transaction (ADR-022). */
+    assets?: readonly VendoredAsset[];
+    report?: VendorReportEntry[];
   },
 ): Promise<RevisionWriteResult> {
   const ws = principal.workspaceId;
@@ -58,6 +64,7 @@ export async function commitRevision(
       if (current === null || current.deletedAt !== null) throw presentationNotFound(args.deckId);
       throw revisionConflict(args.expectedRevision, current.currentRevision);
     }
+    await linkVendoredAssets(ctx, tx, ws, args.deckId, args.assets ?? [], now);
     await tx.revisions.insert({
       workspaceId: ws,
       deckId: args.deckId,
@@ -84,6 +91,7 @@ export async function commitRevision(
       slideCount: args.document.slides.length,
       warnings: args.warnings,
       scripts,
+      vendored: args.report ?? [],
     };
   });
 }

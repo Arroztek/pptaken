@@ -71,6 +71,8 @@ export interface ScriptSource {
 export interface ScriptsReview extends ScriptsStatus {
   /** Every slide script of the current revision, in deck order. */
   sources: ScriptSource[];
+  /** The deck-level script (ADR-022), run once before the slide scripts, or null. */
+  deckSource: { source: string; sha256: string; bytes: number } | null;
 }
 
 /**
@@ -103,6 +105,8 @@ export async function getScriptsReview(
         bytes: bytes.length,
       });
     });
+    const deckScript = revision.document.script;
+    const deckBytes = deckScript === undefined ? null : utf8Encode(deckScript);
     return {
       presentationId: id,
       revision: deck.currentRevision,
@@ -111,6 +115,10 @@ export async function getScriptsReview(
       approvedDigest: approval?.digest ?? null,
       approvedAt: approval?.approvedAt ?? null,
       sources,
+      deckSource:
+        deckScript === undefined || deckBytes === null
+          ? null
+          : { source: deckScript, sha256: sha256Hex(deckBytes), bytes: deckBytes.length },
     };
   });
 }

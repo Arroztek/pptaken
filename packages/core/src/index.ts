@@ -12,7 +12,9 @@ export {
   DAY_MS,
   DEFAULT_CONFIG,
   DEFAULT_LIMITS,
+  DEFAULT_VENDOR_LIMITS,
   resolveConfig,
+  type VendorLimits,
 } from "./config.js";
 export { type Core, type CoreDeps, createCore } from "./core.js";
 export {
@@ -56,10 +58,14 @@ export {
   type ResolvedDevice,
 } from "./live.js";
 export {
+  decodeUtf8Strict,
+  FONT_MEDIA_TYPES,
+  type FontMediaType,
   normalizeMediaType,
   RASTER_MEDIA_TYPES,
   type RasterMediaType,
   type SniffResult,
+  sniffFont,
   sniffImage,
 } from "./media.js";
 export type {
@@ -91,6 +97,11 @@ export type {
   ScriptApprovalRecord,
   ScriptApprovalRepository,
   UnitOfWork,
+  VendorErrorCode,
+  VendorFetcher,
+  VendorFetchRequest,
+  VendorFetchResult,
+  VendorKind,
 } from "./ports.js";
 export {
   type Actor,
@@ -122,6 +133,7 @@ export type {
   AssetInfo,
 } from "./usecases/assets.js";
 export type { RevisionWriteResult } from "./usecases/commit.js";
+export type { ImportHtmlInput, ImportHtmlResult } from "./usecases/import-html.js";
 export type {
   ExportedAsset,
   ExportPresentationInput,
@@ -146,12 +158,29 @@ export {
   type PurgeResult,
   type SlideInput,
   type SlideView,
+  type ThemeInput,
   type TrashResult,
   type UpdatePresentationInput,
   type UpdateSlidesInput,
 } from "./usecases/presentations.js";
 export type { RevisionDetail, RevisionInfo } from "./usecases/revisions.js";
 export type { ScriptSource, ScriptsReview, ScriptsStatus } from "./usecases/scripts.js";
+export {
+  provenanceUrl,
+  type VendoredAsset,
+  type VendorReportEntry,
+  type VendorWarningCode,
+} from "./usecases/vendoring.js";
+export {
+  type CheckedResource,
+  checkVendored,
+  isServableAssetType,
+  isVendorError,
+  libLabelOf,
+  looksLikeModule,
+  VENDOR_MAX_BYTES,
+  VendorError,
+} from "./vendor.js";
 
 /** The system clock (`Date.now()`). */
 export const systemClock: Clock = { now: () => Date.now() };

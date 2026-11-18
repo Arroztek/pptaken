@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quantum Computing 101</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', sans-serif; background: #0f172a; color: #f8fafc; overflow: hidden; height: 100vh; }
+    .slide { position: absolute; inset: 0; display: none; flex-direction: column; justify-content: center; padding: 8vh 10vw; }
+    .slide.active { display: flex; }
+    h1, h2 { font-family: 'Playfair Display', serif; }
+    h1 { font-size: 6vw; }
+    .hero { width: 40vw; border-radius: 1rem; }
+    .nav { position: fixed; bottom: 2rem; right: 2rem; display: flex; gap: 1rem; }
+    .counter { position: fixed; bottom: 2rem; left: 2rem; opacity: .6; }
+  </style>
+</head>
+<body>
+  <div class="slide active" id="s1">
+    <h1>Quantum Computing 101</h1>
+    <p>From bits to qubits</p>
+  </div>
+  <div class="slide" id="s2">
+    <h2>Superposition</h2>
+    <img class="hero" src="https://images.example.org/bloch-sphere.png" alt="Bloch sphere">
+  </div>
+  <div class="slide" id="s3">
+    <h2>Entanglement</h2>
+    <ul><li>Bell states</li><li>Spooky action</li></ul>
+  </div>
+  <div class="nav"><button onclick="prev()">←</button><button onclick="next()">→</button></div>
+  <div class="counter" id="counter">1 / 3</div>
+  <script>
+    let current = 0;
+    const slides = document.querySelectorAll('.slide');
+    function showSlide(n) {
+      slides[current].classList.remove('active');
+      current = (n + slides.length) % slides.length;
+      slides[current].classList.add('active');
+      document.getElementById('counter').textContent = (current + 1) + ' / ' + slides.length;
+    }
+    function next() { showSlide(current + 1); }
+    function prev() { showSlide(current - 1); }
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') next();
+      if (e.key === 'ArrowLeft') prev();
+    });
+  </script>
+</body>
+</html>

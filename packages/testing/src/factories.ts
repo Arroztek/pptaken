@@ -19,6 +19,7 @@ import {
   type SlideInput,
   sha256Hex,
   type UnitOfWork,
+  type VendorFetcher,
 } from "@pptaken/core";
 import { DECK_SCHEMA_VERSION, type Deck, type Slide } from "@pptaken/schema";
 import { createTestIdGenerator, ManualClock, MemoryBlobStore, MemoryUnitOfWork } from "./memory.js";
@@ -154,6 +155,8 @@ export function createTestCore(
     seed?: number;
     /** PowerPoint converter for `importPptx`. */
     convertPptx?: PptxConverter;
+    /** Ingest-time vendoring fetcher (ADR-022); tests pass a fake network. */
+    vendor?: VendorFetcher;
   } = {},
 ): TestCore {
   const clock = (options.clock as ManualClock | undefined) ?? new ManualClock();
@@ -167,6 +170,7 @@ export function createTestCore(
     ids,
     ...(options.config === undefined ? {} : { config: options.config }),
     ...(options.convertPptx === undefined ? {} : { convertPptx: options.convertPptx }),
+    ...(options.vendor === undefined ? {} : { vendor: options.vendor }),
   });
   return { core, store, blobs, clock, ids };
 }

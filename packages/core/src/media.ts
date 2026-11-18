@@ -363,6 +363,118 @@ function findPath(b: Uint8Array, from: number, to: number, path: readonly string
   return findPath(b, box.start, box.end, rest);
 }
 
+// ---------------------------------------------------------------------------------------------------------------
+// Fonts and text (ingest-time vendoring, ADR-022)
+
+export const FONT_MEDIA_TYPES = ["font/woff2", "font/woff", "font/ttf", "font/otf"] as const;
+export type FontMediaType = (typeof FONT_MEDIA_TYPES)[number];
+
+export type FontSniff =
+  | { ok: true; mediaType: FontMediaType; format: "woff2" | "woff" | "truetype" | "opentype" }
+  | { ok: false; reason: string };
+
+/**
+ * Detects a font file by its signature and checks its container: WOFF/WOFF2 must declare exactly the file's
+ * length (no appended data); TrueType/OpenType table records must lie inside the file and the file may not extend
+ * past the last table (plus 3 padding bytes). Collections (`ttcf`) and anything else are refused.
+ */
+export function sniffFont(b: Uint8Array): FontSniff {
+  if (b.length < 12) return { ok: false, reason: "Truncated font header" };
+  const tag = fourcc(b, 0);
+  if (tag === "wOF2" || tag === "wOFF") {
+    const woff2 = tag === "wOF2";
+    const headerSize = woff2 ? 48 : 44;
+    if (b.length < headerSize) return { ok: false, reason: "Truncated WOFF header" };
+    const flavor = fourcc(b, 4);
+    if (flavor !== "\u0000\u0001\u0000\u0000" && flavor !== "OTTO" && flavor !== "true") {
+      return { ok: false, reason: "Unknown WOFF flavor" };
+    }
+    if (u32be(b, 8) !== b.length) {
+      return { ok: false, reason: "The WOFF length field does not match the file size" };
+    }
+    const tables = u16be(b, 12);
+    if (tables === 0 || tables > 512) return { ok: false, reason: "Invalid WOFF table count" };
+    return woff2
+      ? { ok: true, mediaType: "font/woff2", format: "woff2" }
+      : { ok: true, mediaType: "font/woff", format: "woff" };
+  }
+  if (tag === "\u0000\u0001\u0000\u0000" || tag === "true" || tag === "OTTO") {
+    const tables = u16be(b, 4);
+    if (tables === 0 || tables > 512) return { ok: false, reason: "Invalid font table count" };
+    const dirEnd = 12 + tables * 16;
+    if (dirEnd > b.length) return { ok: false, reason: "Truncated font table directory" };
+    let end = dirEnd;
+    for (let i = 0; i < tables; i++) {
+      const rec = 12 + i * 16;
+      const offset = u32be(b, rec + 8);
+      const length = u32be(b, rec + 12);
+      if (offset + length > b.length)
+        return { ok: false, reason: "A font table lies outside the file" };
+      end = Math.max(end, offset + length);
+    }
+    if (b.length > end + 3) return { ok: false, reason: "Data after the last font table" };
+    return tag === "OTTO"
+      ? { ok: true, mediaType: "font/otf", format: "opentype" }
+      : { ok: true, mediaType: "font/ttf", format: "truetype" };
+  }
+  if (tag === "ttcf") return { ok: false, reason: "Font collections are not supported" };
+  return { ok: false, reason: "No font signature (WOFF2, WOFF, TrueType or OpenType)" };
+}
+
+/**
+ * Strict UTF-8 decoding (no replacement characters): `null` for invalid sequences, overlong forms, surrogates or
+ * NUL. A leading BOM is removed. Used for vendored scripts and stylesheets, whose bytes must be exactly the text.
+ */
+export function decodeUtf8Strict(b: Uint8Array): string | null {
+  let i = b[0] === 0xef && b[1] === 0xbb && b[2] === 0xbf ? 3 : 0;
+  const parts: string[] = [];
+  let chunk: number[] = [];
+  const flush = () => {
+    if (chunk.length > 0) parts.push(String.fromCodePoint(...chunk));
+    chunk = [];
+  };
+  while (i < b.length) {
+    const c = b[i] as number;
+    let cp: number;
+    let need: number;
+    if (c < 0x80) {
+      if (c === 0) return null;
+      cp = c;
+      need = 0;
+    } else if (c >= 0xc2 && c <= 0xdf) {
+      cp = c & 0x1f;
+      need = 1;
+    } else if (c >= 0xe0 && c <= 0xef) {
+      cp = c & 0x0f;
+      need = 2;
+    } else if (c >= 0xf0 && c <= 0xf4) {
+      cp = c & 0x07;
+      need = 3;
+    } else return null;
+    for (let k = 1; k <= need; k++) {
+      const n = b[i + k];
+      if (n === undefined || (n & 0xc0) !== 0x80) return null;
+      cp = (cp << 6) | (n & 0x3f);
+    }
+    if (
+      (need === 2 && (cp < 0x800 || (cp >= 0xd800 && cp <= 0xdfff))) ||
+      (need === 3 && (cp < 0x10000 || cp > 0x10ffff))
+    ) {
+      return null;
+    }
+    chunk.push(cp);
+    if (chunk.length >= 4096) flush();
+    i += need + 1;
+  }
+  flush();
+  return parts.join("");
+}
+
+/** True when text looks like an HTML page (an error or login page served with 200), not a script or stylesheet. */
+export function looksLikeHtml(text: string): boolean {
+  return /^\s*(?:<!doctype\s+html|<html[\s>]|<head[\s>]|<body[\s>]|<!--)/i.test(text.slice(0, 512));
+}
+
 function looksLikeSvg(b: Uint8Array): boolean {
   const n = Math.min(b.length, 4096);
   let text = "";

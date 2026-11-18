@@ -15,8 +15,23 @@ export interface CoreLimits {
   maxImagePixels: number;
 }
 
+/** Limits of ingest-time vendoring per write (ADR-022). The fetcher adds its own per-request limits. */
+export interface VendorLimits {
+  /** Distinct external URLs one write may vendor, nested stylesheets and font files included (default 100). */
+  maxUrls: number;
+  /** Bytes one write may fetch in total (default 40 MB). */
+  maxBytes: number;
+  /** Deadline for all the fetches of one write (default 60 s). */
+  deadlineMs: number;
+  /** Fetches in flight at once for one write (default 4). */
+  concurrency: number;
+  /** Nesting of `@import` followed (default 3). */
+  maxImportDepth: number;
+}
+
 export interface CoreConfig {
   limits: CoreLimits;
+  vendor: VendorLimits;
   /** Revisions kept per presentation by `pruneRevisions` (default 50). */
   revisionsKept: number;
   /** How long a presentation stays restorable in the trash (default 30 days). */
@@ -40,8 +55,17 @@ export const DEFAULT_LIMITS: Readonly<CoreLimits> = Object.freeze({
 
 export const DAY_MS = 24 * 60 * 60 * 1000;
 
+export const DEFAULT_VENDOR_LIMITS: Readonly<VendorLimits> = Object.freeze({
+  maxUrls: 100,
+  maxBytes: 40 * 1024 * 1024,
+  deadlineMs: 60_000,
+  concurrency: 4,
+  maxImportDepth: 3,
+});
+
 export const DEFAULT_CONFIG: Readonly<CoreConfig> = Object.freeze({
   limits: DEFAULT_LIMITS,
+  vendor: DEFAULT_VENDOR_LIMITS,
   revisionsKept: 50,
   trashRetentionMs: 30 * DAY_MS,
   scriptsEnabled: false,
@@ -49,6 +73,7 @@ export const DEFAULT_CONFIG: Readonly<CoreConfig> = Object.freeze({
 
 export interface CoreConfigInput {
   limits?: Partial<CoreLimits>;
+  vendor?: Partial<VendorLimits>;
   revisionsKept?: number;
   trashRetentionMs?: number;
   defaultLang?: string;
@@ -64,8 +89,14 @@ export function resolveConfig(input: CoreConfigInput = {}): CoreConfig {
   if (limits.maxSlides > LIMITS.maxSlides) {
     throw new RangeError(`maxSlides cannot exceed the format limit of ${LIMITS.maxSlides}`);
   }
+  const vendor: VendorLimits = { ...DEFAULT_VENDOR_LIMITS, ...input.vendor };
+  for (const [name, value] of Object.entries(vendor)) {
+    if (!Number.isSafeInteger(value) || value < 1)
+      throw new RangeError(`Invalid vendor limit ${name}`);
+  }
   const config: CoreConfig = {
     limits,
+    vendor,
     revisionsKept: input.revisionsKept ?? DEFAULT_CONFIG.revisionsKept,
     trashRetentionMs: input.trashRetentionMs ?? DEFAULT_CONFIG.trashRetentionMs,
     scriptsEnabled: input.scriptsEnabled === true,

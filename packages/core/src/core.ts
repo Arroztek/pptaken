@@ -9,6 +9,7 @@ import type {
   IdGenerator,
   PptxConverter,
   UnitOfWork,
+  VendorFetcher,
 } from "./ports.js";
 import { type CallContext, type Principal, requireOwner } from "./principal.js";
 import { isUlid } from "./ulid.js";
@@ -17,6 +18,7 @@ import {
   type AddAssetResult,
   type AssetInfo,
   addAsset,
+  addAssetFromUrl,
   collectOrphanBlobs,
   getAsset,
   listAssets,
@@ -30,6 +32,11 @@ import {
   requireObject,
   runRead,
 } from "./usecases/context.js";
+import {
+  type ImportHtmlInput,
+  type ImportHtmlResult,
+  importHtmlDeck,
+} from "./usecases/import-html.js";
 import {
   type ExportPresentationInput,
   type ExportPresentationResult,
@@ -87,6 +94,8 @@ export interface CoreDeps {
   config?: CoreConfigInput;
   /** PowerPoint converter for `importPptx` (optional: without it, PowerPoint import is reported as unavailable). */
   convertPptx?: PptxConverter;
+  /** Ingest-time vendoring of external resources (ADR-022). Without it, external URLs are left to the sanitizer. */
+  vendor?: VendorFetcher;
 }
 
 /**
@@ -179,6 +188,14 @@ export interface Core {
 
   /** `decks:write`. Verifies the type by content, enforces limits, deduplicates by SHA-256. */
   addAsset(p: Principal, input: AddAssetInput, call?: CallContext): Promise<AddAssetResult>;
+  /** `decks:write`. Downloads an image once through the vendoring fetcher (ADR-022) and stores it as an asset. */
+  addAssetFromUrl(
+    p: Principal,
+    input: { presentationId: string; url: string; filename?: string },
+    call?: CallContext,
+  ): Promise<AddAssetResult>;
+  /** `decks:write`. Creates a presentation from a whole HTML document (an agent's artifact, ADR-022). */
+  importHtml(p: Principal, input: ImportHtmlInput, call?: CallContext): Promise<ImportHtmlResult>;
   /** `decks:read`. Metadata and bytes. */
   getAsset(
     p: Principal,
@@ -253,6 +270,7 @@ export function createCore(deps: CoreDeps): Core {
     clock: deps.clock,
     ids: deps.ids,
     config: resolveConfig(deps.config),
+    vendor: deps.vendor,
   };
   return {
     config: ctx.config,
@@ -270,6 +288,8 @@ export function createCore(deps: CoreDeps): Core {
     restoreRevision: (p, i, c) => restoreRevision(ctx, p, i, c),
     pruneRevisions: (p, i, c) => pruneRevisions(ctx, p, i, c),
     addAsset: (p, i, c) => addAsset(ctx, p, i, c),
+    addAssetFromUrl: (p, i, c) => addAssetFromUrl(ctx, p, i, c),
+    importHtml: (p, i, c) => runRead(c, () => importHtmlDeck(ctx, p, i, c)),
     getAsset: (p, i, c) => getAsset(ctx, p, i, c),
     listAssets: (p, i, c) => listAssets(ctx, p, i, c),
     collectOrphanBlobs: (p, i, c) => collectOrphanBlobs(ctx, p, i, c),

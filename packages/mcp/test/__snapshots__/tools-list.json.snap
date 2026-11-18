@@ -63,12 +63,12 @@
           "type": "object",
           "properties": {
             "css": {
-              "description": "CSS shared by all slides (classes you reuse). Max 64 KB.",
+              "description": "CSS shared by all slides (classes you reuse). Max 64 KB. @import url(https://…) and url(https://…) are vendored.",
               "type": "string",
               "maxLength": 65536
             },
             "fonts": {
-              "description": "Font families from the bundled catalog that the deck uses (max 4).",
+              "description": "Bundled font families the deck uses (max 4). Any other family: use google_fonts or a stylesheet URL.",
               "maxItems": 4,
               "type": "array",
               "items": {
@@ -85,6 +85,92 @@
                   "Atkinson Hyperlegible"
                 ]
               }
+            },
+            "google_fonts": {
+              "description": "Families to vendor from Google Fonts, e.g. [{ \"family\": \"Lora\", \"weights\": [400, 700] }]. The server downloads them once and stores them; then use the family name in CSS.",
+              "maxItems": 8,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "family": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9 ]{0,63}$"
+                  },
+                  "weights": {
+                    "minItems": 1,
+                    "maxItems": 9,
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 100,
+                      "maximum": 900
+                    }
+                  },
+                  "italic": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "family"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "font_faces": {
+              "description": "Vendored font faces as get_presentation returns them; send them back unchanged.",
+              "maxItems": 96,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "family": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9 _.-]{0,63}$"
+                  },
+                  "src": {
+                    "type": "string",
+                    "pattern": "^asset:[0-9a-f]{64}$"
+                  },
+                  "format": {
+                    "type": "string",
+                    "enum": [
+                      "woff2",
+                      "woff",
+                      "truetype",
+                      "opentype"
+                    ]
+                  },
+                  "weight": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]{0,2}(?: [1-9][0-9]{0,2})?$"
+                  },
+                  "style": {
+                    "type": "string",
+                    "enum": [
+                      "normal",
+                      "italic",
+                      "oblique"
+                    ]
+                  },
+                  "unicodeRange": {
+                    "type": "string",
+                    "maxLength": 4000,
+                    "pattern": "^U\\+[0-9A-Fa-f?]{1,6}(?:-[0-9A-Fa-f]{1,6})?(?:, ?U\\+[0-9A-Fa-f?]{1,6}(?:-[0-9A-Fa-f]{1,6})?)*$"
+                  },
+                  "source": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "pattern": "^https:\\/\\/[^\\s\"'<>\\\\]+$"
+                  }
+                },
+                "required": [
+                  "family",
+                  "src",
+                  "format"
+                ],
+                "additionalProperties": false
+              }
             }
           },
           "additionalProperties": false,
@@ -100,6 +186,11 @@
                 "enum": [
                   "uplot@1"
                 ]
+              },
+              {
+                "type": "string",
+                "maxLength": 2048,
+                "pattern": "^https:\\/\\/\\S+$"
               },
               {
                 "type": "object",
@@ -119,7 +210,17 @@
                   "source": {
                     "type": "string",
                     "maxLength": 2048,
-                    "pattern": "^https:\\/\\/[^\\s\"'<>]+$"
+                    "pattern": "^https:\\/\\/[^\\s\"'<>\\\\]+$"
+                  },
+                  "finalUrl": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "pattern": "^https:\\/\\/[^\\s\"'<>\\\\]+$"
+                  },
+                  "bytes": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 67108864
                   }
                 },
                 "required": [
@@ -130,7 +231,13 @@
               }
             ]
           },
-          "description": "Interactive mode: vendored scripts loaded before the slide scripts: a bundled id (see the guide) or { name, version, sha256, source } of a script stored on this instance."
+          "description": "Interactive mode: scripts loaded before the deck and slide scripts, in order: an https CDN URL of a classic (UMD/IIFE) build, which the server downloads once and stores (vendoring); a bundled id (see the guide); or { name, version, sha256, source } as get_presentation returns it."
+        },
+        "script": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 524288,
+          "description": "Interactive mode: deck-level JavaScript run once in the global scope, after libs and before the slide scripts, only after the owner approves it. Max 512 KB."
         },
         "slides": {
           "minItems": 1,
@@ -351,12 +458,12 @@
               "type": "object",
               "properties": {
                 "css": {
-                  "description": "CSS shared by all slides (classes you reuse). Max 64 KB.",
+                  "description": "CSS shared by all slides (classes you reuse). Max 64 KB. @import url(https://…) and url(https://…) are vendored.",
                   "type": "string",
                   "maxLength": 65536
                 },
                 "fonts": {
-                  "description": "Font families from the bundled catalog that the deck uses (max 4).",
+                  "description": "Bundled font families the deck uses (max 4). Any other family: use google_fonts or a stylesheet URL.",
                   "maxItems": 4,
                   "type": "array",
                   "items": {
@@ -372,6 +479,92 @@
                       "IBM Plex Mono",
                       "Atkinson Hyperlegible"
                     ]
+                  }
+                },
+                "google_fonts": {
+                  "description": "Families to vendor from Google Fonts, e.g. [{ \"family\": \"Lora\", \"weights\": [400, 700] }]. The server downloads them once and stores them; then use the family name in CSS.",
+                  "maxItems": 8,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "family": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9 ]{0,63}$"
+                      },
+                      "weights": {
+                        "minItems": 1,
+                        "maxItems": 9,
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "minimum": 100,
+                          "maximum": 900
+                        }
+                      },
+                      "italic": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "family"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "font_faces": {
+                  "description": "Vendored font faces as get_presentation returns them; send them back unchanged.",
+                  "maxItems": 96,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "family": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9 _.-]{0,63}$"
+                      },
+                      "src": {
+                        "type": "string",
+                        "pattern": "^asset:[0-9a-f]{64}$"
+                      },
+                      "format": {
+                        "type": "string",
+                        "enum": [
+                          "woff2",
+                          "woff",
+                          "truetype",
+                          "opentype"
+                        ]
+                      },
+                      "weight": {
+                        "type": "string",
+                        "pattern": "^[1-9][0-9]{0,2}(?: [1-9][0-9]{0,2})?$"
+                      },
+                      "style": {
+                        "type": "string",
+                        "enum": [
+                          "normal",
+                          "italic",
+                          "oblique"
+                        ]
+                      },
+                      "unicodeRange": {
+                        "type": "string",
+                        "maxLength": 4000,
+                        "pattern": "^U\\+[0-9A-Fa-f?]{1,6}(?:-[0-9A-Fa-f]{1,6})?(?:, ?U\\+[0-9A-Fa-f?]{1,6}(?:-[0-9A-Fa-f]{1,6})?)*$"
+                      },
+                      "source": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "pattern": "^https:\\/\\/[^\\s\"'<>\\\\]+$"
+                      }
+                    },
+                    "required": [
+                      "family",
+                      "src",
+                      "format"
+                    ],
+                    "additionalProperties": false
                   }
                 }
               },
@@ -409,6 +602,11 @@
                     ]
                   },
                   {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "pattern": "^https:\\/\\/\\S+$"
+                  },
+                  {
                     "type": "object",
                     "properties": {
                       "name": {
@@ -426,7 +624,17 @@
                       "source": {
                         "type": "string",
                         "maxLength": 2048,
-                        "pattern": "^https:\\/\\/[^\\s\"'<>]+$"
+                        "pattern": "^https:\\/\\/[^\\s\"'<>\\\\]+$"
+                      },
+                      "finalUrl": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "pattern": "^https:\\/\\/[^\\s\"'<>\\\\]+$"
+                      },
+                      "bytes": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 67108864
                       }
                     },
                     "required": [
@@ -437,7 +645,20 @@
                   }
                 ]
               },
-              "description": "Interactive mode: vendored scripts loaded before the slide scripts: a bundled id (see the guide) or { name, version, sha256, source } of a script stored on this instance."
+              "description": "Interactive mode: scripts loaded before the deck and slide scripts, in order: an https CDN URL of a classic (UMD/IIFE) build, which the server downloads once and stores (vendoring); a bundled id (see the guide); or { name, version, sha256, source } as get_presentation returns it."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "script": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 524288,
+              "description": "Interactive mode: deck-level JavaScript run once in the global scope, after libs and before the slide scripts, only after the owner approves it. Max 512 KB."
             },
             {
               "type": "null"
@@ -630,7 +851,7 @@
   {
     "name": "add_asset",
     "title": "Upload an image",
-    "description": "Uploads an image (PNG, JPEG, WebP, AVIF or GIF, at most 1 MB decoded) for a presentation as source { base64, media_type } and returns its ref (asset:<sha256>) to use in <img src> or background-image:url(); then save the slide with update_slides. Uploading the same bytes twice returns the same ref. SVG: write it inline in the slide instead.",
+    "description": "Uploads an image (PNG, JPEG, WebP, AVIF or GIF) for a presentation as source { base64, media_type } (at most 1 MB decoded) or source { url } (an https URL the server downloads once, at most 8 MB) and returns its ref (asset:<sha256>) to use in <img src> or background-image:url(); then save the slide with update_slides. Uploading the same bytes twice returns the same ref. SVG: write it inline in the slide instead.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -659,13 +880,13 @@
               "maxLength": 100
             },
             "url": {
-              "description": "Not available yet on this server: send base64 instead.",
+              "description": "An https URL of the image instead of base64: the server downloads it once and stores it (at most 8 MB).",
               "type": "string",
               "maxLength": 2048
             }
           },
           "additionalProperties": false,
-          "description": "The image: { base64, media_type }."
+          "description": "The image: { base64, media_type } or { url }."
         }
       },
       "required": [
@@ -707,6 +928,68 @@
       "destructiveHint": false,
       "idempotentHint": true,
       "openWorldHint": false
+    }
+  },
+  {
+    "name": "import_html_deck",
+    "title": "Import an HTML artifact as a presentation",
+    "description": "Creates a presentation from a whole HTML document as you would write it in an artifact (inline <style>, Google Fonts <link>, CDN <script src>, https images, inline scripts). The server splits it into slides (data-slide, class \"slide\", sibling <section>s, then <h1>/<h2>, else one slide), downloads every external resource once and stores it, and returns presentation_id, urls, the heuristic used, a vendoring report and warnings. Scripts never run until the owner approves them (interactive.approve_url). Prefer create_presentation when you write a new deck; use this to bring an existing artifact.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "html": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2097152,
+          "description": "The complete HTML document of the artifact (<!doctype html>…</html>), as is: CDN scripts, Google Fonts links, stylesheets and https images are vendored. Max 2 MB."
+        },
+        "title": {
+          "description": "Overrides <title>.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "lang": {
+          "type": "string",
+          "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$",
+          "description": "BCP-47 language tag, e.g. \"en\" or \"es-PE\"."
+        },
+        "aspect_ratio": {
+          "description": "\"16:9\" (default) or \"4:3\".",
+          "type": "string",
+          "enum": [
+            "16:9",
+            "4:3"
+          ]
+        },
+        "split": {
+          "description": "How to split the body into slides. \"auto\" (default) tries in order: elements with data-slide, elements with class \"slide\", sibling <section>s, then <h1>/<h2> boundaries, else one slide.",
+          "type": "string",
+          "enum": [
+            "auto",
+            "slides",
+            "headings",
+            "single"
+          ]
+        },
+        "idempotency_key": {
+          "description": "Repeating the call with the same key returns the first result.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        }
+      },
+      "required": [
+        "html"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Import an HTML artifact as a presentation",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": true
     }
   }
 ]

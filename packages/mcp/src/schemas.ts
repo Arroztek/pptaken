@@ -2,7 +2,14 @@
 // Input schemas of the MCP tools (architecture §5.3). Flat, snake_case, with descriptions and examples. They are
 // advertised in `tools/list` as JSON Schema and enforced by the tool handlers themselves (so that a failure is a
 // structured VALIDATION_ERROR with `path` and `hint`, not the SDK's plain-text message). The core validates again.
-import { FONT_CATALOG, LIB_IDS, LIMITS, vendoredScriptSchema } from "@pptaken/schema";
+import {
+  FONT_CATALOG,
+  fontFaceSchema,
+  googleFontSchema,
+  LIB_IDS,
+  LIMITS,
+  vendoredScriptSchema,
+} from "@pptaken/schema";
 import { z } from "zod";
 
 const presentationId = z
@@ -39,12 +46,28 @@ const theme = z
       .string()
       .max(LIMITS.maxThemeCss)
       .optional()
-      .describe("CSS shared by all slides (classes you reuse). Max 64 KB."),
+      .describe(
+        "CSS shared by all slides (classes you reuse). Max 64 KB. @import url(https://…) and url(https://…) are vendored.",
+      ),
     fonts: z
       .array(z.enum(FONT_CATALOG))
       .max(LIMITS.maxThemeFonts)
       .optional()
-      .describe("Font families from the bundled catalog that the deck uses (max 4)."),
+      .describe(
+        "Bundled font families the deck uses (max 4). Any other family: use google_fonts or a stylesheet URL.",
+      ),
+    google_fonts: z
+      .array(googleFontSchema)
+      .max(LIMITS.maxGoogleFonts)
+      .optional()
+      .describe(
+        'Families to vendor from Google Fonts, e.g. [{ "family": "Lora", "weights": [400, 700] }]. The server downloads them once and stores them; then use the family name in CSS.',
+      ),
+    font_faces: z
+      .array(fontFaceSchema)
+      .max(LIMITS.maxFontFaces)
+      .optional()
+      .describe("Vendored font faces as get_presentation returns them; send them back unchanged."),
   })
   .describe("Theme shared by all slides.");
 
@@ -57,10 +80,27 @@ const script = z
   );
 
 const libs = z
-  .array(z.union([z.enum(LIB_IDS), vendoredScriptSchema]))
+  .array(
+    z.union([
+      z.enum(LIB_IDS),
+      z
+        .string()
+        .max(2048)
+        .regex(/^https:\/\/\S+$/, "Expected an https URL"),
+      vendoredScriptSchema,
+    ]),
+  )
   .max(LIMITS.maxLibs)
   .describe(
-    "Interactive mode: vendored scripts loaded before the slide scripts: a bundled id (see the guide) or { name, version, sha256, source } of a script stored on this instance.",
+    "Interactive mode: scripts loaded before the deck and slide scripts, in order: an https CDN URL of a classic (UMD/IIFE) build, which the server downloads once and stores (vendoring); a bundled id (see the guide); or { name, version, sha256, source } as get_presentation returns it.",
+  );
+
+const deckScript = z
+  .string()
+  .min(1)
+  .max(LIMITS.maxDeckScript)
+  .describe(
+    "Interactive mode: deck-level JavaScript run once in the global scope, after libs and before the slide scripts, only after the owner approves it. Max 512 KB.",
   );
 
 const slide = z.strictObject({
@@ -109,6 +149,7 @@ export const createPresentationInput = z.strictObject({
     .describe('"16:9" (default, 1920×1080 canvas) or "4:3" (1440×1080).'),
   theme: theme.optional(),
   libs: libs.optional(),
+  script: deckScript.optional(),
   slides: z
     .array(slide)
     .min(1)
@@ -163,6 +204,7 @@ export const updatePresentationInput = z.strictObject({
   theme: theme.nullable().optional().describe("Replaces the whole theme; null removes it."),
   target_minutes: z.int().min(1).max(LIMITS.maxTargetMinutes).nullable().optional(),
   libs: libs.nullable().optional(),
+  script: deckScript.nullable().optional(),
   slide_order: z
     .array(z.string().max(40))
     .max(LIMITS.maxSlides)
@@ -233,9 +275,36 @@ export const addAssetInput = z.strictObject({
         .string()
         .max(2048)
         .optional()
-        .describe("Not available yet on this server: send base64 instead."),
+        .describe(
+          "An https URL of the image instead of base64: the server downloads it once and stores it (at most 8 MB).",
+        ),
     })
-    .describe("The image: { base64, media_type }."),
+    .describe("The image: { base64, media_type } or { url }."),
+});
+
+export const importHtmlDeckInput = z.strictObject({
+  html: z
+    .string()
+    .min(1)
+    .max(2 * 1024 * 1024)
+    .describe(
+      "The complete HTML document of the artifact (<!doctype html>…</html>), as is: CDN scripts, Google Fonts links, stylesheets and https images are vendored. Max 2 MB.",
+    ),
+  title: z.string().min(1).max(LIMITS.maxTitleLength).optional().describe("Overrides <title>."),
+  lang: lang.optional(),
+  aspect_ratio: z.enum(["16:9", "4:3"]).optional().describe('"16:9" (default) or "4:3".'),
+  split: z
+    .enum(["auto", "slides", "headings", "single"])
+    .optional()
+    .describe(
+      'How to split the body into slides. "auto" (default) tries in order: elements with data-slide, elements with class "slide", sibling <section>s, then <h1>/<h2> boundaries, else one slide.',
+    ),
+  idempotency_key: z
+    .string()
+    .min(1)
+    .max(200)
+    .optional()
+    .describe("Repeating the call with the same key returns the first result."),
 });
 
 export const presentationLinksInput = z.strictObject({ presentation_id: presentationId });
@@ -248,3 +317,4 @@ export type GetPresentationArgs = z.infer<typeof getPresentationInput>;
 export type UpdatePresentationArgs = z.infer<typeof updatePresentationInput>;
 export type UpdateSlidesArgs = z.infer<typeof updateSlidesInput>;
 export type AddAssetArgs = z.infer<typeof addAssetInput>;
+export type ImportHtmlDeckArgs = z.infer<typeof importHtmlDeckInput>;

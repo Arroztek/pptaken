@@ -148,3 +148,20 @@ byte-level image fixtures (including polyglots and truncated files).
 | Open: audit retention | The audit log grows without bound; a retention job belongs to a later phase. |
 | Export/import actor | Owner only in v1 (human-only action, security §3.3): an export can carry notes out of the instance and an import writes a whole deck; agents get `FORBIDDEN_ACTOR`. `includeNotes` defaults to `false` in the core; the `.pkn` route opts in. Import re-implements `addAsset`'s checks with the same helpers (`sniffImage`, `normalizeMediaType`) so that all rows go in one transaction instead of N `addAsset` calls. |
 | Open: quiz, share links, live sessions | Later phases add their own ports, tables and use cases; `include: ["quiz"]` is not supported yet. |
+
+## Ingest-time vendoring and HTML import (ADR-022)
+
+- Port `VendorFetcher` (`ports.ts`): fetches one external resource (`script`, `stylesheet`, `font`, `image`); the
+  server's implementation is SSRF-safe on every hop. Errors carry a `VendorErrorCode`. Without a fetcher wired
+  (`CoreDeps.vendor`), external references are left to the sanitizer (removed with warnings) as before.
+- `usecases/vendoring.ts`: on every write (`createPresentation`, `updatePresentation`, `updateSlides`,
+  `importHtml`) the raw input is validated first (`probeEnvelope`), then external resources are found with the
+  sanitizer's pure transforms, fetched (budget `CoreConfig.vendor`), checked by content (`vendor.ts`
+  `checkVendored`: magic bytes and structure), stored as assets (`linkVendoredAssets`, quota-checked in the write's
+  transaction) and the deck is rewritten (`asset:` refs, `theme.fontFaces`, `libs`). Provenance goes to the deck's
+  `vendored` list; library labels are normalized from it (never trusted from the caller). Every fetch is audited
+  (`vendor.fetch`). Results carry a `vendored` report.
+- `usecases/import-html.ts` (`Core.importHtml`): `@pptaken/sanitizer`'s `importHtmlArtifact`, then the same path as
+  `createPresentation`.
+- `Core.addAssetFromUrl`: `add_asset` by https URL through the same fetcher.
+- The scripts digest covers the deck-level `script` (only when present: existing digests are unchanged).

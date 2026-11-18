@@ -10,6 +10,7 @@ import {
   requireScope,
 } from "../principal.js";
 import { sha256Hex } from "../sha256.js";
+import { checkVendored, isVendorError } from "../vendor.js";
 import {
   audit,
   type Ctx,
@@ -200,6 +201,90 @@ export async function addAsset(
       return { ...infoOf(asset), deduplicated: !inserted };
     });
   });
+}
+
+/**
+ * `decks:write`. Downloads an image once through the vendoring fetcher (ADR-022: SSRF-safe, size and type
+ * checked by content) and stores it like {@link addAsset}. Viewers only ever load the stored copy.
+ */
+export async function addAssetFromUrl(
+  ctx: Ctx,
+  principal: Principal,
+  rawInput: { presentationId: string; url: string; filename?: string },
+  call?: CallContext,
+): Promise<AddAssetResult> {
+  requireScope(principal, "decks:write");
+  const input = requireObject(rawInput);
+  const id = requireString(input.presentationId, "presentationId");
+  const url = requireString(input.url, "url", 2048);
+  const vendor = ctx.vendor;
+  if (vendor === undefined || !vendor.enabled) {
+    throw new DomainError("FETCH_BLOCKED", "This instance does not download external resources", {
+      path: "url",
+      hint: "Upload the image as base64 instead: source { base64, media_type }.",
+    });
+  }
+  if (!/^https:\/\//i.test(url)) {
+    throw new DomainError("FETCH_BLOCKED", "Only https URLs are downloaded", {
+      path: "url",
+      hint: "Use an https URL, or upload the image as base64.",
+    });
+  }
+  await loadLiveDeck(ctx.store, principal, id);
+  let fetched: Awaited<ReturnType<typeof vendor.fetch>>;
+  try {
+    fetched = await vendor.fetch({
+      url,
+      kind: "image",
+      deckId: id,
+      actor: { actor: principal.actor, tokenId: principal.tokenId ?? null },
+      deadline: ctx.clock.now() + ctx.config.vendor.deadlineMs,
+    });
+  } catch (error) {
+    const code = isVendorError(error) ? error.code : "fetch-failed";
+    await audit(ctx, ctx.store, principal, call, "vendor.fetch", `deck:${id}`, "error", {
+      kind: "image",
+      code,
+    });
+    const blocked = ["blocked-address", "not-allowed-host", "disabled", "rate-limited"].includes(
+      code,
+    );
+    throw new DomainError(
+      code === "rate-limited" ? "RATE_LIMITED" : blocked ? "FETCH_BLOCKED" : "FETCH_FAILED",
+      `The image could not be downloaded (${code})${isVendorError(error) ? `: ${error.message}` : ""}`,
+      {
+        path: "url",
+        hint: "Use a public https URL of a PNG, JPEG, GIF, WebP or AVIF image, or upload it as base64.",
+        retryable: code === "timeout" || code === "rate-limited" || code === "fetch-failed",
+      },
+    );
+  }
+  let mediaType: string;
+  try {
+    mediaType = checkVendored("image", fetched.bytes, ctx.config.limits.maxImagePixels).mediaType;
+  } catch (error) {
+    throw unsupported(
+      isVendorError(error) ? error.message : "The content is not a supported image",
+      `Accepted types: ${ACCEPTED}. The type is detected from the content.`,
+      "url",
+    );
+  }
+  await audit(ctx, ctx.store, principal, call, "vendor.fetch", `deck:${id}`, "ok", {
+    kind: "image",
+    bytes: fetched.bytes.length,
+    sha256: sha256Hex(fetched.bytes),
+  });
+  return addAsset(
+    ctx,
+    principal,
+    {
+      presentationId: id,
+      bytes: fetched.bytes,
+      mediaType,
+      ...(typeof input.filename === "string" ? { filename: input.filename } : {}),
+    },
+    call,
+  );
 }
 
 function parseAssetKey(input: Record<string, unknown>): string {

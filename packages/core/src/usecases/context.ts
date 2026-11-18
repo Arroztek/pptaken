@@ -17,6 +17,7 @@ import type {
   IdGenerator,
   Repositories,
   UnitOfWork,
+  VendorFetcher,
 } from "../ports.js";
 import type { CallContext, Principal } from "../principal.js";
 
@@ -26,6 +27,8 @@ export interface Ctx {
   clock: Clock;
   ids: IdGenerator;
   config: CoreConfig;
+  /** Ingest-time vendoring (ADR-022); without it external references are left to the sanitizer. */
+  vendor?: VendorFetcher | undefined;
 }
 
 export function actorRef(principal: Principal): ActorRef {

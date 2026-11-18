@@ -18,6 +18,14 @@ export const LIMITS = {
   maxDeckScripts: 1024 * 1024,
   /** Vendored scripts (`libs`) per deck. */
   maxLibs: 16,
+  /** Deck-level shared script (ADR-022), run once before the slide scripts; counts toward `maxDeckScripts`. */
+  maxDeckScript: 512 * 1024,
+  /** Vendored font faces (`theme.fontFaces`, ADR-022). */
+  maxFontFaces: 96,
+  /** Google Fonts families requested with `theme.googleFonts` (an input convenience, ADR-022). */
+  maxGoogleFonts: 8,
+  /** Provenance entries of vendored resources (`vendored`, ADR-022). */
+  maxVendored: 300,
 } as const;
 
 /**
@@ -50,7 +58,11 @@ export type LibId = keyof typeof LIB_CATALOG;
 /** Ids of the vendored libraries, for validation. */
 export const LIB_IDS = Object.keys(LIB_CATALOG) as LibId[];
 
-/** Closed catalog of fonts bundled with the player (see docs/foundation/05-visual-identity.md §7). */
+/**
+ * Fonts bundled with the player (see docs/foundation/05-visual-identity.md §7). Since ADR-022 this is no longer a
+ * closed list of what a deck may use: any other family works once it is vendored into `theme.fontFaces` (from a
+ * stylesheet URL such as Google Fonts, an `@font-face` with an https `src`, or `theme.googleFonts`).
+ */
 export const FONT_CATALOG = [
   "Inter",
   "IBM Plex Sans",

@@ -6,7 +6,7 @@ import { policy } from "@pptaken/sanitizer";
 import { FONT_CATALOG, LIB_CATALOG, LIMITS } from "@pptaken/schema";
 
 /** Version of the guide, bumped with the deck format or the sanitizer policy. */
-export const AUTHORING_GUIDE_VERSION = "1";
+export const AUTHORING_GUIDE_VERSION = "2";
 
 /** Maximum decoded bytes of one `add_asset` call with base64 content (phase F2). */
 export const MAX_ASSET_BASE64_BYTES = 1024 * 1024;
@@ -51,11 +51,11 @@ A presentation is a list of slides. Each slide is an HTML fragment drawn on a fi
 ## CSS
 - Put CSS in the slide \`css\` (scoped to that slide; \`html\`, \`body\` and \`:root\` mean the slide), in \`theme.css\` (shared by all slides) or in \`style\` attributes.
 - Allowed: flex, grid, positioning, box model, typography, colors, gradients, borders, shadows, transforms, transitions, @keyframes animations, filters, masks, custom properties, @media, @supports.
-- Removed: @import, @font-face, @container, @layer, @page; \`url()\` except \`url(asset:<id>)\` in backgrounds; \`content:url()\`; attr(), env(), image-set(); selectors with escapes or classes/ids starting with \`pptaken\`. z-index within ±9999.
-- No external URLs anywhere: no http(s), no \`data:\` URIs, no web fonts or CDNs. They are removed and could not load anyway.
+- Removed: @container, @layer, @page; \`url()\` other than \`asset:\` (after vendoring) in backgrounds; \`content:url()\`; attr(), env(), image-set(); selectors with escapes or classes/ids starting with \`pptaken\`. z-index within ±9999.
+- \`@import url(https://…)\`, \`@font-face\` with an https \`src\` and \`url(https://…)\` images are vendored (see External resources). No \`data:\` URIs.
 
 ## Fonts
-Use only these families (plus generic ones such as sans-serif, serif, monospace): ${FONT_CATALOG.join(", ")}. Other names are removed. List the ones you use in \`theme.fonts\` (max ${LIMITS.maxThemeFonts}) and always end with a generic fallback: \`font-family:'Inter',sans-serif\`.
+Bundled (no download): ${FONT_CATALOG.join(", ")}; list those in \`theme.fonts\` (max ${LIMITS.maxThemeFonts}). Any other family works once vendored: \`theme.google_fonts: [{"family":"Lora","weights":[400,700]}]\`, a Google Fonts \`@import url(https://fonts.googleapis.com/css2?…)\`, or an \`@font-face\` with an https \`src\`. Names neither bundled nor vendored are removed. End with a generic fallback: \`font-family:'Inter',sans-serif\`.
 
 ## Steps (reveal on click)
 - \`data-step="1"\`, \`data-step="2"\`… reveal elements one click at a time; equal numbers appear together; \`data-step=""\` reveals in document order after the numbered ones.
@@ -64,7 +64,7 @@ Use only these families (plus generic ones such as sans-serif, serif, monospace)
 ## Images
 1. Create the presentation, then call \`add_asset\` with \`presentation_id\`, \`filename\` and \`source: { base64, media_type }\` (PNG, JPEG, WebP, AVIF or GIF; at most 1 MB decoded per call; prefer WebP or AVIF).
 2. Use the returned \`ref\` (\`asset:<sha256>\`) in \`<img src="asset:…">\` or \`background-image:url(asset:…)\` and save it with \`update_slides\`.
-- SVG files cannot be uploaded: write the SVG inline in the slide HTML. Downloading images from a URL is not available yet.
+- Or put an https image URL directly in \`<img src>\`/\`url()\`, or call \`add_asset\` with \`source: { url }\`: the server downloads it once. SVG files are not vendored: write the SVG inline.
 
 ## Notes, sections, timing
 - \`notes\`: Markdown, never shown to the audience. Write what the speaker says, not the slide text again.
@@ -80,10 +80,10 @@ ${LIMITS.maxSlides} slides; slide html ${kb(LIMITS.maxSlideHtml)}; slide css ${k
 - Diagrams as inline SVG with a \`viewBox\` and explicit pixel width/height.
 
 ## Not like that
-- No \`<script>\`, event handlers or links: they are removed.
-- No external images, fonts or stylesheets, no \`data:\` URLs.
+- No \`<script>\`, event handlers or links in slide html: they are removed (code goes in \`script\`, see below).
+- No iframes, embeds, video or audio, no \`data:\` URLs: removed with a warning.
 - No vw/vh or % font sizes, no responsive breakpoints, no scrolling boxes.
-- No full documents (\`<html>\`, \`<head>\`, \`<body>\`): send only the slide content.
+- No full documents (\`<html>\`, \`<head>\`, \`<body>\`) in slide html: send only the slide content, or import a whole document with \`import_html_deck\`.
 
 ## Example
 Slide:
@@ -145,6 +145,25 @@ export function libraryCatalog(): {
   }));
 }
 
+/**
+ * The guide's section on external resources (ADR-022): what ingest-time vendoring accepts on this instance and
+ * what still cannot work.
+ */
+export function vendoringGuide(enabled: boolean): string {
+  if (!enabled) {
+    return "\n## External resources\nOff on this instance: a write that references external https resources (fonts, stylesheets, scripts, images) is refused with FETCH_BLOCKED. Use the bundled fonts and libraries and add_asset with base64.\n";
+  }
+  return `
+## External resources (vendored)
+- Write content as you would for a browser: \`<img src="https://…">\`, CSS \`url(https://…)\`, \`@import url(https://…)\` (Google Fonts included), \`@font-face\` with an https \`src\`, \`<link rel="stylesheet">\`/\`<script src>\` (classic builds from jsDelivr, unpkg, cdnjs…) and \`libs\` entries that are https URLs.
+- On write, the server downloads each resource ONCE (https only, public hosts, at most 3 redirects), checks it by content and stores it; the deck is rewritten to the stored copy, so viewers never contact those hosts. Same URL again: no new download.
+- Limits per write: 100 URLs, 40 MB; per file: script 2 MB, stylesheet 512 KB, font 2 MB, image 8 MB (PNG, JPEG, GIF, WebP, AVIF; SVG must be inline).
+- Results list each URL in \`vendored\` (status vendored/reused/failed). A failed resource is dropped with a VENDOR_FAILED warning: tell the user, or use another URL.
+- Cannot work: network at runtime (fetch, XHR, WebSocket, live APIs: put the data in the deck), iframes, embeds, video/audio, ES modules (\`type="module"\`, \`import … from "https://…"\`: use the UMD/IIFE build and its global), JSX/React that needs a transpiler.
+- A whole HTML artifact (inline styles and scripts, CDN links): \`import_html_deck\` turns it into slides (elements with class "slide", sibling \`<section>\`s, or h1/h2 boundaries).
+`;
+}
+
 /** The guide's script section for an instance; short when scripts are off. */
 export function scriptsGuide(status: ScriptsStatusLabel): string {
   if (status === "off") {
@@ -161,7 +180,8 @@ export function scriptsGuide(status: ScriptsStatusLabel): string {
 ## Interactive scripts (status: needs_owner_approval)
 - A slide's code goes in its \`script\` field: an inline classic script, at most ${kb(LIMITS.maxSlideScript)} per slide and ${kb(LIMITS.maxDeckScripts)} per deck, without "<script", "</script" or "<!--". \`<script>\` in \`html\` is removed.
 - It runs once as \`function (slide) { … }\` with \`slide = { root, onEnter(fn(step)), onLeave(fn), onStep(fn(step)), setSteps(n) }\`; \`root\` is the slide's \`<section>\`. Call \`setSteps\` during setup only. Use \`addEventListener\`, never on* attributes.
-- No network and no CDN: fetch, XHR, WebSocket, WebRTC, workers, eval/new Function, iframes, \`<script>\`/\`<link>\` elements and \`document.write\` are blocked. Libraries are vendored scripts stored on this instance, listed in load order in the deck's \`libs\` (a bundled id is enough): ${libs}. Vendoring other libraries from a CDN URL is not available yet.
+- No network at runtime: fetch, XHR, WebSocket, WebRTC, workers, eval/new Function, iframes, \`<script>\`/\`<link>\` elements and \`document.write\` are blocked. Libraries go in \`libs\`, in load order: an https CDN URL of a classic UMD/IIFE build (vendored on write, then part of what the owner approves) or a bundled id: ${libs}.
+- Shared code (helpers, global functions) can go in the deck-level \`script\`: it runs once in the global scope after \`libs\` and before the slide scripts.
 - Extra HTML in decks with scripts: ${elements}; input type ${types}; data-* attributes. Still removed: ${policy.INTERACTIVE_REMOVED_EXAMPLES.join(" ")}.
 - Mandatory static fallback: the slide's html/css must make sense without the script. Exports, phones, the presenter preview and any deck the owner has not approved show only that.
 - Scripts run only after the owner approves them in the panel; any change to a script or to \`libs\` needs approval again. Tool results report \`interactive.status\`; you cannot approve. Keys typed in inputs stay there; arrows and space still move the slides.

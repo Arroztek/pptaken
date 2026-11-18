@@ -320,6 +320,66 @@ export type PptxConverter = (
 ) => Promise<PptxConversionOutput>;
 
 // ---------------------------------------------------------------------------------------------------------------
+// Ingest-time vendoring (ADR-022)
+
+/** What a vendored resource is used as; it selects the size cap and the content check. */
+export type VendorKind = "script" | "stylesheet" | "font" | "image";
+
+/**
+ * Error classes of a vendor fetch. `blocked-address`: the URL (or a redirect) points to a private, loopback,
+ * link-local, metadata or otherwise non-public address, a non-https URL, a port other than 443 or credentials;
+ * `not-allowed-host`: the operator's allow/deny lists refuse the host; `too-large`: over the per-kind cap or the
+ * write's budget; `timeout`: the request or the write's deadline passed; `bad-type`: the content is not what the
+ * kind requires (checked by magic bytes and structure, never by the header alone); `http-error`: a non-2xx answer
+ * or too many redirects; `rate-limited`: too many fetches by this actor; `disabled`: the operator turned vendoring
+ * off; `fetch-failed`: any other network failure.
+ */
+export type VendorErrorCode =
+  | "blocked-address"
+  | "not-allowed-host"
+  | "too-large"
+  | "timeout"
+  | "bad-type"
+  | "http-error"
+  | "rate-limited"
+  | "disabled"
+  | "fetch-failed";
+
+export interface VendorFetchRequest {
+  url: string;
+  kind: VendorKind;
+  /** The presentation being written (audit, rate limiting). */
+  deckId: string;
+  actor: ActorRef;
+  /** Epoch ms after which the fetch must give up (`timeout`). */
+  deadline: number;
+}
+
+export interface VendorFetchResult {
+  /** The requested URL. */
+  url: string;
+  /** The URL that answered, after redirects. */
+  finalUrl: string;
+  /** Redirect targets followed, in order. */
+  redirects: string[];
+  bytes: Uint8Array;
+  /** The declared `Content-Type`, informational only. */
+  contentType: string | null;
+}
+
+/**
+ * Fetches one external resource for ingest-time vendoring. Implementations must be SSRF-safe on every hop (https
+ * only, public unicast addresses, connection pinned to the checked address), bounded (redirects, size per kind,
+ * time, concurrency, rate per actor) and must throw only errors with a {@link VendorErrorCode} `code` (see
+ * `VendorError` in `vendor.ts`). The server provides one (`apps/server/src/vendor-fetch.ts`); tests inject fakes.
+ */
+export interface VendorFetcher {
+  /** False when the operator turned vendoring off: writes with external URLs are refused. */
+  readonly enabled: boolean;
+  fetch(request: VendorFetchRequest): Promise<VendorFetchResult>;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 // Time and identifiers
 
 export interface Clock {

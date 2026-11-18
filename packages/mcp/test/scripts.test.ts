@@ -14,6 +14,7 @@ import {
   type McpServerConfig,
   scriptsGuide,
   TOOL_NAMES,
+  vendoringGuide,
 } from "../src/index.js";
 
 const tokens = (text: string) => Math.ceil(text.length / 4);
@@ -74,7 +75,7 @@ describe("whoami and the guide", () => {
     ]);
     expect(who.body.scripts_warning).toBeUndefined();
     const guide = await call("get_authoring_guide");
-    expect(guide.body.guide).toBe(AUTHORING_GUIDE + scriptsGuide("off"));
+    expect(guide.body.guide).toBe(AUTHORING_GUIDE + vendoringGuide(false) + scriptsGuide("off"));
     expect(guide.body.guide).toContain("Off on this instance");
   });
 
@@ -101,7 +102,7 @@ describe("whoami and the guide", () => {
       "onStep",
       "setSteps",
       "addEventListener",
-      "No network and no CDN",
+      "No network at runtime",
       "uplot@1",
       "static fallback",
       "you cannot approve",

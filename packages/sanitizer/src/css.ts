@@ -788,11 +788,16 @@ function sanitizeFontValue(property: string, value: Node, w: WarningCollector): 
     }
     const lower = name.toLowerCase();
     if (GENERIC_FONT_FAMILIES.has(lower) && group[0].type === "Identifier") kept.push(lower);
-    else if (CATALOG_FONTS.has(lower)) {
+    else if (CATALOG_FONTS.has(lower) || vendoredFonts?.has(lower) === true) {
       // Single-word names stay unquoted (`Inter`); multi-word names are quoted (`"Source Serif 4"`).
       const canonical = canonicalFont(lower);
       kept.push(IDENT.test(canonical) ? canonical : JSON.stringify(canonical));
-    } else w.add("REMOVED_FONT_FAMILY", "Font is not in the bundled catalog", name);
+    } else
+      w.add(
+        "REMOVED_FONT_FAMILY",
+        "Font is not in the bundled catalog and was not vendored (add it with theme.googleFonts or a stylesheet URL)",
+        name,
+      );
   }
   if (kept.length === 0) {
     w.add("REMOVED_CSS_PROPERTY", "No allowed font family left", property);
@@ -813,7 +818,33 @@ function sanitizeFontValue(property: string, value: Node, w: WarningCollector): 
 }
 
 function canonicalFont(lower: string): string {
-  return FONT_CATALOG.find((f) => f.toLowerCase() === lower) ?? lower;
+  return FONT_CATALOG.find((f) => f.toLowerCase() === lower) ?? vendoredFonts?.get(lower) ?? lower;
+}
+
+/**
+ * Families vendored into the deck (`theme.fontFaces`, ADR-022), lowercase name → canonical name, accepted like
+ * the bundled catalog while {@link withVendoredFonts} runs. Sanitizing is synchronous, so a scoped module value is
+ * enough and keeps every internal signature unchanged.
+ */
+let vendoredFonts: ReadonlyMap<string, string> | null = null;
+
+const VENDORED_FAMILY = /^[A-Za-z0-9][A-Za-z0-9 _.-]{0,63}$/;
+
+/** Runs `work` with `families` accepted in `font-family`/`font` values (invalid names are ignored). */
+export function withVendoredFonts<T>(families: readonly string[], work: () => T): T {
+  const previous = vendoredFonts;
+  const map = new Map<string, string>();
+  for (const family of families) {
+    if (typeof family === "string" && VENDORED_FAMILY.test(family)) {
+      map.set(family.toLowerCase(), family);
+    }
+  }
+  vendoredFonts = map.size > 0 ? map : null;
+  try {
+    return work();
+  } finally {
+    vendoredFonts = previous;
+  }
 }
 
 /** Parses a standalone CSS value (used for SVG presentation attributes). */
