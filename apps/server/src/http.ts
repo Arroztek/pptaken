@@ -195,10 +195,15 @@ export function appCsp(frameSrc: string[]): string {
  * CSP of the player and presenter pages: the app CSP plus what an offline (srcdoc) deck document needs, because a
  * srcdoc frame inherits its parent's CSP (spike S4): the runtime's exact hash (no other inline script) and `data:`
  * fonts. The deck document's own `<meta>` CSP still blocks every network request from the content.
+ *
+ * `frame-src` names exactly the content origin (ADR-020, S5 §1): `contentOrigin` when content has its own origin,
+ * never `'self'` then; `'self'` only when content shares the app origin (`contentOrigin` null).
  */
-export function playerCsp(frameSrc: string[], runtimeSha256: string): string {
+export function playerCsp(contentOrigin: string | null, runtimeSha256: string): string {
   if (!/^[A-Za-z0-9+/]{43}=$/.test(runtimeSha256)) throw new TypeError("bad runtime hash");
-  return appCsp(frameSrc)
+  const frame = contentOrigin === null ? "'self'" : new URL(contentOrigin).origin;
+  return appCsp([])
+    .replace("frame-src 'self'", `frame-src ${frame}`)
     .replace("script-src 'self'", `script-src 'self' 'sha256-${runtimeSha256}'`)
     .replace("font-src 'self'", "font-src 'self' data:");
 }

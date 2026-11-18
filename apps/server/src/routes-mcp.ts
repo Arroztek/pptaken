@@ -34,6 +34,10 @@ export function mcpRoutes(s: Services): Hono<AppEnv> {
         config: {
           version: s.config.version,
           baseUrl: extra.baseUrl,
+          scripts: {
+            status: s.config.scripts === "owner" ? "needs_owner_approval" : "off",
+            separateSiteContent: s.config.contentOrigin === "separate-site",
+          },
           rateLimit: ({ principal, write }) => {
             const key = principal.tokenId ?? "owner";
             const calls = s.limits.mcpCallsPerToken.take(key);

@@ -46,7 +46,8 @@ pnpm --filter @pptaken/server test:remote                # Playwright: remote co
 | `PPTAKEN_DATA_DIR` | `./data` | created `0700`; holds `secret.key` (`0600`), `pptaken.db`, `blobs/` |
 | `PPTAKEN_TRUST_PROXY` | `false` | take the client IP from the **last** `X-Forwarded-For` entry and the scheme from `X-Forwarded-Proto` |
 | `PPTAKEN_WEB_DIR` | `../web/dist` (relative to this package) | |
-| `PPTAKEN_CONTENT_URL` | none | separate cookie-less origin for `/c/*` (recommended; needs `PPTAKEN_PUBLIC_URL`) |
+| `PPTAKEN_CONTENT_URL` | none | separate cookie-less origin for `/c/*` (recommended; needs `PPTAKEN_PUBLIC_URL`). On a different **site** it also isolates scripted decks in Firefox (ADR-020) |
+| `PPTAKEN_SCRIPTS` | `off` | interactive mode (ADR-020): `owner` lets approved author scripts run in the owner's own session; `off` stores them but always serves the static version |
 | `PPTAKEN_ALLOWED_HOSTS` | none | extra Host names (comma-separated) |
 | `PPTAKEN_FONTS_DIR` | `../../packages/ui/fonts` | |
 | `PPTAKEN_SECRET_KEY` / `PPTAKEN_SECRET_KEY_FILE` | none | inject the 256-bit secret (hex or base64) instead of `secret.key` |

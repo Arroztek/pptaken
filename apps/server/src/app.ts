@@ -135,7 +135,10 @@ export async function createServer(
     blobs,
     clock,
     ids,
-    config: config.defaultLang === undefined ? {} : { defaultLang: config.defaultLang },
+    config: {
+      ...(config.defaultLang === undefined ? {} : { defaultLang: config.defaultLang }),
+      scriptsEnabled: config.scripts === "owner",
+    },
     convertPptx: options.convertPptx ?? createPptxConverter(),
   });
   const oauth = createOAuthService({
@@ -175,6 +178,19 @@ export async function createServer(
     }
   }
   const installCode = await auth.ensureInstallCode();
+  if (config.scripts === "owner") {
+    logger.warn(
+      "author scripts are enabled (PPTAKEN_SCRIPTS=owner): approved scripts run in the owner's session",
+      {
+        contentOrigin: config.contentOrigin,
+      },
+    );
+    if (config.contentOrigin !== "separate-site") {
+      logger.warn(
+        "no separate-site content origin: a runaway author script can freeze the presenter's tab in Firefox and Safari; set PPTAKEN_CONTENT_URL to another site to isolate it",
+      );
+    }
+  }
 
   const minute = 60_000;
   const services: Services = {

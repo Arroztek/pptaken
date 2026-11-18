@@ -27,6 +27,8 @@ import {
   readArchive,
   writeArchive,
 } from "@pptaken/export";
+import { staticDeck } from "@pptaken/sanitizer";
+import { hasScripts } from "@pptaken/schema";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -174,12 +176,16 @@ export function exportRoutes(s: Services): Hono<AppEnv> {
       throw error;
     }
 
+    // Interactive mode (ADR-020): exports are the static version in this phase. Scripts and libraries are
+    // omitted (the HTML is re-sanitized with the safe profile) and the response says so.
+    const scripted = hasScripts(exported.deck);
+    const deck = scripted ? staticDeck(exported.deck).deck : exported.deck;
     let body: Uint8Array;
     let type: string;
     let names: { ascii: string; unicode: string };
     if (format === "html") {
       const out = exportHtml({
-        deck: exported.deck,
+        deck,
         assets: new Map(exported.assets.map((a) => [a.sha256, a])),
         includeNotes,
         fonts: bundledFonts(s),
@@ -196,7 +202,7 @@ export function exportRoutes(s: Services): Hono<AppEnv> {
       }
     } else {
       const out = writeArchive({
-        deck: exported.deck,
+        deck,
         assets: exported.assets,
         includeNotes,
         generator,
@@ -216,6 +222,7 @@ export function exportRoutes(s: Services): Hono<AppEnv> {
       "Content-Security-Policy": "sandbox; default-src 'none'; frame-ancestors 'none'",
       "X-PPTaken-Revision": String(exported.revision),
       "X-PPTaken-Notes": exported.includesNotes ? "1" : "0",
+      ...(scripted ? { "X-PPTaken-Scripts": "omitted" } : {}),
     });
   });
 

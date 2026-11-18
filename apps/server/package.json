@@ -31,6 +31,7 @@
     "@pptaken/mcp": "workspace:*",
     "@pptaken/player": "workspace:*",
     "@pptaken/realtime": "workspace:*",
+    "@pptaken/sanitizer": "workspace:*",
     "@pptaken/schema": "workspace:*",
     "@pptaken/storage-sqlite": "workspace:*",
     "hono": "4.13.18",

@@ -266,6 +266,28 @@ export const webEn = {
     text: "Check the address, or go back to your presentations.",
     back: "Go to presentations",
   },
+  scripts: {
+    // Interactive mode (ADR-020). Shown by the approval screen of the next phase and by export notices.
+    title: "Interactive scripts",
+    off: "Scripts are off on this PPTaken. The presentation shows its static version.",
+    none: "This presentation has no scripts.",
+    pending:
+      "New or changed scripts are waiting for your review. Until you approve them, the presentation shows its static version.",
+    approved: "You approved these scripts. They run only when you present from your own session.",
+    review:
+      "Review the code below before you approve it. Your agent wrote it; PPTaken cannot tell whether it is safe.",
+    approve: "Approve these scripts",
+    revoke: "Stop running scripts",
+    digest: "Fingerprint {digest}",
+    libraries: "Libraries: {libs}",
+    changed: "The scripts changed while you were reviewing them. Review them again.",
+    capabilitySeparate:
+      "Content is served from a separate site: a runaway script cannot freeze your presenter tab in Chrome or Firefox.",
+    freezeWarning:
+      "A runaway script can freeze your presenter tab in Firefox and Safari. To isolate it, set PPTAKEN_CONTENT_URL to an address on a different site.",
+    exportNotice: "Exports and offline copies contain the static version: scripts are left out.",
+    safeLink: "Present without scripts",
+  },
   errors: {
     validation: "Check the highlighted fields.",
     wrongPassword: "That password is not right. Try again.",

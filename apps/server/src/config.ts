@@ -28,6 +28,17 @@ export interface ServerConfig {
   oauthIssuer: string | null;
   /** Optional separate, cookie-less origin for `/c/*` (deck documents, assets, fonts). */
   contentUrl: string | null;
+  /**
+   * How the content origin relates to the app origin (ADR-020 §4): `same-origin` (no PPTAKEN_CONTENT_URL),
+   * `same-site` (another port or a sibling host of the same registrable domain, conservatively) or
+   * `separate-site`. Only `separate-site` gives Firefox process isolation for the content frame.
+   */
+  contentOrigin: ContentOriginRelation;
+  /**
+   * Interactive mode (ADR-020, PPTAKEN_SCRIPTS): `off` (default: author scripts are stored but never run) or
+   * `owner` (they run in the owner's own session once the owner approved the deck's scripts digest).
+   */
+  scripts: "off" | "owner";
   host: string;
   port: number;
   dataDir: string;
@@ -50,6 +61,35 @@ export interface ServerConfig {
   /** Largest `.pkn` archive accepted by `POST /api/v1/decks/import` (PPTAKEN_MAX_IMPORT_MB, default 100). */
   maxImportBytes: number;
   logLevel: "debug" | "info" | "warn" | "error";
+}
+
+export type ContentOriginRelation = "same-origin" | "same-site" | "separate-site";
+
+/** Conservative "site" key of a host name: the host itself for IP literals and single labels, else its last two labels. */
+function siteKey(hostname: string): string {
+  const host = hostname.toLowerCase().replace(/\.$/, "");
+  if (host.startsWith("[") || /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) return host;
+  const labels = host.split(".");
+  return labels.length <= 2 ? host : labels.slice(-2).join(".");
+}
+
+/**
+ * How a content origin relates to the app origin, decided offline without the Public Suffix List (ADR-020 §4).
+ * Host names are compared by their last two labels, so the answer errs on the safe side: `a.example.co.uk` and
+ * `b.other.co.uk` (different sites for browsers) and `x.github.io` / `y.github.io` are reported as
+ * `same-site`. Ports and schemes are ignored (cookies ignore ports). IP literals are separate sites when they
+ * differ. `null` content URL: content is served from the app origin itself.
+ */
+export function contentOriginRelation(
+  publicUrl: string | null,
+  contentUrl: string | null,
+): ContentOriginRelation {
+  if (contentUrl === null || publicUrl === null) return "same-origin";
+  const app = new URL(publicUrl);
+  const content = new URL(contentUrl);
+  if (app.origin === content.origin) return "same-origin";
+  if (app.hostname.toLowerCase() === content.hostname.toLowerCase()) return "same-site";
+  return siteKey(app.hostname) === siteKey(content.hostname) ? "same-site" : "separate-site";
 }
 
 export class ConfigError extends Error {
@@ -146,6 +186,12 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   if (!["debug", "info", "warn", "error"].includes(logLevel)) {
     throw new ConfigError("PPTAKEN_LOG_LEVEL must be debug, info, warn or error");
   }
+  const scripts = (env.PPTAKEN_SCRIPTS || "off").toLowerCase();
+  if (scripts !== "off" && scripts !== "owner") {
+    throw new ConfigError(
+      'PPTAKEN_SCRIPTS must be "off" (default) or "owner" (author scripts run in the owner\'s own session after approval)',
+    );
+  }
   const allowedHosts = (env.PPTAKEN_ALLOWED_HOSTS ?? "")
     .split(",")
     .map((h) => h.trim().toLowerCase())
@@ -159,6 +205,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     publicUrl,
     oauthIssuer: oauthIssuerOf(publicUrl),
     contentUrl,
+    contentOrigin: contentOriginRelation(publicUrl, contentUrl),
+    scripts,
     host: env.PPTAKEN_HOST || "0.0.0.0",
     port: int("PPTAKEN_PORT", env.PPTAKEN_PORT, 8080, 0, 65535),
     dataDir: resolve(env.PPTAKEN_DATA_DIR || "./data"),

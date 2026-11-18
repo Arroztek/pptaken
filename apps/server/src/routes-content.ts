@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { signToken, verifyToken } from "@pptaken/auth-local";
-import { DEFAULT_WORKSPACE_ID, isDomainError, type Principal } from "@pptaken/core";
+import { DEFAULT_WORKSPACE_ID, isDomainError, type Principal, scriptsDigest } from "@pptaken/core";
 import {
   assetHeaders,
   BUILD_PLACEHOLDER,
@@ -15,6 +15,8 @@ import {
   RUNTIME_SHA256,
   SHELL_FILES,
 } from "@pptaken/player";
+import { staticDeck } from "@pptaken/sanitizer";
+import { canvasSize } from "@pptaken/schema";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import type { AppEnv, Services } from "./context.js";
@@ -57,15 +59,21 @@ import { keepOfflineCopy, loadContent, SignedOutError } from "./offline-client.j
 const body = document.body;
 const id = body.dataset.deck;
 const status = document.getElementById("status");
+// Interactive mode (ADR-020): ?safe=1 forces the static version; otherwise the server decides (owner session,
+// instance switch, approved digest) and the shell hardens itself when it runs scripts.
+const safe = new URLSearchParams(location.search).get("safe") === "1";
 async function start() {
   let source;
   try {
-    source = await loadContent(id);
+    source = await loadContent(id, fetch, { safe });
   } catch (error) {
     if (error instanceof SignedOutError) { location.href = "/login"; return; }
     throw error;
   }
   body.dataset.source = source.fromCopy ? "copy" : "network";
+  body.dataset.scripts = source.scripts ?? "none";
+  const scripted = source.scripts === "running";
+  let scriptErrors = 0;
   let keeping = false;
   let remote = null;
   const locale = pickLocale(navigator.languages);
@@ -82,7 +90,16 @@ async function start() {
     onReady: (slides) => { status.hidden = true; body.dataset.slides = String(slides.length); body.dataset.state = "ready"; },
     onLoadTimeout: () => { body.dataset.state = "slow"; status.hidden = false; status.textContent = "This presentation is taking too long to load. If you are in an embedded preview, open this page in your regular browser."; },
     onChange: (s) => { body.dataset.slide = String(s.slide); body.dataset.step = String(s.step); body.dataset.mode = s.mode; body.dataset.black = String(s.black); remote?.onChange(s); },
-    onFault: (f) => { body.dataset.state = "fault"; status.hidden = false; status.textContent = "The presentation stopped: " + f; },
+    ...(scripted ? {
+      scripts: true,
+      expect: source.expect,
+      fallbackUrl: () => loadContent(id, fetch, { safe: true }).then((r) => r.contentUrl ?? null),
+      onScriptError: () => { scriptErrors += 1; body.dataset.scriptErrors = String(scriptErrors); },
+    } : {}),
+    onFault: (f) => {
+      if (f === "unresponsive") { body.dataset.state = "unresponsive"; body.dataset.scripts = "stopped"; return; }
+      body.dataset.state = "fault"; status.hidden = false; status.textContent = "The presentation stopped: " + f;
+    },
     onOffline: (o) => {
       body.dataset.offline = o.state;
       body.dataset.offlineImages = String(o.images);
@@ -93,7 +110,9 @@ async function start() {
     },
   });
   if (source.fromCopy) player.setOfflineCopy(true);
-  player.iframe.focus();
+  // A scripted frame never gets the keyboard by default: the trusted page keeps it until the presenter clicks in.
+  if (scripted) document.getElementById("stage").focus({ preventScroll: true });
+  else player.iframe.focus();
   if (!source.fromCopy) {
     Promise.all([import("/_rt/screen.js"), import("/_rt/qr.js")]).then(([m, q]) => {
       remote = m.startRemoteScreen({
@@ -137,7 +156,8 @@ async function get(path) {
 }
 async function start() {
   const base = "/api/v1/decks/" + encodeURIComponent(id);
-  const [raw, source] = await Promise.all([get(base + "/presenter"), loadContent(id)]);
+  // The previews never run author scripts (ADR-020): always the static version.
+  const [raw, source] = await Promise.all([get(base + "/presenter"), loadContent(id, fetch, { safe: true })]);
   const data = parsePresenterData(raw);
   if (!data) throw new Error("presenter data");
   document.title = t.presenterTitle + " · " + data.title;
@@ -325,7 +345,7 @@ export function playerRoutes(s: Services): Hono<AppEnv> {
 export function playerPagePolicy(c: Context, s: Services): string {
   const frame = contentOrigin(c, s.config);
   const own = publicOrigin(c, s.config);
-  return playerCsp(frame === own ? [] : [frame], RUNTIME_SHA256);
+  return playerCsp(frame === own ? null : frame, RUNTIME_SHA256);
 }
 
 const swCache = new WeakMap<Services, string>();
@@ -411,14 +431,26 @@ export function contentRoutes(s: Services): Hono<AppEnv> {
     const revisionText = c.req.param("revision");
     if (!ULID.test(deckId) || !/^[1-9][0-9]{0,8}$/.test(revisionText)) return notFoundText();
     const now = s.clock.now();
-    if (
-      !verifyToken(s.contentKey, c.req.query("ct"), {
-        purpose: "doc",
-        subject: `${deckId}:${revisionText}`,
-        now,
-      })
-    ) {
-      return forbiddenText();
+    const token = c.req.query("ct") ?? "";
+    // Two kinds of token: "doc" (static document, subject `<deck>:<revision>`) and, interactive mode (ADR-020),
+    // "sdoc" (minted only for the owner's session, subject `<deck>:<revision>:<scripts digest>`).
+    const docOk = verifyToken(s.contentKey, token, {
+      purpose: "doc",
+      subject: `${deckId}:${revisionText}`,
+      now,
+    });
+    let signedDigest: string | null = null;
+    if (!docOk) {
+      const subject = subjectOf(token) ?? "";
+      const prefix = `${deckId}:${revisionText}:`;
+      const candidate = subject.startsWith(prefix) ? subject.slice(prefix.length) : "";
+      if (
+        !SHA256.test(candidate) ||
+        !verifyToken(s.contentKey, token, { purpose: "sdoc", subject, now })
+      ) {
+        return forbiddenText();
+      }
+      signedDigest = candidate;
     }
     let document: Awaited<ReturnType<typeof s.core.getRevision>>["document"];
     try {
@@ -435,6 +467,17 @@ export function contentRoutes(s: Services): Hono<AppEnv> {
       ...document,
       slides: document.slides.map(({ notes: _notes, ...slide }) => slide),
     };
+    // Interactive mode (ADR-020): the scripted document only for an "sdoc" token minted for this revision's exact
+    // digest, with the instance switch on and that digest still approved now (a revocation takes effect at
+    // once); everything else gets the static fallback (scripts and libraries removed, HTML re-sanitized with the
+    // safe profile).
+    let scripted = false;
+    if (signedDigest !== null && s.config.scripts === "owner") {
+      const digest = scriptsDigest(document);
+      const approval = await s.storage.scriptApprovals.get(DEFAULT_WORKSPACE_ID, deckId);
+      scripted = digest === signedDigest && approval?.digest === digest;
+    }
+    const servedDeck = scripted ? deck : staticDeck(deck).deck;
     const nonce = randomBytes(18).toString("base64");
     const origin = contentOrigin(c, s.config);
     const assetToken = signToken(s.contentKey, {
@@ -452,7 +495,25 @@ export function contentRoutes(s: Services): Hono<AppEnv> {
     ];
     const fontBaseUrl = `${origin}/c/fonts/`;
     const fontFaces = fontFacesOf(s);
-    const built = buildDeckDocument(deck, { nonce, assetBaseUrl, fontBaseUrl, fontFaces });
+    if (scripted) {
+      const built = buildDeckDocument(servedDeck, {
+        scripts: true,
+        assetBaseUrl,
+        fontBaseUrl,
+        fontFaces,
+        frameAncestors,
+      });
+      return c.body(built.html, 200, {
+        ...contentHeaders({
+          scriptHashes: [RUNTIME_SHA256],
+          assetBaseUrl,
+          fontBaseUrl,
+          frameAncestors,
+        }),
+        "Content-Security-Policy": built.csp,
+      });
+    }
+    const built = buildDeckDocument(servedDeck, { nonce, assetBaseUrl, fontBaseUrl, fontFaces });
     return c.body(
       built.html,
       200,

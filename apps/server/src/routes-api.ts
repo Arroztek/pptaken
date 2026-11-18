@@ -9,7 +9,14 @@ import {
   signToken,
   type TokenView,
 } from "@pptaken/auth-local";
-import { DEFAULT_WORKSPACE_ID, isDomainError, ownerPrincipal } from "@pptaken/core";
+import {
+  DEFAULT_WORKSPACE_ID,
+  isDomainError,
+  ownerPrincipal,
+  type ScriptsStatus,
+  scriptsDigest,
+} from "@pptaken/core";
+import { canvasSize, type Deck } from "@pptaken/schema";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -41,6 +48,7 @@ const decisionBody = z.object({
   decision: z.enum(["approve", "deny"]),
   scopes: z.array(z.string().max(40)).max(10).optional(),
 });
+const approveBody = z.object({ digest: z.string().regex(/^[0-9a-f]{64}$/) }).strict();
 const tokenBody = z.object({
   name: z.string().max(200),
   scopes: z.array(z.string().max(40)).max(10).optional(),
@@ -415,6 +423,8 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
     };
   }
 
+  const callOf = (c: Context<AppEnv>) => ({ ip: c.get("ip"), requestId: c.get("requestId") });
+
   function domainErrorResponse(c: Context, error: unknown): Response {
     if (isDomainError(error)) {
       if (error.code === "VALIDATION_ERROR")
@@ -465,18 +475,124 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
     return c.json({ ...sum, urls: { present: `${publicOrigin(c, s.config)}/p/${id}` } });
   });
 
+  // The signed content URL of the current revision for the owner's player page. Side-effect free (it only signs).
+  // Interactive mode (ADR-020): an "sdoc" token (scripted document) only when the instance switch is on, the deck's
+  // current scripts digest is the approved one and the page did not ask for the static version (`?safe=1`);
+  // otherwise a "doc" token (static fallback). This route accepts the panel session cookie only, never a token.
   api.get("/decks/:id/content-url", async (c) => {
     const denied = await requireOwner(c);
     if (denied) return denied;
     const id = c.req.param("id");
     const sum = ULID.test(id) ? await summary(id) : null;
     if (sum === null) return apiError(c, "NOT_FOUND", "Presentation not found");
-    const token = signToken(s.contentKey, {
-      purpose: "doc",
-      subject: `${id}:${sum.revision}`,
-      exp: s.clock.now() + CONTENT_DOC_TTL_MS,
-    });
-    return c.json({ url: `${contentOrigin(c, s.config)}/c/${id}/${sum.revision}?ct=${token}` });
+    const safe = c.req.query("safe") === "1";
+    let document: Deck;
+    try {
+      ({ document } = await s.core.getRevision(owner, {
+        presentationId: id,
+        revision: sum.revision,
+      }));
+    } catch (error) {
+      return domainErrorResponse(c, error);
+    }
+    const digest = scriptsDigest(document);
+    let scripts: "running" | "none" | "off" | "pending" | "safe" = "none";
+    if (digest !== null) {
+      const approval = await s.storage.scriptApprovals.get(DEFAULT_WORKSPACE_ID, id);
+      if (s.config.scripts !== "owner") scripts = "off";
+      else if (approval?.digest !== digest) scripts = "pending";
+      else scripts = safe ? "safe" : "running";
+    }
+    const exp = s.clock.now() + CONTENT_DOC_TTL_MS;
+    const token =
+      scripts === "running"
+        ? signToken(s.contentKey, {
+            purpose: "sdoc",
+            subject: `${id}:${sum.revision}:${digest}`,
+            exp,
+          })
+        : signToken(s.contentKey, { purpose: "doc", subject: `${id}:${sum.revision}`, exp });
+    const url = `${contentOrigin(c, s.config)}/c/${id}/${sum.revision}?ct=${token}`;
+    if (scripts !== "running")
+      return c.json({ url, scripts }, 200, { "Cache-Control": "no-store" });
+    const canvas = canvasSize(document.aspectRatio);
+    return c.json(
+      { url, scripts, expect: { slides: document.slides.map((x) => x.id), ...canvas } },
+      200,
+      { "Cache-Control": "no-store" },
+    );
+  });
+
+  // ---------------------------------------------------------------------------------------------------------------
+  // Interactive mode (ADR-020): the owner reviews and approves a deck's author scripts. Panel session only (this
+  // router never accepts API or OAuth tokens), CSRF on POST, and the core refuses any actor but the owner.
+
+  /** The scripts status of a deck, with the instance capability the approval screen must show. */
+  const scriptsJson = (st: ScriptsStatus) => ({
+    presentationId: st.presentationId,
+    revision: st.revision,
+    enabled: st.enabled,
+    state: st.state,
+    digest: st.digest,
+    approvedDigest: st.approvedDigest,
+    approvedAt: iso(st.approvedAt),
+    slides: st.slides,
+    libs: st.libs,
+    chars: st.chars,
+    capability: {
+      contentOrigin: s.config.contentOrigin,
+      separateSiteContent: s.config.contentOrigin === "separate-site",
+      // Shown before approval when false: a runaway script can freeze the presenter tab in Firefox and Safari.
+      freezeWarning: s.config.contentOrigin !== "separate-site",
+    },
+  });
+
+  api.get("/decks/:id/scripts", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    const id = c.req.param("id");
+    if (!ULID.test(id)) return apiError(c, "NOT_FOUND", "Presentation not found");
+    try {
+      const st = await s.core.getScriptsStatus(owner, { presentationId: id }, callOf(c));
+      return c.json(scriptsJson(st), 200, { "Cache-Control": "no-store" });
+    } catch (error) {
+      return domainErrorResponse(c, error);
+    }
+  });
+
+  api.post("/decks/:id/scripts/approve", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    const id = c.req.param("id");
+    if (!ULID.test(id)) return apiError(c, "NOT_FOUND", "Presentation not found");
+    const input = await body(c, approveBody);
+    if (input instanceof Response) return input;
+    try {
+      const st = await s.core.approveScripts(
+        owner,
+        { presentationId: id, digest: input.digest },
+        callOf(c),
+      );
+      return c.json(scriptsJson(st));
+    } catch (error) {
+      if (isDomainError(error) && error.code === "REVISION_CONFLICT") {
+        return apiError(c, "VALIDATION_ERROR", error.message, { hint: error.hint, status: 409 });
+      }
+      return domainErrorResponse(c, error);
+    }
+  });
+
+  api.post("/decks/:id/scripts/revoke", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    const id = c.req.param("id");
+    if (!ULID.test(id)) return apiError(c, "NOT_FOUND", "Presentation not found");
+    try {
+      const st = await s.core.revokeScripts(owner, { presentationId: id }, callOf(c));
+      return c.json(scriptsJson(st));
+    } catch (error) {
+      return domainErrorResponse(c, error);
+    }
   });
 
   api.all("*", (c) => apiError(c, "NOT_FOUND", "No such API route"));

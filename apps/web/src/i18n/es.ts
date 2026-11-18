@@ -271,6 +271,28 @@ export const webEs: WebDictionary = {
     text: "Revisa la dirección o vuelve a tus presentaciones.",
     back: "Ir a presentaciones",
   },
+  scripts: {
+    title: "Scripts interactivos",
+    off: "Los scripts están desactivados en este PPTaken. La presentación muestra su versión estática.",
+    none: "Esta presentación no tiene scripts.",
+    pending:
+      "Hay scripts nuevos o modificados esperando tu revisión. Hasta que los apruebes, la presentación muestra su versión estática.",
+    approved: "Aprobaste estos scripts. Solo se ejecutan cuando presentas desde tu propia sesión.",
+    review:
+      "Revisa el código antes de aprobarlo. Lo escribió tu agente; PPTaken no puede saber si es seguro.",
+    approve: "Aprobar estos scripts",
+    revoke: "Dejar de ejecutar scripts",
+    digest: "Huella {digest}",
+    libraries: "Bibliotecas: {libs}",
+    changed: "Los scripts cambiaron mientras los revisabas. Revísalos otra vez.",
+    capabilitySeparate:
+      "El contenido se sirve desde otro sitio: un script descontrolado no puede congelar tu pestaña de presentador en Chrome ni en Firefox.",
+    freezeWarning:
+      "Un script descontrolado puede congelar tu pestaña de presentador en Firefox y Safari. Para aislarlo, configura PPTAKEN_CONTENT_URL con una dirección de otro sitio.",
+    exportNotice:
+      "Las exportaciones y las copias sin conexión contienen la versión estática: los scripts quedan fuera.",
+    safeLink: "Presentar sin scripts",
+  },
   errors: {
     validation: "Revisa los campos marcados.",
     wrongPassword: "Esa contraseña no es correcta. Inténtalo de nuevo.",

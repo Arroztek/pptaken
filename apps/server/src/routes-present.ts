@@ -24,6 +24,7 @@ import {
   type PresenterSlide,
   renderNotes,
 } from "@pptaken/player";
+import { staticDeck } from "@pptaken/sanitizer";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import type { AppEnv, Services } from "./context.js";
@@ -104,7 +105,8 @@ export async function offlineBundle(
       if (!(isDomainError(error) && error.code === "NOT_FOUND")) throw error;
     }
   }
-  const { html } = buildOfflineDocument(document, {
+  // Offline copies are always the static version (ADR-020: scripted decks are online only in this phase).
+  const { html } = buildOfflineDocument(staticDeck(document).deck, {
     nonce: randomBytes(18).toString("base64"),
     assets,
     fonts: offlineFonts(s),

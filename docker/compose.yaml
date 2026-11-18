@@ -18,6 +18,8 @@ services:
       PPTAKEN_TRUST_PROXY: ${PPTAKEN_TRUST_PROXY:-false}
       # Optional. Listed so values set in the Dokploy/Coolify UI reach the container (empty = built-in default).
       PPTAKEN_CONTENT_URL: ${PPTAKEN_CONTENT_URL:-}
+      # Interactive mode (ADR-020): "owner" runs owner-approved author scripts; default "off".
+      PPTAKEN_SCRIPTS: ${PPTAKEN_SCRIPTS:-}
       PPTAKEN_ALLOWED_HOSTS: ${PPTAKEN_ALLOWED_HOSTS:-}
       PPTAKEN_LANG: ${PPTAKEN_LANG:-}
       PPTAKEN_LOG_LEVEL: ${PPTAKEN_LOG_LEVEL:-}
