@@ -48,3 +48,18 @@ describe("debounce", () => {
     expect(fn).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("formatBytes and shortDigest", async () => {
+  const { formatBytes, shortDigest } = await import("./format");
+  it("formats sizes in decimal units", () => {
+    expect(formatBytes(812, "en")).toBe("812 B");
+    expect(formatBytes(12_400, "en")).toBe("12.4 kB");
+    expect(formatBytes(1_200_000, "es")).toBe("1,2 MB");
+  });
+  it("shortens a fingerprint to its ends", () => {
+    expect(shortDigest(`${"a".repeat(8)}${"0".repeat(48)}${"b".repeat(8)}`)).toBe(
+      "aaaaaaaa…bbbbbbbb",
+    );
+    expect(shortDigest("abc")).toBe("abc");
+  });
+});

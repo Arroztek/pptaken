@@ -390,3 +390,89 @@ describe("PowerPoint import", () => {
     });
   });
 });
+
+describe("interactive mode (ADR-021)", () => {
+  const D = "a".repeat(64);
+  const status = {
+    presentationId: "01J",
+    revision: 2,
+    enabled: true,
+    state: "pending",
+    digest: D,
+    approvedDigest: null,
+    approvedAt: null,
+    slides: ["sim"],
+    libs: [
+      { name: "uPlot", version: "1.6.32", sha256: "b".repeat(64), source: "https://x.test/u.js" },
+    ],
+    chars: 10,
+    capability: { contentOrigin: "same-origin", separateSiteContent: false, freezeWarning: true },
+  };
+  const review = {
+    ...status,
+    sources: [{ slideId: "sim", index: 1, source: "x()", sha256: "c".repeat(64), bytes: 3 }],
+    warnings: [
+      {
+        code: "ELEMENT_REMOVED",
+        message: "Removed <canvas>",
+        path: "slides[1].html",
+        name: "canvas",
+      },
+    ],
+    presenterPassword: { set: false },
+  };
+
+  it("reads the review and validates fingerprints", async () => {
+    const { api } = fakeFetch(200, review);
+    const r = await api.scriptsReview("01J");
+    expect(r.sources[0]?.bytes).toBe(3);
+    expect(r.libs[0]?.version).toBe("1.6.32");
+    const bad = fakeFetch(200, { ...review, digest: "NOT-HEX" });
+    await expect(bad.api.scriptsReview("01J")).rejects.toMatchObject({ code: "BAD_RESPONSE" });
+  });
+
+  it("approves with the reviewed digest, POST + CSRF, and surfaces a 409", async () => {
+    const ok = fakeFetch(200, { ...status, state: "approved", approvedDigest: D });
+    await ok.api.approveScripts("01J", D);
+    expect(ok.calls[0]?.url).toBe("/api/v1/decks/01J/scripts/approve");
+    expect(ok.calls[0]?.init.method).toBe("POST");
+    expect((ok.calls[0]?.init.headers as Record<string, string>)["X-PPTaken-CSRF"]).toBe("1");
+    expect(JSON.parse(String(ok.calls[0]?.init.body))).toEqual({ digest: D });
+    const stale = fakeFetch(409, {
+      error: { code: "VALIDATION_ERROR", message: "The scripts changed since they were reviewed" },
+    });
+    await expect(stale.api.approveScripts("01J", D)).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("manages the presenter password", async () => {
+    const set = fakeFetch(200, { set: true, change: "set" });
+    expect(await set.api.setPresenterPassword("lantern folds 9 maps")).toEqual({
+      set: true,
+      change: "set",
+    });
+    expect(set.calls[0]?.url).toBe("/api/v1/presenter/password");
+    const del = fakeFetch(204, undefined);
+    await del.api.removePresenterPassword();
+    expect(del.calls[0]?.init.method).toBe("DELETE");
+    const get = fakeFetch(200, { set: false });
+    expect(await get.api.presenterPassword()).toEqual({ set: false });
+  });
+
+  it("accepts deck summaries with and without the scripts state", async () => {
+    const base = {
+      id: "01J",
+      title: "T",
+      lang: "en",
+      slideCount: 1,
+      revision: 1,
+      updatedAt: NOW,
+      createdBy: "agent",
+    };
+    const { api } = fakeFetch(200, {
+      decks: [base, { ...base, scripts: "approved" }],
+      nextCursor: null,
+    });
+    const page = await api.listDecks();
+    expect(page.decks.map((d) => d.scripts)).toEqual([null, "approved"]);
+  });
+});

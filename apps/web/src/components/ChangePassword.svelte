@@ -41,7 +41,8 @@
       if (e instanceof ApiError && e.code === "UNAUTHENTICATED" && e.message === "Wrong password") {
         currentError = t("errors.wrongPassword");
       } else if (e instanceof ApiError && e.code === "VALIDATION_ERROR") {
-        error = t("setup.weakPassword");
+        // The owner and presenter passwords must stay separate secrets (ADR-021).
+        error = /presenter password/i.test(e.message) ? t("password.equalsPresenter") : t("setup.weakPassword");
       } else if (!handleAuthError(e)) {
         error = errorMessage(e, t);
       }

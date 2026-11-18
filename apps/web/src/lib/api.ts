@@ -100,6 +100,7 @@ export function toApiError(status: number, body: unknown, retryAfter: string | n
 // ------------------------------------------------------------------ shapes
 
 export const SCOPES = ["decks:read", "decks:write", "quiz:draft"] as const;
+export const SCRIPTS_STATES = ["none", "pending", "approved"] as const;
 
 const setupStatus = object({ installed: bool, publicUrl: str, https: bool, version: str });
 const ownerResponse = object({ owner: object({ id: str }) });
@@ -142,8 +143,75 @@ const deckSummary = object({
   revision: count,
   updatedAt: isoDate,
   createdBy: oneOf(["owner", "agent"] as const),
+  /** Trust state of the current revision's author scripts (ADR-020); absent from older servers. */
+  scripts: optionalNull(oneOf(SCRIPTS_STATES)),
 });
 const deckPage = object({ decks: arrayOf(deckSummary), nextCursor: nullable(str) });
+const deckDetail = object({
+  id: str,
+  title: str,
+  lang: str,
+  slideCount: count,
+  revision: count,
+  updatedAt: isoDate,
+  createdBy: oneOf(["owner", "agent"] as const),
+  scripts: optionalNull(oneOf(SCRIPTS_STATES)),
+  urls: object({ present: str }),
+});
+
+// Interactive mode: the approval screen (ADR-021).
+const DIGEST_RE = /^[0-9a-f]{64}$/;
+const digest: Guard<string> = (v, p) => {
+  const s = str(v, p);
+  if (!DIGEST_RE.test(s)) throw new ShapeError(p, "64 lowercase hex characters");
+  return s;
+};
+const vendoredScript = object({
+  name: str,
+  version: optionalNull(str),
+  sha256: digest,
+  source: optionalNull(str),
+});
+const scriptSource = object({
+  slideId: str,
+  index: count,
+  source: str,
+  sha256: digest,
+  bytes: count,
+});
+const scriptWarning = object({
+  code: str,
+  message: str,
+  path: optionalNull(str),
+  name: optionalNull(str),
+});
+const statusShape = {
+  presentationId: str,
+  revision: count,
+  /** The instance switch (PPTAKEN_SCRIPTS=owner). */
+  enabled: bool,
+  state: oneOf(SCRIPTS_STATES),
+  digest: nullable(digest),
+  approvedDigest: nullable(digest),
+  approvedAt: nullable(isoDate),
+  slides: arrayOf(str),
+  libs: arrayOf(vendoredScript),
+  chars: count,
+  capability: object({
+    contentOrigin: oneOf(["same-origin", "same-site", "separate-site"] as const),
+    separateSiteContent: bool,
+    freezeWarning: bool,
+  }),
+};
+const scriptsStatus = object(statusShape);
+const scriptsReview = object({
+  ...statusShape,
+  sources: arrayOf(scriptSource),
+  warnings: arrayOf(scriptWarning),
+  presenterPassword: object({ set: bool }),
+});
+const presenterPasswordStatus = object({ set: bool });
+const presenterPasswordSet = object({ set: bool, change: oneOf(["set", "changed"] as const) });
 const importWarning = object({
   code: str,
   message: str,
@@ -196,6 +264,12 @@ export type CreatedToken = Infer<typeof createdToken>;
 export type ConnectStatus = Infer<typeof connectStatus>;
 export type DeckSummary = Infer<typeof deckSummary>;
 export type DeckPage = Infer<typeof deckPage>;
+export type DeckDetail = Infer<typeof deckDetail>;
+export type ScriptsStatus = Infer<typeof scriptsStatus>;
+export type ScriptsReview = Infer<typeof scriptsReview>;
+export type ScriptSource = Infer<typeof scriptSource>;
+export type VendoredScript = Infer<typeof vendoredScript>;
+export type ScriptWarning = Infer<typeof scriptWarning>;
 export type ImportResult = Infer<typeof importResult>;
 export type ImportWarning = Infer<typeof importWarning>;
 export type ExportFormat = "html" | "pptaken";
@@ -335,6 +409,19 @@ export interface ApiClient {
     newPassword: string;
     disconnectApps: boolean;
   }): Promise<{ disconnectedApps: number }>;
+  /** One presentation (the deck page header). */
+  getDeck(id: string): Promise<DeckDetail>;
+  /** The approval screen: status, every script's source, libraries, warnings, capability. */
+  scriptsReview(id: string): Promise<ScriptsReview>;
+  /**
+   * Approves the scripts the owner reviewed. `digest` is the one shown: if the deck changed meanwhile the server
+   * answers 409 and nothing is approved.
+   */
+  approveScripts(id: string, digest: string): Promise<ScriptsStatus>;
+  revokeScripts(id: string): Promise<ScriptsStatus>;
+  presenterPassword(): Promise<{ set: boolean }>;
+  setPresenterPassword(password: string): Promise<{ set: boolean; change: "set" | "changed" }>;
+  removePresenterPassword(): Promise<void>;
 }
 
 export function createApi(
@@ -443,6 +530,21 @@ export function createApi(
       await request("DELETE", `/oauth/apps/${encodeURIComponent(id)}`, null);
     },
     changePassword: (input) => request("POST", "/auth/password", passwordChanged, input),
+    getDeck: (id) => request("GET", `/decks/${encodeURIComponent(id)}`, deckDetail),
+    scriptsReview: (id) =>
+      request("GET", `/decks/${encodeURIComponent(id)}/scripts`, scriptsReview),
+    approveScripts: (id, value) =>
+      request("POST", `/decks/${encodeURIComponent(id)}/scripts/approve`, scriptsStatus, {
+        digest: value,
+      }),
+    revokeScripts: (id) =>
+      request("POST", `/decks/${encodeURIComponent(id)}/scripts/revoke`, scriptsStatus),
+    presenterPassword: () => request("GET", "/presenter/password", presenterPasswordStatus),
+    setPresenterPassword: (password) =>
+      request("POST", "/presenter/password", presenterPasswordSet, { password }),
+    async removePresenterPassword() {
+      await request("DELETE", "/presenter/password", null);
+    },
     importDeck: (file) =>
       request("POST", "/decks/import", importResult, undefined, {
         body: file,

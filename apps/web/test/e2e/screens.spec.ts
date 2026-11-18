@@ -15,7 +15,11 @@ import {
   test,
 } from "./fixtures";
 
-const OUT = join(dirname(fileURLToPath(import.meta.url)), "..", ".screenshots");
+const OUT =
+  process.env.PPTAKEN_SCREENSHOTS_DIR ??
+  join(dirname(fileURLToPath(import.meta.url)), "..", ".screenshots");
+/** Only screens whose name matches (e.g. PPTAKEN_SCREENS=deck,security-presenter). */
+const ONLY = (process.env.PPTAKEN_SCREENS ?? "").split(",").filter(Boolean);
 mkdirSync(OUT, { recursive: true });
 
 const WIDTHS = [360, 768, 1280] as const;
@@ -175,7 +179,7 @@ const screens: Screen[] = [
       await page.goto(`${mock.url}/security`);
       await page.locator("input[name=current-password]").fill(mock.state.password ?? "");
       await page.locator("input[name=new-password]").fill(mock.state.password ?? "");
-      await page.locator("form .ppt-btn--primary").click();
+      await page.locator("section[aria-labelledby=password-title] form .ppt-btn--primary").click();
       await expect(page.locator(".ppt-notice--success")).toBeVisible();
     },
   },
@@ -187,7 +191,7 @@ const screens: Screen[] = [
       await page.locator("input[name=current-password]").fill("not the password");
       await page.locator("input[name=new-password]").fill("a new long passphrase");
       await page.locator("input[type=checkbox]").check();
-      await page.locator("form .ppt-btn--primary").click();
+      await page.locator("section[aria-labelledby=password-title] form .ppt-btn--primary").click();
       await expect(page.locator(".ppt-field__error")).toBeVisible();
     },
   },
@@ -219,6 +223,65 @@ const screens: Screen[] = [
     },
   },
   {
+    name: "deck-pending",
+    options: { installed: true, decks: 3 },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_001`);
+      await expect(page.locator("[data-testid=freeze-warning]")).toBeVisible();
+      await expect(page.locator(".script")).toHaveCount(2);
+    },
+  },
+  {
+    name: "deck-approved",
+    options: {
+      installed: true,
+      decks: 3,
+      contentOrigin: "separate-site",
+      presenterPassword: "lantern folds 9 maps",
+    },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_002`);
+      await expect(page.locator("[data-testid=deck-status]")).toContainText(/approved|aprobada/);
+    },
+  },
+  {
+    name: "deck-static",
+    options: { installed: true, decks: 3 },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_003`);
+      await expect(page.locator("[data-testid=static-deck]")).toBeVisible();
+    },
+  },
+  {
+    name: "deck-off",
+    options: { installed: true, decks: 3, scriptsEnabled: false },
+    widths: [360, 1280],
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_001`);
+      await expect(page.getByText("PPTAKEN_SCRIPTS=owner", { exact: false })).toBeVisible();
+    },
+  },
+  {
+    name: "deck-approve-dialog",
+    options: { installed: true, decks: 3 },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_001`);
+      await page.locator(".meaning__actions .ppt-btn--primary").click();
+      await expect(page.locator("dialog[open]")).toBeVisible();
+    },
+  },
+  {
+    name: "security-presenter",
+    options: { installed: true, presenterPassword: "lantern folds 9 maps" },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/security`);
+      await expect(page.locator("[data-testid=presenter-status]")).toHaveAttribute(
+        "data-set",
+        "true",
+      );
+    },
+  },
+  {
     name: "not-found-signed-out",
     options: { installed: true },
     prepare: async (page, mock) => {
@@ -229,7 +292,9 @@ const screens: Screen[] = [
   },
 ];
 
-for (const screen of screens) {
+for (const screen of screens.filter(
+  (s) => ONLY.length === 0 || ONLY.some((o) => s.name.startsWith(o)),
+)) {
   test.describe(screen.name, () => {
     if (screen.options) test.use({ mockOptions: screen.options });
 

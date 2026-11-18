@@ -44,6 +44,7 @@ const pages = {
   "/welcome (setup + connect)": [entry, page("Setup"), page("Connect")],
   "/login": [entry, page("Login")],
   "/decks": [entry, page("Decks")],
+  "/decks/:id": [entry, page("Deck")],
   "/tokens": [entry, page("Tokens")],
   "/security": [entry, page("Security")],
 };

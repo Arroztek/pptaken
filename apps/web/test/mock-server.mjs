@@ -97,7 +97,7 @@ export function makeOAuthRequests(n, now = Date.now()) {
   });
 }
 
-/** Build `n` deck summaries, newest first. */
+/** Build `n` deck summaries, newest first. Deck 1 has scripts waiting for approval, deck 2 approved ones. */
 export function makeDecks(n, now = Date.now()) {
   return Array.from({ length: n }, (_, i) => ({
     id: `deck_${String(i + 1).padStart(3, "0")}`,
@@ -110,7 +110,107 @@ export function makeDecks(n, now = Date.now()) {
     revision: (i % 6) + 1,
     updatedAt: new Date(now - (i * i * 3 + 2) * 3600 * 1000).toISOString(),
     createdBy: i % 3 === 2 ? "owner" : "agent",
+    scripts: i === 0 ? "pending" : i === 1 ? "approved" : "none",
   }));
+}
+
+const sha = (text) => createHash("sha256").update(text).digest("hex");
+
+/** A long, realistic author script (a little circuit simulator) for the code viewer: well over 200 lines. */
+function longScript() {
+  const lines = [
+    "// Quantum circuit playground: two qubits, a Hadamard and a CNOT.",
+    "var state = [1, 0, 0, 0];",
+    "var canvas = slide.root.querySelector('canvas');",
+    "var ctx = canvas.getContext('2d');",
+  ];
+  for (let i = 0; i < 240; i++) {
+    lines.push(
+      i % 12 === 0
+        ? `function step${i / 12}(amplitudes) { return amplitudes.map(function (a, k) { return k % 2 ? a * Math.SQRT1_2 : a; }); }`
+        : `  ctx.fillRect(${(i * 7) % 300}, ${(i * 13) % 160}, 4, 4); // sample ${i}`,
+    );
+  }
+  lines.push("slide.onEnter(function () { state = step0(state); });");
+  return lines.join("\n");
+}
+
+/** The approval-screen data of a scripted mock deck (`GET /decks/:id/scripts`). */
+export function makeReview(deck, options = {}) {
+  const sources = [
+    {
+      slideId: "intro-demo",
+      index: 1,
+      source:
+        "slide.onEnter(function () {\n  slide.root.querySelector('output').value = 'ready';\n});",
+    },
+    { slideId: "circuit", index: 4, source: longScript() },
+  ].map((s) => ({ ...s, sha256: sha(s.source), bytes: Buffer.byteLength(s.source) }));
+  const version = options.version ?? 1;
+  const digest = sha(`${deck.id}:${version}:${sources.map((s) => s.sha256).join(",")}`);
+  const approved = deck.scripts === "approved";
+  return {
+    presentationId: deck.id,
+    revision: deck.revision,
+    enabled: options.enabled ?? true,
+    state: approved ? "approved" : "pending",
+    digest,
+    approvedDigest: approved ? digest : (options.staleDigest ?? null),
+    approvedAt: approved ? new Date(Date.now() - 3 * 86_400_000).toISOString() : null,
+    slides: sources.map((s) => s.slideId),
+    libs: [
+      {
+        name: "uPlot",
+        version: "1.6.32",
+        sha256: sha("uplot-1.6.32"),
+        source: "https://cdn.jsdelivr.net/npm/uplot@1.6.32/dist/uPlot.iife.min.js",
+      },
+    ],
+    chars: sources.reduce((n, s) => n + s.source.length, 0),
+    capability: {
+      contentOrigin: options.contentOrigin ?? "same-origin",
+      separateSiteContent: options.contentOrigin === "separate-site",
+      freezeWarning: options.contentOrigin !== "separate-site",
+    },
+    sources,
+    warnings: [
+      {
+        code: "ELEMENT_REMOVED",
+        message: "Removed <canvas>: not allowed in the static version",
+        path: "slides[4].html",
+        name: "canvas",
+      },
+      {
+        code: "ELEMENT_REMOVED",
+        message: "Removed <output>: not allowed in the static version",
+        path: "slides[1].html",
+        name: "output",
+      },
+    ],
+  };
+}
+
+/** The approval-screen data of a deck without scripts. */
+function staticReview(deck, options = {}) {
+  return {
+    presentationId: deck.id,
+    revision: deck.revision,
+    enabled: options.enabled ?? true,
+    state: "none",
+    digest: null,
+    approvedDigest: null,
+    approvedAt: null,
+    slides: [],
+    libs: [],
+    chars: 0,
+    capability: {
+      contentOrigin: options.contentOrigin ?? "same-origin",
+      separateSiteContent: options.contentOrigin === "separate-site",
+      freezeWarning: options.contentOrigin !== "separate-site",
+    },
+    sources: [],
+    warnings: [],
+  };
 }
 
 export function createState(options = {}) {
@@ -139,7 +239,29 @@ export function createState(options = {}) {
     /** Export downloads ({ id, format, notes }) and import body sizes. */
     exports: [],
     imports: [],
+    /** Interactive mode (ADR-021): the instance switch, the content origin, reviews by deck id. */
+    scriptsEnabled: options.scriptsEnabled ?? true,
+    contentOrigin: options.contentOrigin ?? "same-origin",
+    reviews: new Map(),
+    presenterPassword: options.presenterPassword ?? null,
   };
+}
+
+/** The review of a deck, created on first use and kept (approve/revoke and tests change it). */
+function reviewOf(state, deck) {
+  let review = state.reviews.get(deck.id);
+  if (!review) {
+    const opts = { enabled: state.scriptsEnabled, contentOrigin: state.contentOrigin };
+    review =
+      deck.scripts && deck.scripts !== "none" ? makeReview(deck, opts) : staticReview(deck, opts);
+    state.reviews.set(deck.id, review);
+  }
+  return review;
+}
+
+function statusOf(review) {
+  const { sources: _s, warnings: _w, presenterPassword: _p, ...status } = review;
+  return status;
 }
 
 function send(res, status, body, headers = {}) {
@@ -500,6 +622,14 @@ async function handleApi(state, req, res, url) {
     if (typeof body.newPassword !== "string" || body.newPassword.length < 12) {
       return fail(res, 400, "VALIDATION_ERROR", "Weak password.");
     }
+    if (body.newPassword === state.presenterPassword) {
+      return fail(
+        res,
+        400,
+        "VALIDATION_ERROR",
+        "The owner password must be different from the presenter password",
+      );
+    }
     state.password = body.newPassword;
     const disconnectedApps = body.disconnectApps ? state.apps.length : 0;
     if (body.disconnectApps) state.apps = [];
@@ -509,8 +639,79 @@ async function handleApi(state, req, res, url) {
   const one = path.match(/^\/decks\/([^/]+)$/);
   if (method === "GET" && one) {
     const deck = state.decks.find((d) => d.id === decodeURIComponent(one[1]));
-    if (!deck) return fail(res, 404, "NOT_FOUND", "No such deck.");
-    return send(res, 200, { ...deck, urls: { present: `/p/${deck.id}` } });
+    if (!deck) return fail(res, 404, "NOT_FOUND", "Presentation not found");
+    const base = publicUrl(state, req);
+    return send(res, 200, {
+      ...deck,
+      urls: { present: `${base}/p/${deck.id}`, manage: `${base}/decks/${deck.id}` },
+    });
+  }
+
+  // Interactive mode: the approval screen (ADR-021).
+  const scripts = path.match(/^\/decks\/([^/]+)\/scripts(\/approve|\/revoke)?$/);
+  if (scripts) {
+    const deck = state.decks.find((d) => d.id === decodeURIComponent(scripts[1]));
+    if (!deck) return fail(res, 404, "NOT_FOUND", "Presentation not found");
+    const review = reviewOf(state, deck);
+    if (method === "GET" && !scripts[2]) {
+      return send(res, 200, {
+        ...review,
+        presenterPassword: { set: state.presenterPassword !== null },
+      });
+    }
+    if (method === "POST" && scripts[2] === "/approve") {
+      const body = await readJson(req);
+      if (!body || typeof body.digest !== "string" || !/^[0-9a-f]{64}$/.test(body.digest)) {
+        return fail(res, 400, "VALIDATION_ERROR", "body.digest: invalid");
+      }
+      if (!review.enabled)
+        return fail(res, 400, "VALIDATION_ERROR", "Scripts are disabled on this instance");
+      if (review.digest === null)
+        return fail(res, 400, "VALIDATION_ERROR", "This presentation has no scripts to approve");
+      if (body.digest !== review.digest) {
+        return fail(res, 409, "VALIDATION_ERROR", "The scripts changed since they were reviewed", {
+          hint: "Reload the scripts, review them again and approve the new digest.",
+        });
+      }
+      review.state = "approved";
+      review.approvedDigest = review.digest;
+      review.approvedAt = new Date().toISOString();
+      deck.scripts = "approved";
+      return send(res, 200, statusOf(review));
+    }
+    if (method === "POST" && scripts[2] === "/revoke") {
+      review.approvedDigest = null;
+      review.approvedAt = null;
+      if (review.digest !== null) review.state = "pending";
+      if (deck.scripts === "approved") deck.scripts = "pending";
+      return send(res, 200, statusOf(review));
+    }
+  }
+
+  // The presenter password (ADR-021): separate from the owner password, 12+ characters.
+  if (path === "/presenter/password") {
+    if (method === "GET") return send(res, 200, { set: state.presenterPassword !== null });
+    if (method === "POST") {
+      const body = await readJson(req);
+      if (!body || typeof body.password !== "string" || body.password.length < 12) {
+        return fail(res, 400, "VALIDATION_ERROR", "The password does not meet the policy");
+      }
+      if (body.password === state.password) {
+        return fail(
+          res,
+          400,
+          "VALIDATION_ERROR",
+          "The presenter password must be different from the owner password",
+        );
+      }
+      const change = state.presenterPassword === null ? "set" : "changed";
+      state.presenterPassword = body.password;
+      return send(res, 200, { set: true, change });
+    }
+    if (method === "DELETE") {
+      state.presenterPassword = null;
+      return send(res, 204);
+    }
   }
 
   return fail(res, 404, "NOT_FOUND", "No such route.");

@@ -113,6 +113,22 @@ export const webEs: WebDictionary = {
       "Crea una presentación de 5 slides sobre la historia de la imprenta. Usa PPTaken.",
     offlineCopies: "Copias sin conexión en este dispositivo: {n}. Se borran al cerrar sesión.",
     offlineForget: "Olvidar copias sin conexión",
+    interactivePending: "Interactiva · pendiente de aprobación",
+    interactiveApproved: "Interactiva · aprobada",
+  },
+  deck: {
+    pageTitle: "Presentación",
+    back: "Presentaciones",
+    present: "Presentar",
+    newTab: "(se abre en una pestaña nueva)",
+    revision: "Revisión {n}",
+    loadError: "No se pudo cargar esta presentación.",
+    notFoundTitle: "Esta presentación no está aquí.",
+    notFoundText: "Puede estar en la papelera, o el enlace es incorrecto.",
+    statusStatic: "Estática",
+    statusPending: "Interactiva · pendiente de aprobación",
+    statusApproved: "Interactiva · aprobada",
+    statusOff: "Interactiva · scripts desactivados",
   },
   transfer: {
     exportFor: "Exportar {title}",
@@ -249,7 +265,36 @@ export const webEs: WebDictionary = {
   },
   security: {
     title: "Seguridad",
-    subtitle: "Tu contraseña de dueño. Al cambiarla se cierran tus otras sesiones.",
+    subtitle:
+      "Tu contraseña de dueño y la contraseña de presentador para las presentaciones interactivas. Al cambiar la de dueño se cierran tus otras sesiones.",
+  },
+  presenter: {
+    title: "Contraseña de presentador",
+    lead: "Desbloquea el código interactivo que ya aprobaste, en pantallas donde no tienes la sesión iniciada, como los enlaces de presentador de una versión futura. En esa pantalla, pulsa U y escríbela.",
+    notOwner:
+      "No es tu contraseña de dueño y no abre este panel. Usa una distinta: puede que la escribas en ordenadores de otras personas.",
+    statusSet: "Hay una contraseña de presentador configurada.",
+    statusUnset:
+      "No hay contraseña de presentador. Solo tu propia sesión puede ejecutar código interactivo.",
+    next: "Nueva contraseña de presentador",
+    nextHint: "Al menos 12 caracteres, distinta de tu contraseña de dueño.",
+    confirm: "Repítela",
+    mismatch: "Las contraseñas no coinciden.",
+    required: "Escribe la contraseña de presentador dos veces.",
+    submitSet: "Configurar contraseña de presentador",
+    submitChange: "Cambiar contraseña de presentador",
+    remove: "Quitar contraseña de presentador",
+    removeTitle: "¿Quitar la contraseña de presentador?",
+    removeText:
+      "Las pantallas desbloqueadas con ella vuelven a la versión estática en su próxima carga. Tu sesión de dueño no cambia.",
+    doneSet: "Contraseña de presentador configurada.",
+    doneChanged:
+      "Contraseña de presentador cambiada. Las pantallas desbloqueadas con la anterior se bloquean de nuevo.",
+    doneRemoved: "Contraseña de presentador quitada.",
+    sameAsOwner: "Usa una contraseña distinta de tu contraseña de dueño.",
+    weak: "Elige una contraseña más segura.",
+    offline:
+      "Sin conexión, las presentaciones siempre muestran su versión estática y nunca la piden.",
   },
   password: {
     title: "Cambiar contraseña",
@@ -264,6 +309,7 @@ export const webEs: WebDictionary = {
     doneApps:
       "Contraseña cambiada. Se cerraron tus otras sesiones y se desconectaron {n} aplicaciones.",
     required: "Escribe ambas contraseñas.",
+    equalsPresenter: "Esa es tu contraseña de presentador. Elige otra contraseña de dueño.",
   },
   notFound: {
     pageTitle: "No encontrada",
@@ -288,10 +334,74 @@ export const webEs: WebDictionary = {
     capabilitySeparate:
       "El contenido se sirve desde otro sitio: un script descontrolado no puede congelar tu pestaña de presentador en Chrome ni en Firefox.",
     freezeWarning:
-      "Un script descontrolado puede congelar tu pestaña de presentador en Firefox y Safari. Para aislarlo, configura PPTAKEN_CONTENT_URL con una dirección de otro sitio.",
+      "Un script descontrolado puede congelar la pestaña de presentador en Firefox y Safari. Para un aislamiento más fuerte, sirve el contenido desde otro sitio (PPTAKEN_CONTENT_URL).",
     exportNotice:
       "Las exportaciones y las copias sin conexión contienen la versión estática: los scripts quedan fuera.",
     safeLink: "Presentar sin scripts",
+    sectionText:
+      "Código que tu agente escribió para esta presentación. No se ejecuta nada hasta que lo apruebes.",
+    staticTitle: "Presentación estática",
+    staticText:
+      "Esta presentación no tiene scripts. Se ve igual en todas partes: aquí, en los teléfonos, en las exportaciones y sin conexión.",
+    instanceLabel: "Este PPTaken",
+    instanceOff: "Scripts desactivados",
+    instanceOn: "Los scripts pueden ejecutarse",
+    offHow:
+      "Para permitir presentaciones interactivas, quien administra este PPTaken configura PPTAKEN_SCRIPTS=owner y lo reinicia. Mientras tanto la presentación muestra su versión estática y no se puede aprobar nada. Aun así puedes leer el código abajo.",
+    stateLabel: "Aprobación",
+    statePending: "Esperando tu revisión",
+    stateApproved: "Aprobado",
+    stateStale: "Cambió desde que lo aprobaste",
+    staleText:
+      "Tu agente cambió el código después de que lo aprobaras. La presentación muestra su versión estática hasta que revises y apruebes el código nuevo.",
+    approvedAt: "Aprobado {when}.",
+    digestLabel: "Huella (SHA-256)",
+    digestHint:
+      "Cambia cada vez que cambia un script o una biblioteca. Tu aprobación se vincula a este valor exacto.",
+    copyDigest: "Copiar huella",
+    meaningTitle: "Qué significa aprobar",
+    meaningText:
+      "Este código se ejecutará en tu navegador cuando presentes esta presentación. No puede acceder a la red. Aprueba solo código que tú o tu agente escribisteis y que has leído.",
+    meaningScope:
+      "Solo se ejecuta cuando presentas desde tu propia sesión iniciada, o en una pantalla desbloqueada con la contraseña de presentador. Los teléfonos, la vista previa del presentador, las exportaciones y las copias sin conexión muestran siempre la versión estática.",
+    scriptsTitle: "Scripts ({n})",
+    scriptFor: "Diapositiva {n} · {id}",
+    lineOne: "1 línea",
+    lines: "{n} líneas",
+    showCode: "Mostrar código",
+    hideCode: "Ocultar código",
+    showAll: "Mostrar las {n} líneas",
+    codeLabel: "Script de la diapositiva {n}",
+    librariesTitle: "Bibliotecas ({n})",
+    librariesText:
+      "Scripts guardados en este PPTaken y cargados antes de los scripts de las diapositivas. Quien ve la presentación nunca contacta con la dirección de origen.",
+    libVersion: "Versión {v}",
+    libSource: "Copiada de",
+    libNoSource: "No hay dirección de origen registrada.",
+    warningsTitle: "Lo que deja fuera la versión estática ({n})",
+    warningsText:
+      "Sin scripts se quitan estas partes. Comprueba que las diapositivas estáticas siguen teniendo sentido.",
+    warningsMore: "Hay {n} más que no se muestran.",
+    capabilityLabel: "Origen del contenido",
+    originSame: "Mismo origen que el panel",
+    originSameSite: "Mismo sitio que el panel",
+    originSeparate: "Sitio separado",
+    docsLink: "Cómo servir el contenido desde otro sitio",
+    confirmTitle: "¿Aprobar estos scripts?",
+    confirmText: "Vas a aprobar el código con esta huella:",
+    confirmCheck: "Leí el código y quiero que se ejecute cuando presente esta presentación.",
+    confirmApprove: "Aprobar",
+    cancel: "Cancelar",
+    approvedToast: "Scripts aprobados.",
+    revokedToast: "Aprobación retirada. La presentación muestra su versión estática.",
+    revokeTitle: "¿Dejar de ejecutar estos scripts?",
+    revokeText:
+      "La presentación vuelve a su versión estática en todas partes. Puedes aprobar el mismo código más tarde.",
+    presenterSet:
+      "Hay una contraseña de presentador: las pantallas donde no tienes la sesión iniciada pueden desbloquear este código aprobado con ella.",
+    presenterUnset: "No hay contraseña de presentador: solo tu propia sesión ejecuta este código.",
+    presenterManage: "Ajustes de la contraseña de presentador",
+    approveOff: "No se puede aprobar mientras los scripts están desactivados en este PPTaken.",
   },
   errors: {
     validation: "Revisa los campos marcados.",

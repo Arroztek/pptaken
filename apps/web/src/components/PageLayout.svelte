@@ -6,6 +6,7 @@
   with the same header position as the wide pages.
 -->
 <script lang="ts">
+  import { Icon } from "@pptaken/ui";
   import type { Snippet } from "svelte";
 
   interface Props {
@@ -13,18 +14,25 @@
     subtitle?: string;
     eyebrow?: string;
     width?: "wide" | "column";
+    /** A link back to the parent page, above the title (detail pages). */
+    back?: { href: string; label: string };
     /** Header actions (right of the title on wide screens, below it on narrow ones). */
     actions?: Snippet;
     children: Snippet;
   }
 
-  let { title, subtitle, eyebrow, width = "wide", actions, children }: Props = $props();
+  let { title, subtitle, eyebrow, width = "wide", back, actions, children }: Props = $props();
 </script>
 
 <div class="page" class:page--column={width === "column"}>
   {#if title}
     <header class="page-head">
       <div class="page-head__text">
+        {#if back}
+          <a class="page-head__back ppt-link" href={back.href}
+            ><Icon name="arrow-left" size={16} /><span>{back.label}</span></a
+          >
+        {/if}
         {#if eyebrow}<p class="ppt-eyebrow">{eyebrow}</p>{/if}
         <h1 class="ppt-h1">{title}</h1>
         {#if subtitle}<p class="page-head__subtitle">{subtitle}</p>{/if}

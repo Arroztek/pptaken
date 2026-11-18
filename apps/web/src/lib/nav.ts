@@ -44,6 +44,8 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   },
 ];
 
+/** The item of the current page; a presentation's page (`/decks/<id>`) belongs to Presentations. */
 export function isActive(item: NavItem, path: string): boolean {
-  return normalizePath(path) === item.href;
+  const clean = normalizePath(path);
+  return clean === item.href || (item.href === "/decks" && clean.startsWith("/decks/"));
 }

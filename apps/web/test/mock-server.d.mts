@@ -13,6 +13,24 @@ export interface MockDeck {
   revision: number;
   updatedAt: string;
   createdBy: "owner" | "agent";
+  scripts?: "none" | "pending" | "approved";
+}
+
+/** The approval-screen data of a deck (ADR-021), as GET /api/v1/decks/:id/scripts returns it. */
+export interface MockReview {
+  presentationId: string;
+  revision: number;
+  enabled: boolean;
+  state: "none" | "pending" | "approved";
+  digest: string | null;
+  approvedDigest: string | null;
+  approvedAt: string | null;
+  slides: string[];
+  libs: { name: string; version?: string; sha256: string; source?: string }[];
+  chars: number;
+  capability: { contentOrigin: string; separateSiteContent: boolean; freezeWarning: boolean };
+  sources: { slideId: string; index: number; source: string; sha256: string; bytes: number }[];
+  warnings: { code: string; message: string; path: string | null; name: string | null }[];
 }
 
 export interface MockToken {
@@ -71,6 +89,11 @@ export interface MockStateOptions {
   apps?: number | MockApp[];
   /** A number of generated pending consent requests, or explicit ones. */
   oauthRequests?: number | MockOAuthRequest[];
+  /** PPTAKEN_SCRIPTS=owner (default true). */
+  scriptsEnabled?: boolean;
+  contentOrigin?: "same-origin" | "same-site" | "separate-site";
+  /** A presenter password already set. */
+  presenterPassword?: string | null;
 }
 
 export interface MockState {
@@ -92,6 +115,10 @@ export interface MockState {
   log: MockLogEntry[];
   exports: { id: string; format: string; notes: string | null }[];
   imports: number[];
+  scriptsEnabled: boolean;
+  contentOrigin: string;
+  reviews: Map<string, MockReview>;
+  presenterPassword: string | null;
 }
 
 export interface MockServer {
@@ -101,6 +128,10 @@ export interface MockServer {
 }
 
 export function makeDecks(n: number, now?: number): MockDeck[];
+export function makeReview(
+  deck: MockDeck,
+  options?: { version?: number; enabled?: boolean; contentOrigin?: string; staleDigest?: string },
+): MockReview;
 export function makeApps(n: number, now?: number): MockApp[];
 export function makeOAuthRequests(n: number, now?: number): MockOAuthRequest[];
 export function createState(options?: MockStateOptions): MockState;

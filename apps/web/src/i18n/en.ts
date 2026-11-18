@@ -110,6 +110,22 @@ export const webEn = {
       "Create a 5-slide presentation about the history of the printing press. Use PPTaken.",
     offlineCopies: "Offline copies on this device: {n}. They are deleted when you sign out.",
     offlineForget: "Forget offline copies",
+    interactivePending: "Interactive · pending approval",
+    interactiveApproved: "Interactive · approved",
+  },
+  deck: {
+    pageTitle: "Presentation",
+    back: "Presentations",
+    present: "Present",
+    newTab: "(opens in a new tab)",
+    revision: "Revision {n}",
+    loadError: "Could not load this presentation.",
+    notFoundTitle: "This presentation is not here.",
+    notFoundText: "It may be in the trash, or the link is wrong.",
+    statusStatic: "Static",
+    statusPending: "Interactive · pending approval",
+    statusApproved: "Interactive · approved",
+    statusOff: "Interactive · scripts off",
   },
   transfer: {
     exportFor: "Export {title}",
@@ -244,7 +260,34 @@ export const webEn = {
   },
   security: {
     title: "Security",
-    subtitle: "Your owner password. Changing it signs out your other sessions.",
+    subtitle:
+      "Your owner password, and the presenter password for interactive presentations. Changing the owner password signs out your other sessions.",
+  },
+  presenter: {
+    title: "Presenter password",
+    lead: "Unlocks interactive code you already approved, on screens where you are not signed in, such as presenter links in a later version. On that screen, press U and type it.",
+    notOwner:
+      "It is not your owner password and it cannot open this panel. Use a different one: you may type it on other people's computers.",
+    statusSet: "A presenter password is set.",
+    statusUnset:
+      "No presenter password is set. Only your own signed-in session can run interactive code.",
+    next: "New presenter password",
+    nextHint: "At least 12 characters, different from your owner password.",
+    confirm: "Repeat it",
+    mismatch: "The passwords do not match.",
+    required: "Enter the presenter password twice.",
+    submitSet: "Set presenter password",
+    submitChange: "Change presenter password",
+    remove: "Remove presenter password",
+    removeTitle: "Remove the presenter password?",
+    removeText:
+      "Screens unlocked with it go back to the static version at their next load. Your owner session is not affected.",
+    doneSet: "Presenter password set.",
+    doneChanged: "Presenter password changed. Screens unlocked with the old one lock again.",
+    doneRemoved: "Presenter password removed.",
+    sameAsOwner: "Use a different password from your owner password.",
+    weak: "Choose a stronger password.",
+    offline: "Offline, presentations always show their static version and never ask for it.",
   },
   password: {
     title: "Change password",
@@ -259,6 +302,7 @@ export const webEn = {
     doneApps:
       "Password changed. Your other sessions were signed out and {n} applications were disconnected.",
     required: "Enter both passwords.",
+    equalsPresenter: "That is your presenter password. Choose a different owner password.",
   },
   notFound: {
     pageTitle: "Not found",
@@ -284,9 +328,72 @@ export const webEn = {
     capabilitySeparate:
       "Content is served from a separate site: a runaway script cannot freeze your presenter tab in Chrome or Firefox.",
     freezeWarning:
-      "A runaway script can freeze your presenter tab in Firefox and Safari. To isolate it, set PPTAKEN_CONTENT_URL to an address on a different site.",
+      "A runaway script can freeze the presenter tab in Firefox and Safari. For stronger isolation serve content from a separate site (PPTAKEN_CONTENT_URL).",
     exportNotice: "Exports and offline copies contain the static version: scripts are left out.",
     safeLink: "Present without scripts",
+    sectionText: "Code your agent wrote for this presentation. Nothing runs until you approve it.",
+    staticTitle: "Static deck",
+    staticText:
+      "This presentation has no scripts. It looks the same everywhere: here, on phones, in exports and offline.",
+    instanceLabel: "This PPTaken",
+    instanceOff: "Scripts are off",
+    instanceOn: "Scripts can run",
+    offHow:
+      "To allow interactive presentations, whoever runs this PPTaken sets PPTAKEN_SCRIPTS=owner and restarts it. Until then the presentation shows its static version and nothing can be approved. You can still read the code below.",
+    stateLabel: "Approval",
+    statePending: "Waiting for your review",
+    stateApproved: "Approved",
+    stateStale: "Changed since you approved it",
+    staleText:
+      "Your agent changed the code after you approved it. The presentation shows its static version until you review and approve the new code.",
+    approvedAt: "Approved {when}.",
+    digestLabel: "Fingerprint (SHA-256)",
+    digestHint:
+      "It changes whenever any script or library changes. Your approval binds to this exact value.",
+    copyDigest: "Copy fingerprint",
+    meaningTitle: "What approving means",
+    meaningText:
+      "This code will run in your browser when you present this deck. It cannot reach the network. Approve only code you or your agent wrote and you have read.",
+    meaningScope:
+      "It runs only when you present from your own signed-in session, or on a screen unlocked with the presenter password. Phones, the presenter preview, exports and offline copies always show the static version.",
+    scriptsTitle: "Scripts ({n})",
+    scriptFor: "Slide {n} · {id}",
+    lineOne: "1 line",
+    lines: "{n} lines",
+    showCode: "Show code",
+    hideCode: "Hide code",
+    showAll: "Show all {n} lines",
+    codeLabel: "Script of slide {n}",
+    librariesTitle: "Libraries ({n})",
+    librariesText:
+      "Scripts stored on this PPTaken and loaded before the slide scripts. Viewers never contact the source address.",
+    libVersion: "Version {v}",
+    libSource: "Vendored from",
+    libNoSource: "No source address recorded.",
+    warningsTitle: "What the static version leaves out ({n})",
+    warningsText:
+      "Without scripts these parts are removed. Check that the static slides still make sense.",
+    warningsMore: "{n} more are not shown.",
+    capabilityLabel: "Content origin",
+    originSame: "Same origin as the panel",
+    originSameSite: "Same site as the panel",
+    originSeparate: "Separate site",
+    docsLink: "How to serve content from a separate site",
+    confirmTitle: "Approve these scripts?",
+    confirmText: "You are approving the code with this fingerprint:",
+    confirmCheck: "I read the code and I want it to run when I present this deck.",
+    confirmApprove: "Approve",
+    cancel: "Cancel",
+    approvedToast: "Scripts approved.",
+    revokedToast: "Approval withdrawn. The presentation shows its static version.",
+    revokeTitle: "Stop running these scripts?",
+    revokeText:
+      "The presentation goes back to its static version everywhere. You can approve the same code again later.",
+    presenterSet:
+      "A presenter password is set: screens where you are not signed in can unlock this approved code with it.",
+    presenterUnset: "No presenter password is set: only your own session runs this code.",
+    presenterManage: "Presenter password settings",
+    approveOff: "Approval is not available while scripts are off on this PPTaken.",
   },
   errors: {
     validation: "Check the highlighted fields.",

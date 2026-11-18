@@ -321,9 +321,10 @@
         {#each decks as deck (deck.id)}
           <DeckCard
             title={deck.title}
-            href="/p/{encodeURIComponent(deck.id)}"
+            href="/decks/{encodeURIComponent(deck.id)}"
             presentHref="/p/{encodeURIComponent(deck.id)}"
             newTab
+            titleNewTab={false}
             meta={meta(deck)}
             onmore={() => openExport(deck)}
           >
@@ -336,6 +337,17 @@
                 <span class="ppt-badge__dot" aria-hidden="true"></span>
                 {deck.createdBy === "agent" ? t("decks.byAgent") : t("decks.byOwner")}
               </span>
+              {#if deck.scripts === "pending" || deck.scripts === "approved"}
+                <span
+                  class="ppt-badge deck-interactive"
+                  class:badge-ok={deck.scripts === "approved"}
+                  class:badge-pending={deck.scripts === "pending"}
+                  data-scripts={deck.scripts}
+                >
+                  <span class="ppt-badge__dot" aria-hidden="true"></span>
+                  {deck.scripts === "approved" ? t("decks.interactiveApproved") : t("decks.interactivePending")}
+                </span>
+              {/if}
             {/snippet}
           </DeckCard>
         {/each}

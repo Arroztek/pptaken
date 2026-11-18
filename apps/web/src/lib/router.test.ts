@@ -123,3 +123,33 @@ describe("navigation", () => {
     expect(isActive(decks, "/tokens")).toBe(false);
   });
 });
+
+describe("presentation page (/decks/:id)", () => {
+  it("renders for the owner, sends others to sign in and back, and is an app path", () => {
+    expect(decide("/decks/01JD0000000000000000000000", "", inn)).toEqual({
+      kind: "render",
+      page: "deck",
+    });
+    expect(decide("/decks/01JD0000000000000000000000", "", out)).toEqual({
+      kind: "redirect",
+      to: "/login?next=%2Fdecks%2F01JD0000000000000000000000",
+    });
+    expect(decide("/decks/01JD0000000000000000000000", "", fresh)).toEqual({
+      kind: "redirect",
+      to: "/welcome",
+    });
+    expect(isAppPath("/decks/deck_001")).toBe(true);
+    expect(isAppPath("/decks/a/b")).toBe(false);
+    expect(safeNext("/decks/deck_001")).toBe("/decks/deck_001");
+    expect(safeNext("/decks/../tokens")).toBe("/decks");
+    expect(safeNext("//evil.example/decks/x")).toBe("/decks");
+    expect(layoutFor("deck", true)).toBe("shell");
+  });
+
+  it("keeps Presentations highlighted in the sidebar", () => {
+    const decks = NAV_GROUPS[0]?.items[0];
+    if (!decks) throw new Error("no decks item");
+    expect(isActive(decks, "/decks/deck_001")).toBe(true);
+    expect(isActive(decks, "/decksx")).toBe(false);
+  });
+});
