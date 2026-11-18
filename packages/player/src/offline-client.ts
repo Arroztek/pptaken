@@ -33,6 +33,32 @@ export interface ContentSource {
   fromCopy: boolean;
   /** Revision of the stored copy, when `fromCopy`. */
   revision?: number;
+  /**
+   * Interactive mode (ADR-020), online only: `running` when the server signed the scripted document (owner
+   * session, instance switch on, approved digest); otherwise why the static version is served.
+   */
+  scripts?: ScriptsMode;
+  /** With `scripts: "running"`: the slide ids and canvas the shell must find in `ready`. */
+  expect?: { slides: string[]; width: number; height: number };
+}
+
+/** What the content-url endpoint says about author scripts. */
+export type ScriptsMode = "running" | "none" | "off" | "pending" | "safe";
+const SCRIPTS_MODES: readonly string[] = ["running", "none", "off", "pending", "safe"];
+
+export interface LoadOptions {
+  /** Ask for the static version even when the deck's scripts are approved (`?safe=1`, presenter previews). */
+  safe?: boolean;
+}
+
+function parseExpect(value: unknown): ContentSource["expect"] | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const v = value as { slides?: unknown; width?: unknown; height?: unknown };
+  if (!Array.isArray(v.slides) || v.slides.length > 200) return undefined;
+  if (!v.slides.every((id) => typeof id === "string" && /^[a-z0-9-]{1,40}$/.test(id)))
+    return undefined;
+  if (!Number.isInteger(v.width) || !Number.isInteger(v.height)) return undefined;
+  return { slides: v.slides as string[], width: v.width as number, height: v.height as number };
 }
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
@@ -46,15 +72,29 @@ const deckPath = (deck: string): string => `/api/v1/decks/${encodeURIComponent(d
 export async function loadContent(
   deck: string,
   fetchImpl: FetchLike = fetch,
+  options: LoadOptions = {},
 ): Promise<ContentSource> {
   let firstError: unknown;
   try {
-    const res = await fetchImpl(`${deckPath(deck)}/content-url`, { credentials: "same-origin" });
+    const query = options.safe === true ? "?safe=1" : "";
+    const res = await fetchImpl(`${deckPath(deck)}/content-url${query}`, {
+      credentials: "same-origin",
+    });
     if (res.status === 401) throw new SignedOutError();
     if (!res.ok) throw new Error(`content-url ${res.status}`);
-    const body = (await res.json()) as { url?: unknown };
+    const body = (await res.json()) as { url?: unknown; scripts?: unknown; expect?: unknown };
     if (typeof body.url !== "string") throw new Error("content-url: no url");
-    return { contentUrl: body.url, fromCopy: false };
+    const source: ContentSource = { contentUrl: body.url, fromCopy: false };
+    if (typeof body.scripts === "string" && SCRIPTS_MODES.includes(body.scripts)) {
+      source.scripts = body.scripts as ScriptsMode;
+    }
+    if (source.scripts === "running") {
+      const expected = parseExpect(body.expect);
+      // Script mode without the server's expectations would trust the frame's `ready`: refuse it.
+      if (expected === undefined) throw new Error("content-url: script mode without expect");
+      source.expect = expected;
+    }
+    return source;
   } catch (error) {
     if (error instanceof SignedOutError) throw error;
     firstError = error;

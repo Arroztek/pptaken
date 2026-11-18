@@ -65,7 +65,8 @@
     "build": "tsc -p tsconfig.json && tsc -p tsconfig.runtime.json && tsc -p tsconfig.sw.json && node scripts/build-runtime.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.runtime.json --noEmit && tsc -p tsconfig.sw.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "test": "vitest run",
-    "test:browser": "pnpm run build && node browser/run.mjs"
+    "test:browser": "pnpm run build && node browser/run.mjs",
+    "test:scripts": "pnpm run build && node browser/scripts.mjs"
   },
   "dependencies": {
     "@pptaken/schema": "workspace:*"

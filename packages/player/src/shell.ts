@@ -20,6 +20,7 @@ import {
 } from "./offline.js";
 import {
   type ContentMessage,
+  isHelloMessage,
   type Mode,
   overviewColumns,
   PROTOCOL_VERSION,
@@ -47,7 +48,12 @@ export interface PlayerState {
   highlight: number;
 }
 
-export type PlayerFault = "unexpected-navigation";
+/**
+ * `unexpected-navigation`: the content loaded a second document. Script mode only: `protocol` (the content broke
+ * the handshake or announced a deck the server did not) and `unresponsive` (no heartbeat for 3.5 s: the frame was
+ * removed and, with `fallbackUrl`, replaced by the static version).
+ */
+export type PlayerFault = "unexpected-navigation" | "protocol" | "unresponsive";
 
 /** Where a key came from: the app page, or forwarded by the content iframe. */
 export type KeySource = "page" | "frame";
@@ -108,6 +114,22 @@ export interface PlayerOptions {
   onFault?(fault: PlayerFault): void;
   /** Adds the remote-control keys (R: pair a phone, K: disconnect every remote) to the key help. */
   remoteKeys?: boolean;
+  /**
+   * Script mode (ADR-020): the document at `contentUrl` runs approved author scripts. The shell then treats the
+   * frame as hostile: private port handshake, `ready` once and checked against `expect`, `preload` unverified,
+   * `state` checked, every gated key, `Enter` and `f` from the frame dropped before `onKey`, navigation keys from
+   * the frame rate-limited (10/s), and a watchdog on the runtime's heartbeat. Ignored with `contentHtml`.
+   */
+  scripts?: boolean;
+  /** Script mode: the slide ids and canvas the server built the document from; `ready` must match them. */
+  expect?: { slides: readonly string[]; width: number; height: number };
+  /**
+   * Script mode: the URL of the static version, asked for when the watchdog removes an unresponsive frame. Without
+   * it the player stops after showing the notice.
+   */
+  fallbackUrl?: () => Promise<string | null>;
+  /** Script mode: author code of a slide threw (reported by the runtime, no details). */
+  onScriptError?(slide: number): void;
 }
 
 export interface Player {
@@ -146,8 +168,10 @@ export interface Player {
   getOffline(): OfflineStatus;
   /** Tells the shell whether an offline copy of this deck is stored (layer 2); upgrades `ready`. */
   setOfflineCopy(on: boolean): void;
-  /** The iframe element (for focus management and tests). */
+  /** The iframe element (for focus management and tests). Replaced when the watchdog loads the static version. */
   readonly iframe: HTMLIFrameElement;
+  /** Script mode is active (the current frame runs author scripts). */
+  readonly scripted: boolean;
   /** Resolves when the deck document has reported its slides. */
   readonly ready: Promise<readonly SlideInfo[]>;
   destroy(): void;
@@ -162,6 +186,32 @@ const CHROME_BG = "rgba(0,0,0,.86)";
 const MONO = "'JetBrains Mono',ui-monospace,monospace";
 /** Keys that change the mode or open windows: from the iframe they need a real user gesture (see `activated`). */
 const GATED = new Set<KeyCode>(["KeyO", "KeyS", "KeyP", "Question", "KeyR", "KeyK"]);
+/**
+ * Script mode: the only keys accepted from the frame (navigation, black screen, Escape). Everything that opens
+ * windows, changes the mode, prints, toggles full screen, or answers a remote-control prompt (`Enter`, `R`, `K`)
+ * works only from the trusted page.
+ */
+export const FRAME_KEYS_IN_SCRIPT_MODE: ReadonlySet<KeyCode> = new Set<KeyCode>([
+  "ArrowRight",
+  "ArrowLeft",
+  "ArrowUp",
+  "ArrowDown",
+  "PageDown",
+  "PageUp",
+  "Space",
+  "ShiftSpace",
+  "Backspace",
+  "Home",
+  "End",
+  "KeyB",
+  "Period",
+  "Escape",
+]);
+/** Script mode: navigation keys accepted from the frame per second. */
+export const FRAME_KEYS_PER_SECOND = 10;
+/** Script mode: heartbeat interval of the runtime and missed beats before the watchdog fires. */
+export const BEAT_MS = 1000;
+export const WATCHDOG_MS = 3 * BEAT_MS + 500;
 export const PRESENTER_WINDOW = "pptaken-presenter";
 
 function checkedHttpUrl(url: string, base: string, what: string): URL {
@@ -253,6 +303,16 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
   let preload: PreloadMessage | null = null;
   let offlineCopy = false;
   let offline = offlineStatus(null, false);
+  // Script mode (ADR-020): set from the options for the first frame only; the static fallback frame is plain.
+  let scriptMode = options.scripts === true && src !== null;
+  let port: MessagePort | null = null;
+  let helloSeen = false;
+  let readySeen = false;
+  let lastBeat = 0;
+  let destroyed = false;
+  let watchdog: ReturnType<typeof setInterval> | undefined;
+  const frameKeyTimes: number[] = [];
+  let notice: HTMLDivElement | null = null;
   let hudTimer: ReturnType<typeof setTimeout> | undefined;
   let hashTimer: ReturnType<typeof setTimeout> | undefined;
   let resolveReady: (slides: readonly SlideInfo[]) => void = () => {};
@@ -265,13 +325,19 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
   host.style.background = "#000";
   host.style.overflow = "hidden";
 
-  const iframe = doc.createElement("iframe");
-  iframe.setAttribute("sandbox", "allow-scripts");
-  iframe.setAttribute("allow", "");
-  iframe.setAttribute("referrerpolicy", "no-referrer");
-  iframe.title = options.title ?? "Presentation";
-  iframe.style.cssText =
-    "position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:#000";
+  const makeFrame = (): HTMLIFrameElement => {
+    const frame = doc.createElement("iframe");
+    frame.setAttribute("sandbox", "allow-scripts");
+    frame.setAttribute("allow", "");
+    frame.setAttribute("referrerpolicy", "no-referrer");
+    frame.title = options.title ?? "Presentation";
+    frame.style.cssText =
+      "position:absolute;inset:0;width:100%;height:100%;border:0;display:block;background:#000";
+    return frame;
+  };
+  let iframe = makeFrame();
+  // Script mode: the host can take focus back from the frame (Escape), so trusted keys work again.
+  if (scriptMode && !host.hasAttribute("tabindex")) host.tabIndex = -1;
 
   const curtain = doc.createElement("div");
   curtain.setAttribute("aria-hidden", "true");
@@ -401,7 +467,7 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
   /** Recomputes the offline status; updates the dot and help text, and tells the page when the state changes. */
   const renderOffline = (): void => {
     const previous = offline;
-    offline = offlineStatus(preload, offlineCopy);
+    offline = offlineStatus(preload, offlineCopy, scriptMode);
     const text = labels[OFFLINE_LABEL[offline.state]];
     if (dot) {
       dot.style.background = OFFLINE_DOT[offline.state];
@@ -660,9 +726,30 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
     }
   };
 
+  /** Script mode: at most FRAME_KEYS_PER_SECOND keys from the frame in any second. */
+  const frameKeyAllowed = (): boolean => {
+    const now = Date.now();
+    while (frameKeyTimes.length > 0 && now - (frameKeyTimes[0] ?? 0) >= 1000) frameKeyTimes.shift();
+    if (frameKeyTimes.length >= FRAME_KEYS_PER_SECOND) return false;
+    frameKeyTimes.push(now);
+    return true;
+  };
+
   const handleKey = (code: KeyCode, source: KeySource): void => {
-    if (options.onKey?.(code, source)) return;
-    if (source === "frame" && GATED.has(code) && !activated()) return;
+    // The gate comes first: a key the frame may not send never reaches `onKey` (the remote control's prompt and
+    // panel keys live there).
+    if (source === "frame") {
+      if (scriptMode) {
+        if (!FRAME_KEYS_IN_SCRIPT_MODE.has(code) || !frameKeyAllowed()) return;
+        // Escape gives the keyboard back to the trusted page; frame keys never reach `onKey` in script mode.
+        if (code === "Escape") host.focus({ preventScroll: true });
+      } else {
+        if (GATED.has(code) && !activated()) return;
+        if (options.onKey?.(code, source)) return;
+      }
+    } else if (options.onKey?.(code, source)) {
+      return;
+    }
     if (printing) {
       finishPrint();
       return;
@@ -679,21 +766,144 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
     act(KEY_ACTIONS[code]);
   };
 
+  const stopScripts = (): void => {
+    clearInterval(watchdog);
+    watchdog = undefined;
+    if (port !== null) {
+      port.onmessage = null;
+      port.close();
+      port = null;
+    }
+  };
+
   const fault = (reason: PlayerFault): void => {
     if (faulted) return;
     faulted = true;
+    stopScripts();
     iframe.removeAttribute("srcdoc"); // srcdoc wins over src: drop it first
     iframe.src = "about:blank";
     options.onFault?.(reason);
   };
 
+  /** A plain element over the stage (never an iframe: it could share the busy content process, spike S5). */
+  const showNotice = (text: string | null): void => {
+    if (text === null) {
+      notice?.remove();
+      notice = null;
+      return;
+    }
+    if (!notice) {
+      notice = doc.createElement("div");
+      notice.setAttribute("role", "status");
+      notice.setAttribute("data-pptaken-notice", "");
+      notice.style.cssText =
+        "position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:32px;" +
+        `box-sizing:border-box;background:#000;color:${CHROME};font:16px/1.5 ${MONO};text-align:center`;
+      host.append(notice);
+    }
+    notice.textContent = text;
+  };
+
+  /** Watchdog: the runtime beats every second; 3 missed beats while the page is visible remove the frame. */
+  const startWatchdog = (): void => {
+    lastBeat = Date.now();
+    watchdog = setInterval(() => {
+      const now = Date.now();
+      // Hidden pages throttle timers (and printing blocks them): only count time the page could hear beats.
+      if (doc.visibilityState !== "visible" || printing) lastBeat = now;
+      if (now - lastBeat > WATCHDOG_MS) unresponsive();
+    }, BEAT_MS / 2);
+  };
+
+  const unresponsive = (): void => {
+    if (faulted || !scriptMode) return;
+    stopScripts();
+    scriptMode = false;
+    iframe.removeEventListener("load", onLoad);
+    iframe.remove(); // detach the busy document first
+    showNotice(labels.scriptsStopped);
+    options.onFault?.("unresponsive");
+    const fallback = options.fallbackUrl;
+    if (!fallback) {
+      faulted = true;
+      return;
+    }
+    void fallback().then(
+      (url) => {
+        if (url === null || destroyed) {
+          faulted = true;
+          return;
+        }
+        const next = makeFrame();
+        next.src = checkedHttpUrl(url, doc.baseURI, "fallbackUrl").href;
+        loads = 0;
+        helloSeen = false;
+        readySeen = false;
+        preload = null;
+        renderOffline();
+        next.addEventListener("load", onLoad);
+        iframe = next;
+        host.insertBefore(next, curtain);
+      },
+      () => {
+        faulted = true;
+      },
+    );
+  };
+
+  /** Script mode: `ready` must name exactly the slides and canvas the server built the document from. */
+  const matchesExpectation = (slideIds: readonly string[], w: number, h: number): boolean => {
+    const e = options.expect;
+    if (!e) return true;
+    return (
+      e.width === w &&
+      e.height === h &&
+      e.slides.length === slideIds.length &&
+      e.slides.every((id, i) => slideIds[i] === id)
+    );
+  };
+
+  const onPortMessage = (event: MessageEvent): void => {
+    if (faulted || !scriptMode) return;
+    const message = parseContentMessage(event.data);
+    if (message) handleContent(message);
+  };
+
   const onMessage = (event: MessageEvent): void => {
     // Only our iframe, which always has an opaque origin ("null"), and only well-formed messages.
     if (faulted || event.source !== iframe.contentWindow || event.origin !== "null") return;
+    if (scriptMode) {
+      // The runtime's first message transfers the private port; nothing else on `window` is ever accepted.
+      if (helloSeen) return;
+      helloSeen = true;
+      const transferred = event.ports[0];
+      if (!isHelloMessage(event.data, event.ports) || transferred === undefined) {
+        fault("protocol");
+        return;
+      }
+      port = transferred;
+      port.onmessage = onPortMessage;
+      startWatchdog();
+      return;
+    }
     const message: ContentMessage | null = parseContentMessage(event.data);
-    if (!message) return;
+    if (message) handleContent(message);
+  };
+
+  const handleContent = (message: ContentMessage): void => {
     switch (message.type) {
       case "ready": {
+        if (scriptMode) {
+          if (readySeen) return;
+          readySeen = true;
+          const ids = message.slides.map((x) => x.id);
+          if (!matchesExpectation(ids, message.width, message.height)) {
+            fault("protocol");
+            return;
+          }
+        } else if (notice !== null) {
+          showNotice(null); // the static fallback is up
+        }
         const first = slides === null;
         slides = message.slides;
         canvas = { width: message.width, height: message.height };
@@ -709,18 +919,37 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
       }
       case "key":
         return handleKey(message.code, "frame");
-      case "state":
+      case "state": {
+        if (scriptMode) {
+          // Only a state inside the deck, at the position the shell asked for, counts.
+          const info = slides?.[message.slide];
+          if (!info || message.step > info.steps) return;
+          const asked = message.slide === position.slide && message.step === position.step;
+          if (mode === "present" && !asked) return;
+        }
         ack?.();
         if (mode === "present") options.onRender?.({ slide: message.slide, step: message.step });
         return;
+      }
       case "select":
         // Only meaningful while the shell has the overview open; otherwise the content asked for it: ignore.
         return choose(message.slide);
       case "preload":
-        // Once, after `ready`. It only drives the indicator: navigation never waits for it.
+        // Once, after `ready`. It only drives the indicator: navigation never waits for it. In script mode the
+        // report could come from author code: the indicator says "not verified", never "ready".
         if (!slides || preload) return;
         preload = message;
         return renderOffline();
+      case "beat":
+        if (scriptMode) lastBeat = Date.now();
+        return;
+      case "error":
+        if (scriptMode && slides && message.slide < slides.length) {
+          // A discreet notice in the presenter window only; nothing on the audience screen.
+          sync?.send({ v: PROTOCOL_VERSION, type: "script-error", slide: message.slide });
+          options.onScriptError?.(message.slide);
+        }
+        return;
     }
   };
 
@@ -757,7 +986,7 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
           sync?.send({ v: PROTOCOL_VERSION, type: "black", on: blackOn });
         } else if (message.type === "nav") {
           apply({ slide: message.slide, step: message.step });
-        } else {
+        } else if (message.type === "black") {
           setBlack(message.on);
         }
       } finally {
@@ -815,9 +1044,17 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
       offlineCopy = on;
       renderOffline();
     },
-    iframe,
+    get iframe() {
+      return iframe;
+    },
+    get scripted() {
+      return scriptMode;
+    },
     ready,
     destroy: () => {
+      destroyed = true;
+      stopScripts();
+      showNotice(null);
       writeHash();
       finishPrint();
       sync?.close();

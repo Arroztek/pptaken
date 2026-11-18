@@ -34,9 +34,21 @@ export function assertAssetBaseUrl(url: unknown): asserts url is string {
   }
 }
 
+/** A CSP hash source value: SHA-256 in base64 (44 characters). */
+const SHA256_B64 = /^[A-Za-z0-9+/]{43}=$/;
+
 export interface CspOptions {
-  /** Per-response nonce of the runtime script. */
-  nonce: string;
+  /**
+   * Per-response nonce of the runtime script (static documents). Exactly one of `nonce` and `scriptHashes` is
+   * required.
+   */
+  nonce?: string | undefined;
+  /**
+   * Script mode (ADR-020): the SHA-256 (base64) of every script of the document: the runtime, each library and
+   * each wrapped author script. The policy is then hash-only (no nonce, no `'strict-dynamic'`, no
+   * `'unsafe-eval'`) and adds `script-src-attr 'none'`, `worker-src 'none'`, `webrtc 'block'` and Trusted Types.
+   */
+  scriptHashes?: readonly string[] | undefined;
   /**
    * Absolute URL of the content asset path (`https://content.example/c/asset/`). Images and fonts are allowed
    * only under it, never `'self'`. Without it, images and fonts are blocked (`'none'`).
@@ -53,7 +65,23 @@ export interface CspOptions {
 
 /** Value of the `Content-Security-Policy` header of a deck document. */
 export function contentSecurityPolicy(options: CspOptions): string {
-  assertNonce(options.nonce);
+  const hashes = options.scriptHashes;
+  if ((options.nonce === undefined) === (hashes === undefined)) {
+    throw new TypeError("pass exactly one of nonce and scriptHashes");
+  }
+  let scriptSrc: string;
+  if (hashes !== undefined) {
+    if (hashes.length === 0 || hashes.length > 512)
+      throw new TypeError("scriptHashes: 1 to 512 hashes");
+    for (const h of hashes) {
+      if (typeof h !== "string" || !SHA256_B64.test(h))
+        throw new TypeError("scriptHashes: not a SHA-256");
+    }
+    scriptSrc = [...new Set(hashes)].map((h) => `'sha256-${h}'`).join(" ");
+  } else {
+    assertNonce(options.nonce);
+    scriptSrc = `'nonce-${options.nonce}'`;
+  }
   let assets = "'none'";
   if (options.assetBaseUrl !== undefined) {
     assertAssetBaseUrl(options.assetBaseUrl);
@@ -67,7 +95,7 @@ export function contentSecurityPolicy(options: CspOptions): string {
   const directives = [
     "sandbox allow-scripts",
     "default-src 'none'",
-    `script-src 'nonce-${options.nonce}'`,
+    `script-src ${scriptSrc}`,
     "style-src 'unsafe-inline'",
     `img-src ${assets}`,
     `font-src ${fonts}`,
@@ -76,6 +104,16 @@ export function contentSecurityPolicy(options: CspOptions): string {
     "base-uri 'none'",
     "frame-src 'none'",
   ];
+  if (hashes !== undefined) {
+    directives.push(
+      "script-src-attr 'none'",
+      "worker-src 'none'",
+      "object-src 'none'",
+      "webrtc 'block'",
+      "require-trusted-types-for 'script'",
+      "trusted-types default",
+    );
+  }
   if (options.frameAncestors !== undefined) {
     for (const origin of options.frameAncestors) {
       if (!ORIGIN.test(origin)) throw new TypeError(`frameAncestors: not an origin: ${origin}`);
@@ -119,6 +157,8 @@ export function contentHeaders(options: CspOptions): Record<string, string> {
     "Referrer-Policy": "no-referrer",
     "Permissions-Policy": PERMISSIONS_POLICY,
     "Cache-Control": "no-store",
+    // Anchors created by content must not leak host names to DNS (an exfiltration channel CSP cannot see).
+    "X-DNS-Prefetch-Control": "off",
   };
 }
 

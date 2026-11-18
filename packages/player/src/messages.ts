@@ -117,12 +117,40 @@ export interface PreloadMessage {
   failed: PreloadFailure[];
 }
 
+/**
+ * Script mode only (ADR-020): the runtime's first message, posted on `window` from `<head>` before any author
+ * script exists, transfers a private `MessagePort`. Every later runtime message travels on that port; the shell
+ * ignores every other message from the frame.
+ */
+export interface HelloMessage {
+  v: 1;
+  type: "hello";
+}
+
+/** Script mode only: the runtime's heartbeat, every second (the shell's watchdog). */
+export interface BeatMessage {
+  v: 1;
+  type: "beat";
+}
+
+/**
+ * Script mode only: author code of `slide` threw (setup, a callback, or an uncaught error while it was the
+ * current slide). No error text crosses the boundary.
+ */
+export interface ErrorMessage {
+  v: 1;
+  type: "error";
+  slide: number;
+}
+
 export type ContentMessage =
   | ReadyMessage
   | KeyMessage
   | StateMessage
   | SelectMessage
-  | PreloadMessage;
+  | PreloadMessage
+  | BeatMessage
+  | ErrorMessage;
 
 export type Fields = Record<string, unknown>;
 

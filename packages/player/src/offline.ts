@@ -4,6 +4,7 @@
 //
 //   loading ──preload ok──▶ ready ──offline copy stored──▶ service-worker
 //      └────preload with failures──▶ partial   (stays partial: something is missing from memory)
+//      └────any preload in script mode──▶ unverified   (author code could have sent it, ADR-020)
 //
 // Layer 1 (in-memory preload, every browser) decides ready/partial; layer 2 (the service worker's offline copy,
 // secure contexts only) upgrades `ready` to `service-worker`.
@@ -11,7 +12,13 @@
 import type { LabelKey } from "./i18n.js";
 import type { PreloadFailure, PreloadMessage } from "./messages.js";
 
-export const OFFLINE_STATES = ["loading", "ready", "partial", "service-worker"] as const;
+export const OFFLINE_STATES = [
+  "loading",
+  "ready",
+  "partial",
+  "service-worker",
+  "unverified",
+] as const;
 export type OfflineState = (typeof OFFLINE_STATES)[number];
 
 export interface OfflineStatus {
@@ -26,16 +33,28 @@ export interface OfflineStatus {
   copy: boolean;
 }
 
-/** The indicator state for a preload report (or none yet) and the offline-copy flag. */
-export function offlineStateOf(preload: PreloadMessage | null, copy: boolean): OfflineState {
+/**
+ * The indicator state for a preload report (or none yet) and the offline-copy flag. `unverified`: the report came
+ * from a document that runs author scripts (script mode), so it proves nothing.
+ */
+export function offlineStateOf(
+  preload: PreloadMessage | null,
+  copy: boolean,
+  unverified = false,
+): OfflineState {
   if (preload === null) return "loading";
+  if (unverified) return "unverified";
   if (!preload.ok) return "partial";
   return copy ? "service-worker" : "ready";
 }
 
-export function offlineStatus(preload: PreloadMessage | null, copy: boolean): OfflineStatus {
+export function offlineStatus(
+  preload: PreloadMessage | null,
+  copy: boolean,
+  unverified = false,
+): OfflineStatus {
   return {
-    state: offlineStateOf(preload, copy),
+    state: offlineStateOf(preload, copy, unverified),
     images: preload?.images ?? 0,
     fonts: preload?.fonts ?? 0,
     failed: preload ? [...preload.failed] : [],
@@ -49,6 +68,7 @@ export const OFFLINE_LABEL: Readonly<Record<OfflineState, LabelKey>> = {
   ready: "offlineReady",
   partial: "offlinePartial",
   "service-worker": "offlineCopy",
+  unverified: "offlineUnverified",
 };
 
 /**
@@ -61,6 +81,7 @@ export const OFFLINE_DOT: Readonly<Record<OfflineState, string>> = {
   ready: "#3DD68C",
   partial: "#FF9F43",
   "service-worker": "#3DD68C",
+  unverified: "#8B8FA0",
 };
 
 /** The `<meta>` CSP every offline deck document starts with: no network at all, data: images and fonts only. */

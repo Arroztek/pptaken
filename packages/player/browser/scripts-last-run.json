@@ -1,0 +1,5412 @@
+{
+  "date": "2026-11-18T00:02:55.758Z",
+  "origins": {
+    "app": "http://localhost:55681",
+    "content": "http://127.0.0.1:55682",
+    "listener": "http://[::1]:55679",
+    "stun": 56999,
+    "turn": 55680
+  },
+  "engines": {
+    "chromium": {
+      "version": "158.0.8127.18",
+      "checks": [
+        {
+          "id": "api.ready-matches-expect",
+          "ok": true,
+          "log": []
+        },
+        {
+          "id": "api.uplot-draws-under-lockdown",
+          "ok": true,
+          "r": {
+            "uplot": "function",
+            "canvas": 1,
+            "seen": "enter0"
+          }
+        },
+        {
+          "id": "api.onEnter-called",
+          "ok": true,
+          "seen": "enter0"
+        },
+        {
+          "id": "api.broken-and-throwing-scripts-reported",
+          "ok": true,
+          "errors": [
+            2
+          ]
+        },
+        {
+          "id": "api.input-keeps-its-keys",
+          "ok": true,
+          "slider": "11",
+          "afterSlider": [
+            179,
+            0,
+            0,
+            "present"
+          ]
+        },
+        {
+          "id": "api.escape-returns-keyboard",
+          "ok": true,
+          "before": 0,
+          "after": 1
+        },
+        {
+          "id": "api.onStep-and-setSteps",
+          "ok": true,
+          "last": [
+            1595,
+            0,
+            1,
+            "present"
+          ],
+          "seen": "enter0,step1"
+        },
+        {
+          "id": "api.callback-errors-reported",
+          "ok": true,
+          "errors": [
+            2,
+            1
+          ]
+        },
+        {
+          "id": "api.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "net.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "net.cross.locked-fetch",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-xhr",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-ws",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-es",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-worker",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-shared",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-wt",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-bc",
+          "ok": true,
+          "v": "undefined"
+        },
+        {
+          "id": "net.cross.locked-open",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-conn",
+          "ok": true,
+          "v": "undefined"
+        },
+        {
+          "id": "net.cross.locked-beacon",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.eval-blocked",
+          "ok": true,
+          "eval": "threw:EvalError",
+          "fn": "threw:EvalError"
+        },
+        {
+          "id": "net.same.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "net.same.locked-fetch",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-xhr",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-ws",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-es",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-worker",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-shared",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-wt",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-bc",
+          "ok": true,
+          "v": "undefined"
+        },
+        {
+          "id": "net.same.locked-open",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-conn",
+          "ok": true,
+          "v": "undefined"
+        },
+        {
+          "id": "net.same.locked-beacon",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.eval-blocked",
+          "ok": true,
+          "eval": "threw:EvalError",
+          "fn": "threw:EvalError"
+        },
+        {
+          "id": "nonce.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nonce.cross.no-nonce",
+          "ok": true,
+          "r": {
+            "nonces": "|",
+            "steal": "threw:TypeError"
+          }
+        },
+        {
+          "id": "integrity.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "integrity.cross.ran",
+          "ok": true,
+          "r": {
+            "learned": true,
+            "create": "threw:TypeError",
+            "createNS": "threw:TypeError",
+            "clone": "threw:TypeError",
+            "frag": "threw:TypeError",
+            "link": "threw:TypeError",
+            "modlink": "threw:TypeError",
+            "inner": "threw:TypeError",
+            "outer": "threw:TypeError",
+            "adjacent": "threw:TypeError",
+            "parser": "threw:TypeError",
+            "implementation": "threw:TypeError",
+            "template": "threw:TypeError",
+            "unsafe": "threw:TypeError",
+            "write": "threw:TypeError",
+            "exec": "undefined",
+            "xslt": "undefined",
+            "ce": "undefined",
+            "restore": "false/false",
+            "ttdup": "threw:TypeError",
+            "ttpolicy": "threw:TypeError",
+            "done": 1
+          }
+        },
+        {
+          "id": "integrity.cross.refused-create",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-createNS",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-frag",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-link",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-modlink",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-inner",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-outer",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-adjacent",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-parser",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-implementation",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-template",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-write",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.trusted-types-default-taken",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "integrity.same.ran",
+          "ok": true,
+          "r": {
+            "learned": true,
+            "create": "threw:TypeError",
+            "createNS": "threw:TypeError",
+            "clone": "threw:TypeError",
+            "frag": "threw:TypeError",
+            "link": "threw:TypeError",
+            "modlink": "threw:TypeError",
+            "inner": "threw:TypeError",
+            "outer": "threw:TypeError",
+            "adjacent": "threw:TypeError",
+            "parser": "threw:TypeError",
+            "implementation": "threw:TypeError",
+            "template": "threw:TypeError",
+            "unsafe": "threw:TypeError",
+            "write": "threw:TypeError",
+            "exec": "undefined",
+            "xslt": "undefined",
+            "ce": "undefined",
+            "restore": "false/false",
+            "ttdup": "threw:TypeError",
+            "ttpolicy": "threw:TypeError",
+            "done": 1
+          }
+        },
+        {
+          "id": "integrity.same.refused-create",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-createNS",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-frag",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-link",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-modlink",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-inner",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-outer",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-adjacent",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-parser",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-implementation",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-template",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-write",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.trusted-types-default-taken",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "rtc.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "rtc.cross.no-stun-or-turn",
+          "ok": true,
+          "udp": 0,
+          "tcp": 0
+        },
+        {
+          "id": "rtc.cross.constructors-locked",
+          "ok": true,
+          "r": {
+            "RTCPeerConnection": "undefined",
+            "webkitRTCPeerConnection": "undefined",
+            "mozRTCPeerConnection": "undefined",
+            "configurable": "false",
+            "pc": "threw:TypeError",
+            "restore": "undefined",
+            "proto": "",
+            "devices": "undefined"
+          }
+        },
+        {
+          "id": "rtc.cross.not-restorable",
+          "ok": true,
+          "r": "undefined"
+        },
+        {
+          "id": "rtc.same.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "rtc.same.no-stun-or-turn",
+          "ok": true,
+          "udp": 0,
+          "tcp": 0
+        },
+        {
+          "id": "rtc.same.constructors-locked",
+          "ok": true,
+          "r": {
+            "RTCPeerConnection": "undefined",
+            "webkitRTCPeerConnection": "undefined",
+            "mozRTCPeerConnection": "undefined",
+            "configurable": "false",
+            "pc": "threw:TypeError",
+            "restore": "undefined",
+            "proto": "",
+            "devices": "undefined"
+          }
+        },
+        {
+          "id": "rtc.same.not-restorable",
+          "ok": true,
+          "r": "undefined"
+        },
+        {
+          "id": "realm.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "realm.cross.no-iframe",
+          "ok": true,
+          "r": {
+            "iframe": "threw:TypeError",
+            "iframeHtml": "threw:TypeError",
+            "open": "undefined",
+            "docopen": "undefined",
+            "fetchWrite": "undefined",
+            "fetchDefine": "threw:TypeError",
+            "fetchDelete": "false/undefined",
+            "frames": "0",
+            "newDoc": "threw:TypeError",
+            "navProto": "undefined/undefined",
+            "ttScriptUrl": "threw:TypeError"
+          }
+        },
+        {
+          "id": "realm.cross.fetch-stays-locked",
+          "ok": true,
+          "r": {
+            "iframe": "threw:TypeError",
+            "iframeHtml": "threw:TypeError",
+            "open": "undefined",
+            "docopen": "undefined",
+            "fetchWrite": "undefined",
+            "fetchDefine": "threw:TypeError",
+            "fetchDelete": "false/undefined",
+            "frames": "0",
+            "newDoc": "threw:TypeError",
+            "navProto": "undefined/undefined",
+            "ttScriptUrl": "threw:TypeError"
+          }
+        },
+        {
+          "id": "realm.cross.navigator-locked",
+          "ok": true,
+          "r": "undefined/undefined"
+        },
+        {
+          "id": "realm.cross.new-document-cannot-create-link",
+          "ok": true,
+          "r": "threw:TypeError"
+        },
+        {
+          "id": "inject.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "inject.cross.script-field-ran-html-script-did-not",
+          "ok": true,
+          "r": {
+            "ran": 1,
+            "inputs": 0
+          }
+        },
+        {
+          "id": "static.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "static.cross.no-author-code",
+          "ok": true,
+          "r": null
+        },
+        {
+          "id": "tamper.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "tamper.cross.edited-script-blocked",
+          "ok": true,
+          "r": null,
+          "errors": [
+            1
+          ]
+        },
+        {
+          "id": "nav.assign.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.assign.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.replace.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.replace.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.href.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.href.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.anchor.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.anchor.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.anchorTop.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.anchorTop.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.meta.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.meta.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.metaHtml.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.metaHtml.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.navigation.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.navigation.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.topLocation.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.topLocation.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.open.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.open.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.form.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.form.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "proto.real-ready-only",
+          "ok": true,
+          "ready": 4,
+          "faults": []
+        },
+        {
+          "id": "proto.no-forged-navigation",
+          "ok": true,
+          "positions": [
+            [
+              70,
+              0,
+              0,
+              "present"
+            ]
+          ]
+        },
+        {
+          "id": "proto.no-window-open",
+          "ok": true,
+          "opens": 0
+        },
+        {
+          "id": "proto.preload-unverified",
+          "ok": true,
+          "offline": [
+            "unverified"
+          ]
+        },
+        {
+          "id": "proto.no-frame-keys-reached-onKey",
+          "ok": true,
+          "keys": []
+        },
+        {
+          "id": "proto.gesture-forgery-ignored",
+          "ok": true,
+          "opens": 0,
+          "keys": []
+        },
+        {
+          "id": "proto.gated-keys-from-frame-dropped",
+          "ok": true,
+          "opens": 0,
+          "last": [
+            1312,
+            1,
+            0,
+            "present"
+          ]
+        },
+        {
+          "id": "proto.flood-rate-limited",
+          "ok": true,
+          "pressed": 60,
+          "elapsedMs": 87,
+          "moves": 10,
+          "worstPerSecond": 10
+        },
+        {
+          "id": "abuse.busy.documented-freeze",
+          "ok": true,
+          "gapMs": 8000,
+          "watchdogAtMs": 9022,
+          "fallbackAtMs": 8792,
+          "responsiveMs": 6,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.busy.fallback-after-watchdog",
+          "ok": true,
+          "gapMs": 8000,
+          "watchdogAtMs": 9022,
+          "fallbackAtMs": 8792,
+          "responsiveMs": 6,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.alloc.page-recovers",
+          "ok": true,
+          "gapMs": 646,
+          "watchdogAtMs": null,
+          "fallbackAtMs": null,
+          "responsiveMs": 16,
+          "faults": []
+        },
+        {
+          "id": "abuse.raf.page-recovers",
+          "ok": true,
+          "gapMs": 90,
+          "watchdogAtMs": null,
+          "fallbackAtMs": null,
+          "responsiveMs": 4,
+          "faults": []
+        },
+        {
+          "id": "abuse.dom.page-recovers",
+          "ok": true,
+          "gapMs": 4816,
+          "watchdogAtMs": 6104,
+          "fallbackAtMs": 6122,
+          "responsiveMs": 3,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.dom.fallback-after-watchdog",
+          "ok": true,
+          "gapMs": 4816,
+          "watchdogAtMs": 6104,
+          "fallbackAtMs": 6122,
+          "responsiveMs": 3,
+          "faults": [
+            "unresponsive"
+          ]
+        }
+      ],
+      "measurements": {
+        "net.cross": {
+          "result": {
+            "fetch": "threw:TypeError",
+            "xhr": "threw:TypeError",
+            "ws": "threw:TypeError",
+            "es": "threw:TypeError",
+            "beacon": "threw:TypeError",
+            "img": "set",
+            "font": "set",
+            "css": "set",
+            "worker": "threw:TypeError",
+            "shared": "threw:TypeError",
+            "wt": "threw:TypeError",
+            "bc": "undefined",
+            "open": "threw:TypeError",
+            "conn": "undefined",
+            "eval": "threw:EvalError",
+            "fn": "threw:EvalError",
+            "import": "rejected"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "net.same": {
+          "result": {
+            "fetch": "threw:TypeError",
+            "xhr": "threw:TypeError",
+            "ws": "threw:TypeError",
+            "es": "threw:TypeError",
+            "beacon": "threw:TypeError",
+            "img": "set",
+            "font": "set",
+            "css": "set",
+            "worker": "threw:TypeError",
+            "shared": "threw:TypeError",
+            "wt": "threw:TypeError",
+            "bc": "undefined",
+            "open": "threw:TypeError",
+            "conn": "undefined",
+            "eval": "threw:EvalError",
+            "fn": "threw:EvalError",
+            "import": "rejected"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "nonce.cross": {
+          "result": {
+            "nonces": "|",
+            "steal": "threw:TypeError"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "integrity.cross": {
+          "result": {
+            "learned": true,
+            "create": "threw:TypeError",
+            "createNS": "threw:TypeError",
+            "clone": "threw:TypeError",
+            "frag": "threw:TypeError",
+            "link": "threw:TypeError",
+            "modlink": "threw:TypeError",
+            "inner": "threw:TypeError",
+            "outer": "threw:TypeError",
+            "adjacent": "threw:TypeError",
+            "parser": "threw:TypeError",
+            "implementation": "threw:TypeError",
+            "template": "threw:TypeError",
+            "unsafe": "threw:TypeError",
+            "write": "threw:TypeError",
+            "exec": "undefined",
+            "xslt": "undefined",
+            "ce": "undefined",
+            "restore": "false/false",
+            "ttdup": "threw:TypeError",
+            "ttpolicy": "threw:TypeError",
+            "done": 1
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "integrity.same": {
+          "result": {
+            "learned": true,
+            "create": "threw:TypeError",
+            "createNS": "threw:TypeError",
+            "clone": "threw:TypeError",
+            "frag": "threw:TypeError",
+            "link": "threw:TypeError",
+            "modlink": "threw:TypeError",
+            "inner": "threw:TypeError",
+            "outer": "threw:TypeError",
+            "adjacent": "threw:TypeError",
+            "parser": "threw:TypeError",
+            "implementation": "threw:TypeError",
+            "template": "threw:TypeError",
+            "unsafe": "threw:TypeError",
+            "write": "threw:TypeError",
+            "exec": "undefined",
+            "xslt": "undefined",
+            "ce": "undefined",
+            "restore": "false/false",
+            "ttdup": "threw:TypeError",
+            "ttpolicy": "threw:TypeError",
+            "done": 1
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "rtc.cross": {
+          "result": {
+            "RTCPeerConnection": "undefined",
+            "webkitRTCPeerConnection": "undefined",
+            "mozRTCPeerConnection": "undefined",
+            "configurable": "false",
+            "pc": "threw:TypeError",
+            "restore": "undefined",
+            "proto": "",
+            "devices": "undefined"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "rtc.same": {
+          "result": {
+            "RTCPeerConnection": "undefined",
+            "webkitRTCPeerConnection": "undefined",
+            "mozRTCPeerConnection": "undefined",
+            "configurable": "false",
+            "pc": "threw:TypeError",
+            "restore": "undefined",
+            "proto": "",
+            "devices": "undefined"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "realm.cross": {
+          "result": {
+            "iframe": "threw:TypeError",
+            "iframeHtml": "threw:TypeError",
+            "open": "undefined",
+            "docopen": "undefined",
+            "fetchWrite": "undefined",
+            "fetchDefine": "threw:TypeError",
+            "fetchDelete": "false/undefined",
+            "frames": "0",
+            "newDoc": "threw:TypeError",
+            "navProto": "undefined/undefined",
+            "ttScriptUrl": "threw:TypeError"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "inject.cross": {
+          "result": {
+            "ran": 1,
+            "inputs": 0
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "static.cross": {
+          "result": null,
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "tamper.cross": {
+          "result": null,
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [
+            1
+          ],
+          "faults": []
+        },
+        "rtc.control": {
+          "title": "created",
+          "udp": 4,
+          "tcp": 1
+        },
+        "rtc.provable": true,
+        "nav": {
+          "assign.cross": 0,
+          "assign.same": 0,
+          "replace.cross": 0,
+          "replace.same": 0,
+          "href.cross": 0,
+          "href.same": 0,
+          "anchor.cross": 0,
+          "anchor.same": 0,
+          "anchorTop.cross": 0,
+          "anchorTop.same": 0,
+          "meta.cross": 0,
+          "meta.same": 0,
+          "metaHtml.cross": 0,
+          "metaHtml.same": 0,
+          "navigation.cross": 0,
+          "navigation.same": 0,
+          "topLocation.cross": 0,
+          "topLocation.same": 0,
+          "open.cross": 0,
+          "open.same": 0,
+          "form.cross": 0,
+          "form.same": 0,
+          "own-origin.cross": [
+            {
+              "kind": "content",
+              "cookie": false
+            }
+          ],
+          "own-origin.same": [
+            {
+              "kind": "app",
+              "cookie": false
+            }
+          ]
+        },
+        "flood": {
+          "pressed": 60,
+          "elapsedMs": 87,
+          "moves": 10,
+          "worstPerSecond": 10
+        },
+        "abuse.busy": {
+          "gapMs": 8000,
+          "watchdogAtMs": 9022,
+          "fallbackAtMs": 8792,
+          "responsiveMs": 6,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        "abuse.alloc": {
+          "gapMs": 646,
+          "watchdogAtMs": null,
+          "fallbackAtMs": null,
+          "responsiveMs": 16,
+          "faults": []
+        },
+        "abuse.raf": {
+          "gapMs": 90,
+          "watchdogAtMs": null,
+          "fallbackAtMs": null,
+          "responsiveMs": 4,
+          "faults": []
+        },
+        "abuse.dom": {
+          "gapMs": 4816,
+          "watchdogAtMs": 6104,
+          "fallbackAtMs": 6122,
+          "responsiveMs": 3,
+          "faults": [
+            "unresponsive"
+          ]
+        }
+      }
+    },
+    "chromium-full": {
+      "version": "158.0.8127.18",
+      "checks": [
+        {
+          "id": "api.ready-matches-expect",
+          "ok": true,
+          "log": []
+        },
+        {
+          "id": "api.uplot-draws-under-lockdown",
+          "ok": true,
+          "r": {
+            "uplot": "function",
+            "canvas": 1,
+            "seen": "enter0"
+          }
+        },
+        {
+          "id": "api.onEnter-called",
+          "ok": true,
+          "seen": "enter0"
+        },
+        {
+          "id": "api.broken-and-throwing-scripts-reported",
+          "ok": true,
+          "errors": [
+            2
+          ]
+        },
+        {
+          "id": "api.input-keeps-its-keys",
+          "ok": true,
+          "slider": "11",
+          "afterSlider": [
+            237,
+            0,
+            0,
+            "present"
+          ]
+        },
+        {
+          "id": "api.escape-returns-keyboard",
+          "ok": true,
+          "before": 0,
+          "after": 1
+        },
+        {
+          "id": "api.onStep-and-setSteps",
+          "ok": true,
+          "last": [
+            1659,
+            0,
+            1,
+            "present"
+          ],
+          "seen": "enter0,step1"
+        },
+        {
+          "id": "api.callback-errors-reported",
+          "ok": true,
+          "errors": [
+            2,
+            1
+          ]
+        },
+        {
+          "id": "api.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "net.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "net.cross.locked-fetch",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-xhr",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-ws",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-es",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-worker",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-shared",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-wt",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-bc",
+          "ok": true,
+          "v": "undefined"
+        },
+        {
+          "id": "net.cross.locked-open",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-conn",
+          "ok": true,
+          "v": "undefined"
+        },
+        {
+          "id": "net.cross.locked-beacon",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.eval-blocked",
+          "ok": true,
+          "eval": "threw:EvalError",
+          "fn": "threw:EvalError"
+        },
+        {
+          "id": "net.same.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "net.same.locked-fetch",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-xhr",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-ws",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-es",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-worker",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-shared",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-wt",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-bc",
+          "ok": true,
+          "v": "undefined"
+        },
+        {
+          "id": "net.same.locked-open",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-conn",
+          "ok": true,
+          "v": "undefined"
+        },
+        {
+          "id": "net.same.locked-beacon",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.eval-blocked",
+          "ok": true,
+          "eval": "threw:EvalError",
+          "fn": "threw:EvalError"
+        },
+        {
+          "id": "nonce.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nonce.cross.no-nonce",
+          "ok": true,
+          "r": {
+            "nonces": "|",
+            "steal": "threw:TypeError"
+          }
+        },
+        {
+          "id": "integrity.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "integrity.cross.ran",
+          "ok": true,
+          "r": {
+            "learned": true,
+            "create": "threw:TypeError",
+            "createNS": "threw:TypeError",
+            "clone": "threw:TypeError",
+            "frag": "threw:TypeError",
+            "link": "threw:TypeError",
+            "modlink": "threw:TypeError",
+            "inner": "threw:TypeError",
+            "outer": "threw:TypeError",
+            "adjacent": "threw:TypeError",
+            "parser": "threw:TypeError",
+            "implementation": "threw:TypeError",
+            "template": "threw:TypeError",
+            "unsafe": "threw:TypeError",
+            "write": "threw:TypeError",
+            "exec": "undefined",
+            "xslt": "undefined",
+            "ce": "undefined",
+            "restore": "false/false",
+            "ttdup": "threw:TypeError",
+            "ttpolicy": "threw:TypeError",
+            "done": 1
+          }
+        },
+        {
+          "id": "integrity.cross.refused-create",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-createNS",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-frag",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-link",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-modlink",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-inner",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-outer",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-adjacent",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-parser",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-implementation",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-template",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-write",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.trusted-types-default-taken",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "integrity.same.ran",
+          "ok": true,
+          "r": {
+            "learned": true,
+            "create": "threw:TypeError",
+            "createNS": "threw:TypeError",
+            "clone": "threw:TypeError",
+            "frag": "threw:TypeError",
+            "link": "threw:TypeError",
+            "modlink": "threw:TypeError",
+            "inner": "threw:TypeError",
+            "outer": "threw:TypeError",
+            "adjacent": "threw:TypeError",
+            "parser": "threw:TypeError",
+            "implementation": "threw:TypeError",
+            "template": "threw:TypeError",
+            "unsafe": "threw:TypeError",
+            "write": "threw:TypeError",
+            "exec": "undefined",
+            "xslt": "undefined",
+            "ce": "undefined",
+            "restore": "false/false",
+            "ttdup": "threw:TypeError",
+            "ttpolicy": "threw:TypeError",
+            "done": 1
+          }
+        },
+        {
+          "id": "integrity.same.refused-create",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-createNS",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-frag",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-link",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-modlink",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-inner",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-outer",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-adjacent",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-parser",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-implementation",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-template",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-write",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.trusted-types-default-taken",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "rtc.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "rtc.cross.no-stun-or-turn",
+          "ok": true,
+          "udp": 0,
+          "tcp": 0
+        },
+        {
+          "id": "rtc.cross.constructors-locked",
+          "ok": true,
+          "r": {
+            "RTCPeerConnection": "undefined",
+            "webkitRTCPeerConnection": "undefined",
+            "mozRTCPeerConnection": "undefined",
+            "configurable": "false",
+            "pc": "threw:TypeError",
+            "restore": "undefined",
+            "proto": "",
+            "devices": "undefined"
+          }
+        },
+        {
+          "id": "rtc.cross.not-restorable",
+          "ok": true,
+          "r": "undefined"
+        },
+        {
+          "id": "rtc.same.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "rtc.same.no-stun-or-turn",
+          "ok": true,
+          "udp": 0,
+          "tcp": 0
+        },
+        {
+          "id": "rtc.same.constructors-locked",
+          "ok": true,
+          "r": {
+            "RTCPeerConnection": "undefined",
+            "webkitRTCPeerConnection": "undefined",
+            "mozRTCPeerConnection": "undefined",
+            "configurable": "false",
+            "pc": "threw:TypeError",
+            "restore": "undefined",
+            "proto": "",
+            "devices": "undefined"
+          }
+        },
+        {
+          "id": "rtc.same.not-restorable",
+          "ok": true,
+          "r": "undefined"
+        },
+        {
+          "id": "realm.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "realm.cross.no-iframe",
+          "ok": true,
+          "r": {
+            "iframe": "threw:TypeError",
+            "iframeHtml": "threw:TypeError",
+            "open": "undefined",
+            "docopen": "undefined",
+            "fetchWrite": "undefined",
+            "fetchDefine": "threw:TypeError",
+            "fetchDelete": "false/undefined",
+            "frames": "0",
+            "newDoc": "threw:TypeError",
+            "navProto": "undefined/undefined",
+            "ttScriptUrl": "threw:TypeError"
+          }
+        },
+        {
+          "id": "realm.cross.fetch-stays-locked",
+          "ok": true,
+          "r": {
+            "iframe": "threw:TypeError",
+            "iframeHtml": "threw:TypeError",
+            "open": "undefined",
+            "docopen": "undefined",
+            "fetchWrite": "undefined",
+            "fetchDefine": "threw:TypeError",
+            "fetchDelete": "false/undefined",
+            "frames": "0",
+            "newDoc": "threw:TypeError",
+            "navProto": "undefined/undefined",
+            "ttScriptUrl": "threw:TypeError"
+          }
+        },
+        {
+          "id": "realm.cross.navigator-locked",
+          "ok": true,
+          "r": "undefined/undefined"
+        },
+        {
+          "id": "realm.cross.new-document-cannot-create-link",
+          "ok": true,
+          "r": "threw:TypeError"
+        },
+        {
+          "id": "inject.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "inject.cross.script-field-ran-html-script-did-not",
+          "ok": true,
+          "r": {
+            "ran": 1,
+            "inputs": 0
+          }
+        },
+        {
+          "id": "static.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "static.cross.no-author-code",
+          "ok": true,
+          "r": null
+        },
+        {
+          "id": "tamper.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "tamper.cross.edited-script-blocked",
+          "ok": true,
+          "r": null,
+          "errors": [
+            1
+          ]
+        },
+        {
+          "id": "nav.assign.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.assign.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.replace.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.replace.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.href.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.href.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.anchor.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.anchor.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.anchorTop.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.anchorTop.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.meta.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.meta.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.metaHtml.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.metaHtml.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.navigation.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.navigation.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.topLocation.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.topLocation.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.open.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.open.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.form.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.form.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "proto.real-ready-only",
+          "ok": true,
+          "ready": 4,
+          "faults": []
+        },
+        {
+          "id": "proto.no-forged-navigation",
+          "ok": true,
+          "positions": [
+            [
+              121,
+              0,
+              0,
+              "present"
+            ]
+          ]
+        },
+        {
+          "id": "proto.no-window-open",
+          "ok": true,
+          "opens": 0
+        },
+        {
+          "id": "proto.preload-unverified",
+          "ok": true,
+          "offline": [
+            "unverified"
+          ]
+        },
+        {
+          "id": "proto.no-frame-keys-reached-onKey",
+          "ok": true,
+          "keys": []
+        },
+        {
+          "id": "proto.gesture-forgery-ignored",
+          "ok": true,
+          "opens": 0,
+          "keys": []
+        },
+        {
+          "id": "proto.gated-keys-from-frame-dropped",
+          "ok": true,
+          "opens": 0,
+          "last": [
+            1405,
+            1,
+            0,
+            "present"
+          ]
+        },
+        {
+          "id": "proto.flood-rate-limited",
+          "ok": true,
+          "pressed": 60,
+          "elapsedMs": 71,
+          "moves": 10,
+          "worstPerSecond": 10
+        },
+        {
+          "id": "abuse.busy.contained",
+          "ok": true,
+          "gapMs": 26,
+          "watchdogAtMs": 4093,
+          "fallbackAtMs": 8786,
+          "responsiveMs": 7,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.busy.fallback-after-watchdog",
+          "ok": true,
+          "gapMs": 26,
+          "watchdogAtMs": 4093,
+          "fallbackAtMs": 8786,
+          "responsiveMs": 7,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.alloc.page-recovers",
+          "ok": true,
+          "gapMs": 32,
+          "watchdogAtMs": null,
+          "fallbackAtMs": null,
+          "responsiveMs": 9,
+          "faults": []
+        },
+        {
+          "id": "abuse.raf.page-recovers",
+          "ok": true,
+          "gapMs": 35,
+          "watchdogAtMs": null,
+          "fallbackAtMs": null,
+          "responsiveMs": 6,
+          "faults": []
+        },
+        {
+          "id": "abuse.dom.page-recovers",
+          "ok": true,
+          "gapMs": 24,
+          "watchdogAtMs": 3622,
+          "fallbackAtMs": 6518,
+          "responsiveMs": 5,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.dom.fallback-after-watchdog",
+          "ok": true,
+          "gapMs": 24,
+          "watchdogAtMs": 3622,
+          "fallbackAtMs": 6518,
+          "responsiveMs": 5,
+          "faults": [
+            "unresponsive"
+          ]
+        }
+      ],
+      "measurements": {
+        "net.cross": {
+          "result": {
+            "fetch": "threw:TypeError",
+            "xhr": "threw:TypeError",
+            "ws": "threw:TypeError",
+            "es": "threw:TypeError",
+            "beacon": "threw:TypeError",
+            "img": "set",
+            "font": "set",
+            "css": "set",
+            "worker": "threw:TypeError",
+            "shared": "threw:TypeError",
+            "wt": "threw:TypeError",
+            "bc": "undefined",
+            "open": "threw:TypeError",
+            "conn": "undefined",
+            "eval": "threw:EvalError",
+            "fn": "threw:EvalError",
+            "import": "rejected"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "net.same": {
+          "result": {
+            "fetch": "threw:TypeError",
+            "xhr": "threw:TypeError",
+            "ws": "threw:TypeError",
+            "es": "threw:TypeError",
+            "beacon": "threw:TypeError",
+            "img": "set",
+            "font": "set",
+            "css": "set",
+            "worker": "threw:TypeError",
+            "shared": "threw:TypeError",
+            "wt": "threw:TypeError",
+            "bc": "undefined",
+            "open": "threw:TypeError",
+            "conn": "undefined",
+            "eval": "threw:EvalError",
+            "fn": "threw:EvalError",
+            "import": "rejected"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "nonce.cross": {
+          "result": {
+            "nonces": "|",
+            "steal": "threw:TypeError"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "integrity.cross": {
+          "result": {
+            "learned": true,
+            "create": "threw:TypeError",
+            "createNS": "threw:TypeError",
+            "clone": "threw:TypeError",
+            "frag": "threw:TypeError",
+            "link": "threw:TypeError",
+            "modlink": "threw:TypeError",
+            "inner": "threw:TypeError",
+            "outer": "threw:TypeError",
+            "adjacent": "threw:TypeError",
+            "parser": "threw:TypeError",
+            "implementation": "threw:TypeError",
+            "template": "threw:TypeError",
+            "unsafe": "threw:TypeError",
+            "write": "threw:TypeError",
+            "exec": "undefined",
+            "xslt": "undefined",
+            "ce": "undefined",
+            "restore": "false/false",
+            "ttdup": "threw:TypeError",
+            "ttpolicy": "threw:TypeError",
+            "done": 1
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "integrity.same": {
+          "result": {
+            "learned": true,
+            "create": "threw:TypeError",
+            "createNS": "threw:TypeError",
+            "clone": "threw:TypeError",
+            "frag": "threw:TypeError",
+            "link": "threw:TypeError",
+            "modlink": "threw:TypeError",
+            "inner": "threw:TypeError",
+            "outer": "threw:TypeError",
+            "adjacent": "threw:TypeError",
+            "parser": "threw:TypeError",
+            "implementation": "threw:TypeError",
+            "template": "threw:TypeError",
+            "unsafe": "threw:TypeError",
+            "write": "threw:TypeError",
+            "exec": "undefined",
+            "xslt": "undefined",
+            "ce": "undefined",
+            "restore": "false/false",
+            "ttdup": "threw:TypeError",
+            "ttpolicy": "threw:TypeError",
+            "done": 1
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "rtc.cross": {
+          "result": {
+            "RTCPeerConnection": "undefined",
+            "webkitRTCPeerConnection": "undefined",
+            "mozRTCPeerConnection": "undefined",
+            "configurable": "false",
+            "pc": "threw:TypeError",
+            "restore": "undefined",
+            "proto": "",
+            "devices": "undefined"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "rtc.same": {
+          "result": {
+            "RTCPeerConnection": "undefined",
+            "webkitRTCPeerConnection": "undefined",
+            "mozRTCPeerConnection": "undefined",
+            "configurable": "false",
+            "pc": "threw:TypeError",
+            "restore": "undefined",
+            "proto": "",
+            "devices": "undefined"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "realm.cross": {
+          "result": {
+            "iframe": "threw:TypeError",
+            "iframeHtml": "threw:TypeError",
+            "open": "undefined",
+            "docopen": "undefined",
+            "fetchWrite": "undefined",
+            "fetchDefine": "threw:TypeError",
+            "fetchDelete": "false/undefined",
+            "frames": "0",
+            "newDoc": "threw:TypeError",
+            "navProto": "undefined/undefined",
+            "ttScriptUrl": "threw:TypeError"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "inject.cross": {
+          "result": {
+            "ran": 1,
+            "inputs": 0
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "static.cross": {
+          "result": null,
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "tamper.cross": {
+          "result": null,
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [
+            1
+          ],
+          "faults": []
+        },
+        "rtc.control": {
+          "title": "created",
+          "udp": 4,
+          "tcp": 1
+        },
+        "rtc.provable": true,
+        "nav": {
+          "assign.cross": 0,
+          "assign.same": 0,
+          "replace.cross": 0,
+          "replace.same": 0,
+          "href.cross": 0,
+          "href.same": 0,
+          "anchor.cross": 0,
+          "anchor.same": 0,
+          "anchorTop.cross": 0,
+          "anchorTop.same": 0,
+          "meta.cross": 0,
+          "meta.same": 0,
+          "metaHtml.cross": 0,
+          "metaHtml.same": 0,
+          "navigation.cross": 0,
+          "navigation.same": 0,
+          "topLocation.cross": 0,
+          "topLocation.same": 0,
+          "open.cross": 0,
+          "open.same": 0,
+          "form.cross": 0,
+          "form.same": 0,
+          "own-origin.cross": [
+            {
+              "kind": "content",
+              "cookie": false
+            }
+          ],
+          "own-origin.same": [
+            {
+              "kind": "app",
+              "cookie": false
+            }
+          ]
+        },
+        "flood": {
+          "pressed": 60,
+          "elapsedMs": 71,
+          "moves": 10,
+          "worstPerSecond": 10
+        },
+        "abuse.busy": {
+          "gapMs": 26,
+          "watchdogAtMs": 4093,
+          "fallbackAtMs": 8786,
+          "responsiveMs": 7,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        "abuse.alloc": {
+          "gapMs": 32,
+          "watchdogAtMs": null,
+          "fallbackAtMs": null,
+          "responsiveMs": 9,
+          "faults": []
+        },
+        "abuse.raf": {
+          "gapMs": 35,
+          "watchdogAtMs": null,
+          "fallbackAtMs": null,
+          "responsiveMs": 6,
+          "faults": []
+        },
+        "abuse.dom": {
+          "gapMs": 24,
+          "watchdogAtMs": 3622,
+          "fallbackAtMs": 6518,
+          "responsiveMs": 5,
+          "faults": [
+            "unresponsive"
+          ]
+        }
+      }
+    },
+    "firefox": {
+      "version": "159.0",
+      "checks": [
+        {
+          "id": "api.ready-matches-expect",
+          "ok": true,
+          "log": []
+        },
+        {
+          "id": "api.uplot-draws-under-lockdown",
+          "ok": true,
+          "r": {
+            "uplot": "function",
+            "canvas": 1,
+            "seen": "enter0"
+          }
+        },
+        {
+          "id": "api.onEnter-called",
+          "ok": true,
+          "seen": "enter0"
+        },
+        {
+          "id": "api.broken-and-throwing-scripts-reported",
+          "ok": true,
+          "errors": [
+            2
+          ]
+        },
+        {
+          "id": "api.input-keeps-its-keys",
+          "ok": true,
+          "slider": "11",
+          "afterSlider": [
+            728,
+            0,
+            0,
+            "present"
+          ]
+        },
+        {
+          "id": "api.escape-returns-keyboard",
+          "ok": true,
+          "before": 0,
+          "after": 1
+        },
+        {
+          "id": "api.onStep-and-setSteps",
+          "ok": true,
+          "last": [
+            2334,
+            0,
+            1,
+            "present"
+          ],
+          "seen": "enter0,step1"
+        },
+        {
+          "id": "api.callback-errors-reported",
+          "ok": true,
+          "errors": [
+            2,
+            1
+          ]
+        },
+        {
+          "id": "api.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "net.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "net.cross.locked-fetch",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-xhr",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-ws",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-es",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-worker",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-shared",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-wt",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-bc",
+          "ok": true,
+          "v": "undefined"
+        },
+        {
+          "id": "net.cross.locked-open",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-conn",
+          "ok": true,
+          "v": "undefined"
+        },
+        {
+          "id": "net.cross.locked-beacon",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.eval-blocked",
+          "ok": true,
+          "eval": "threw:EvalError",
+          "fn": "threw:EvalError"
+        },
+        {
+          "id": "net.same.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "net.same.locked-fetch",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-xhr",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-ws",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-es",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-worker",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-shared",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-wt",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-bc",
+          "ok": true,
+          "v": "undefined"
+        },
+        {
+          "id": "net.same.locked-open",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-conn",
+          "ok": true,
+          "v": "undefined"
+        },
+        {
+          "id": "net.same.locked-beacon",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.eval-blocked",
+          "ok": true,
+          "eval": "threw:EvalError",
+          "fn": "threw:EvalError"
+        },
+        {
+          "id": "nonce.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nonce.cross.no-nonce",
+          "ok": true,
+          "r": {
+            "nonces": "|",
+            "steal": "threw:TypeError"
+          }
+        },
+        {
+          "id": "integrity.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "integrity.cross.ran",
+          "ok": true,
+          "r": {
+            "learned": true,
+            "create": "threw:TypeError",
+            "createNS": "threw:TypeError",
+            "clone": "threw:TypeError",
+            "frag": "threw:TypeError",
+            "link": "threw:TypeError",
+            "modlink": "threw:TypeError",
+            "inner": "threw:TypeError",
+            "outer": "threw:TypeError",
+            "adjacent": "threw:TypeError",
+            "parser": "threw:TypeError",
+            "implementation": "threw:TypeError",
+            "template": "threw:TypeError",
+            "unsafe": "threw:TypeError",
+            "write": "threw:TypeError",
+            "exec": "undefined",
+            "xslt": "undefined",
+            "ce": "undefined",
+            "restore": "false/false",
+            "ttdup": "threw:TypeError",
+            "ttpolicy": "threw:TypeError",
+            "done": 1
+          }
+        },
+        {
+          "id": "integrity.cross.refused-create",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-createNS",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-frag",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-link",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-modlink",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-inner",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-outer",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-adjacent",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-parser",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-implementation",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-template",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-write",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.trusted-types-default-taken",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "integrity.same.ran",
+          "ok": true,
+          "r": {
+            "learned": true,
+            "create": "threw:TypeError",
+            "createNS": "threw:TypeError",
+            "clone": "threw:TypeError",
+            "frag": "threw:TypeError",
+            "link": "threw:TypeError",
+            "modlink": "threw:TypeError",
+            "inner": "threw:TypeError",
+            "outer": "threw:TypeError",
+            "adjacent": "threw:TypeError",
+            "parser": "threw:TypeError",
+            "implementation": "threw:TypeError",
+            "template": "threw:TypeError",
+            "unsafe": "threw:TypeError",
+            "write": "threw:TypeError",
+            "exec": "undefined",
+            "xslt": "undefined",
+            "ce": "undefined",
+            "restore": "false/false",
+            "ttdup": "threw:TypeError",
+            "ttpolicy": "threw:TypeError",
+            "done": 1
+          }
+        },
+        {
+          "id": "integrity.same.refused-create",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-createNS",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-frag",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-link",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-modlink",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-inner",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-outer",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-adjacent",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-parser",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-implementation",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-template",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-write",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.trusted-types-default-taken",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "rtc.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "rtc.cross.no-stun-or-turn",
+          "ok": true,
+          "udp": 0,
+          "tcp": 0
+        },
+        {
+          "id": "rtc.cross.constructors-locked",
+          "ok": true,
+          "r": {
+            "RTCPeerConnection": "undefined",
+            "webkitRTCPeerConnection": "undefined",
+            "mozRTCPeerConnection": "undefined",
+            "configurable": "false",
+            "pc": "threw:TypeError",
+            "restore": "undefined",
+            "proto": "",
+            "devices": "undefined"
+          }
+        },
+        {
+          "id": "rtc.cross.not-restorable",
+          "ok": true,
+          "r": "undefined"
+        },
+        {
+          "id": "rtc.same.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "rtc.same.no-stun-or-turn",
+          "ok": true,
+          "udp": 0,
+          "tcp": 0
+        },
+        {
+          "id": "rtc.same.constructors-locked",
+          "ok": true,
+          "r": {
+            "RTCPeerConnection": "undefined",
+            "webkitRTCPeerConnection": "undefined",
+            "mozRTCPeerConnection": "undefined",
+            "configurable": "false",
+            "pc": "threw:TypeError",
+            "restore": "undefined",
+            "proto": "",
+            "devices": "undefined"
+          }
+        },
+        {
+          "id": "rtc.same.not-restorable",
+          "ok": true,
+          "r": "undefined"
+        },
+        {
+          "id": "realm.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "realm.cross.no-iframe",
+          "ok": true,
+          "r": {
+            "iframe": "threw:TypeError",
+            "iframeHtml": "threw:TypeError",
+            "open": "undefined",
+            "docopen": "undefined",
+            "fetchWrite": "undefined",
+            "fetchDefine": "threw:TypeError",
+            "fetchDelete": "false/undefined",
+            "frames": "0",
+            "newDoc": "threw:TypeError",
+            "navProto": "undefined/undefined",
+            "ttScriptUrl": "threw:TypeError"
+          }
+        },
+        {
+          "id": "realm.cross.fetch-stays-locked",
+          "ok": true,
+          "r": {
+            "iframe": "threw:TypeError",
+            "iframeHtml": "threw:TypeError",
+            "open": "undefined",
+            "docopen": "undefined",
+            "fetchWrite": "undefined",
+            "fetchDefine": "threw:TypeError",
+            "fetchDelete": "false/undefined",
+            "frames": "0",
+            "newDoc": "threw:TypeError",
+            "navProto": "undefined/undefined",
+            "ttScriptUrl": "threw:TypeError"
+          }
+        },
+        {
+          "id": "realm.cross.navigator-locked",
+          "ok": true,
+          "r": "undefined/undefined"
+        },
+        {
+          "id": "realm.cross.new-document-cannot-create-link",
+          "ok": true,
+          "r": "threw:TypeError"
+        },
+        {
+          "id": "inject.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "inject.cross.script-field-ran-html-script-did-not",
+          "ok": true,
+          "r": {
+            "ran": 1,
+            "inputs": 0
+          }
+        },
+        {
+          "id": "static.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "static.cross.no-author-code",
+          "ok": true,
+          "r": null
+        },
+        {
+          "id": "tamper.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "tamper.cross.edited-script-blocked",
+          "ok": true,
+          "r": null,
+          "errors": [
+            1
+          ]
+        },
+        {
+          "id": "nav.assign.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.assign.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.replace.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.replace.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.href.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.href.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.anchor.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.anchor.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.anchorTop.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.anchorTop.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.meta.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.meta.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.metaHtml.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.metaHtml.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.navigation.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.navigation.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.topLocation.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.topLocation.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.open.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.open.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.form.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.form.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "proto.real-ready-only",
+          "ok": true,
+          "ready": 4,
+          "faults": []
+        },
+        {
+          "id": "proto.no-forged-navigation",
+          "ok": true,
+          "positions": [
+            [
+              201,
+              0,
+              0,
+              "present"
+            ]
+          ]
+        },
+        {
+          "id": "proto.no-window-open",
+          "ok": true,
+          "opens": 0
+        },
+        {
+          "id": "proto.preload-unverified",
+          "ok": true,
+          "offline": [
+            "unverified"
+          ]
+        },
+        {
+          "id": "proto.no-frame-keys-reached-onKey",
+          "ok": true,
+          "keys": []
+        },
+        {
+          "id": "proto.gesture-forgery-ignored",
+          "ok": true,
+          "opens": 0,
+          "keys": []
+        },
+        {
+          "id": "proto.gated-keys-from-frame-dropped",
+          "ok": true,
+          "opens": 0,
+          "last": [
+            1482,
+            1,
+            0,
+            "present"
+          ]
+        },
+        {
+          "id": "proto.flood-rate-limited",
+          "ok": true,
+          "pressed": 60,
+          "elapsedMs": 169,
+          "moves": 10,
+          "worstPerSecond": 10
+        },
+        {
+          "id": "abuse.busy.documented-freeze",
+          "ok": true,
+          "gapMs": 8005,
+          "watchdogAtMs": 8744,
+          "fallbackAtMs": 8765,
+          "responsiveMs": 7,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.busy.fallback-after-watchdog",
+          "ok": true,
+          "gapMs": 8005,
+          "watchdogAtMs": 8744,
+          "fallbackAtMs": 8765,
+          "responsiveMs": 7,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.alloc.page-recovers",
+          "ok": true,
+          "gapMs": 245,
+          "watchdogAtMs": null,
+          "fallbackAtMs": null,
+          "responsiveMs": 7,
+          "faults": []
+        },
+        {
+          "id": "abuse.raf.page-recovers",
+          "ok": true,
+          "gapMs": 107,
+          "watchdogAtMs": null,
+          "fallbackAtMs": null,
+          "responsiveMs": 7,
+          "faults": []
+        },
+        {
+          "id": "abuse.dom.page-recovers",
+          "ok": true,
+          "gapMs": 3929,
+          "watchdogAtMs": 4919,
+          "fallbackAtMs": 4932,
+          "responsiveMs": 7,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.dom.fallback-after-watchdog",
+          "ok": true,
+          "gapMs": 3929,
+          "watchdogAtMs": 4919,
+          "fallbackAtMs": 4932,
+          "responsiveMs": 7,
+          "faults": [
+            "unresponsive"
+          ]
+        }
+      ],
+      "measurements": {
+        "net.cross": {
+          "result": {
+            "fetch": "threw:TypeError",
+            "xhr": "threw:TypeError",
+            "ws": "threw:TypeError",
+            "es": "threw:TypeError",
+            "beacon": "threw:TypeError",
+            "img": "set",
+            "font": "set",
+            "css": "set",
+            "worker": "threw:TypeError",
+            "shared": "threw:TypeError",
+            "wt": "threw:TypeError",
+            "bc": "undefined",
+            "open": "threw:TypeError",
+            "conn": "undefined",
+            "eval": "threw:EvalError",
+            "fn": "threw:EvalError",
+            "import": "rejected"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "net.same": {
+          "result": {
+            "fetch": "threw:TypeError",
+            "xhr": "threw:TypeError",
+            "ws": "threw:TypeError",
+            "es": "threw:TypeError",
+            "beacon": "threw:TypeError",
+            "img": "set",
+            "font": "set",
+            "css": "set",
+            "worker": "threw:TypeError",
+            "shared": "threw:TypeError",
+            "wt": "threw:TypeError",
+            "bc": "undefined",
+            "open": "threw:TypeError",
+            "conn": "undefined",
+            "eval": "threw:EvalError",
+            "fn": "threw:EvalError",
+            "import": "rejected"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "nonce.cross": {
+          "result": {
+            "nonces": "|",
+            "steal": "threw:TypeError"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "integrity.cross": {
+          "result": {
+            "learned": true,
+            "create": "threw:TypeError",
+            "createNS": "threw:TypeError",
+            "clone": "threw:TypeError",
+            "frag": "threw:TypeError",
+            "link": "threw:TypeError",
+            "modlink": "threw:TypeError",
+            "inner": "threw:TypeError",
+            "outer": "threw:TypeError",
+            "adjacent": "threw:TypeError",
+            "parser": "threw:TypeError",
+            "implementation": "threw:TypeError",
+            "template": "threw:TypeError",
+            "unsafe": "threw:TypeError",
+            "write": "threw:TypeError",
+            "exec": "undefined",
+            "xslt": "undefined",
+            "ce": "undefined",
+            "restore": "false/false",
+            "ttdup": "threw:TypeError",
+            "ttpolicy": "threw:TypeError",
+            "done": 1
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "integrity.same": {
+          "result": {
+            "learned": true,
+            "create": "threw:TypeError",
+            "createNS": "threw:TypeError",
+            "clone": "threw:TypeError",
+            "frag": "threw:TypeError",
+            "link": "threw:TypeError",
+            "modlink": "threw:TypeError",
+            "inner": "threw:TypeError",
+            "outer": "threw:TypeError",
+            "adjacent": "threw:TypeError",
+            "parser": "threw:TypeError",
+            "implementation": "threw:TypeError",
+            "template": "threw:TypeError",
+            "unsafe": "threw:TypeError",
+            "write": "threw:TypeError",
+            "exec": "undefined",
+            "xslt": "undefined",
+            "ce": "undefined",
+            "restore": "false/false",
+            "ttdup": "threw:TypeError",
+            "ttpolicy": "threw:TypeError",
+            "done": 1
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "rtc.cross": {
+          "result": {
+            "RTCPeerConnection": "undefined",
+            "webkitRTCPeerConnection": "undefined",
+            "mozRTCPeerConnection": "undefined",
+            "configurable": "false",
+            "pc": "threw:TypeError",
+            "restore": "undefined",
+            "proto": "",
+            "devices": "undefined"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "rtc.same": {
+          "result": {
+            "RTCPeerConnection": "undefined",
+            "webkitRTCPeerConnection": "undefined",
+            "mozRTCPeerConnection": "undefined",
+            "configurable": "false",
+            "pc": "threw:TypeError",
+            "restore": "undefined",
+            "proto": "",
+            "devices": "undefined"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "realm.cross": {
+          "result": {
+            "iframe": "threw:TypeError",
+            "iframeHtml": "threw:TypeError",
+            "open": "undefined",
+            "docopen": "undefined",
+            "fetchWrite": "undefined",
+            "fetchDefine": "threw:TypeError",
+            "fetchDelete": "false/undefined",
+            "frames": "0",
+            "newDoc": "threw:TypeError",
+            "navProto": "undefined/undefined",
+            "ttScriptUrl": "threw:TypeError"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "inject.cross": {
+          "result": {
+            "ran": 1,
+            "inputs": 0
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "static.cross": {
+          "result": null,
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "tamper.cross": {
+          "result": null,
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [
+            1
+          ],
+          "faults": []
+        },
+        "rtc.control": {
+          "title": "created",
+          "udp": 0,
+          "tcp": 0
+        },
+        "rtc.provable": false,
+        "nav": {
+          "assign.cross": 0,
+          "assign.same": 0,
+          "replace.cross": 0,
+          "replace.same": 0,
+          "href.cross": 0,
+          "href.same": 0,
+          "anchor.cross": 0,
+          "anchor.same": 0,
+          "anchorTop.cross": 0,
+          "anchorTop.same": 0,
+          "meta.cross": 0,
+          "meta.same": 0,
+          "metaHtml.cross": 0,
+          "metaHtml.same": 0,
+          "navigation.cross": 0,
+          "navigation.same": 0,
+          "topLocation.cross": 0,
+          "topLocation.same": 0,
+          "open.cross": 0,
+          "open.same": 0,
+          "form.cross": 0,
+          "form.same": 0,
+          "own-origin.cross": [
+            {
+              "kind": "content",
+              "cookie": false
+            }
+          ],
+          "own-origin.same": [
+            {
+              "kind": "app",
+              "cookie": false
+            }
+          ]
+        },
+        "flood": {
+          "pressed": 60,
+          "elapsedMs": 169,
+          "moves": 10,
+          "worstPerSecond": 10
+        },
+        "abuse.busy": {
+          "gapMs": 8005,
+          "watchdogAtMs": 8744,
+          "fallbackAtMs": 8765,
+          "responsiveMs": 7,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        "abuse.alloc": {
+          "gapMs": 245,
+          "watchdogAtMs": null,
+          "fallbackAtMs": null,
+          "responsiveMs": 7,
+          "faults": []
+        },
+        "abuse.raf": {
+          "gapMs": 107,
+          "watchdogAtMs": null,
+          "fallbackAtMs": null,
+          "responsiveMs": 7,
+          "faults": []
+        },
+        "abuse.dom": {
+          "gapMs": 3929,
+          "watchdogAtMs": 4919,
+          "fallbackAtMs": 4932,
+          "responsiveMs": 7,
+          "faults": [
+            "unresponsive"
+          ]
+        }
+      }
+    },
+    "firefox-fission": {
+      "version": "159.0",
+      "checks": [
+        {
+          "id": "api.ready-matches-expect",
+          "ok": true,
+          "log": []
+        },
+        {
+          "id": "api.uplot-draws-under-lockdown",
+          "ok": true,
+          "r": {
+            "uplot": "function",
+            "canvas": 1,
+            "seen": "enter0"
+          }
+        },
+        {
+          "id": "api.onEnter-called",
+          "ok": true,
+          "seen": "enter0"
+        },
+        {
+          "id": "api.broken-and-throwing-scripts-reported",
+          "ok": true,
+          "errors": [
+            2
+          ]
+        },
+        {
+          "id": "api.input-keeps-its-keys",
+          "ok": true,
+          "slider": "11",
+          "afterSlider": [
+            638,
+            0,
+            0,
+            "present"
+          ]
+        },
+        {
+          "id": "api.escape-returns-keyboard",
+          "ok": true,
+          "before": 0,
+          "after": 1
+        },
+        {
+          "id": "api.onStep-and-setSteps",
+          "ok": true,
+          "last": [
+            2190,
+            0,
+            1,
+            "present"
+          ],
+          "seen": "enter0,step1"
+        },
+        {
+          "id": "api.callback-errors-reported",
+          "ok": true,
+          "errors": [
+            2,
+            1
+          ]
+        },
+        {
+          "id": "api.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "net.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "net.cross.locked-fetch",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-xhr",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-ws",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-es",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-worker",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-shared",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-wt",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-bc",
+          "ok": true,
+          "v": "undefined"
+        },
+        {
+          "id": "net.cross.locked-open",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-conn",
+          "ok": true,
+          "v": "undefined"
+        },
+        {
+          "id": "net.cross.locked-beacon",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.eval-blocked",
+          "ok": true,
+          "eval": "threw:EvalError",
+          "fn": "threw:EvalError"
+        },
+        {
+          "id": "net.same.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "net.same.locked-fetch",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-xhr",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-ws",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-es",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-worker",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-shared",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-wt",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-bc",
+          "ok": true,
+          "v": "undefined"
+        },
+        {
+          "id": "net.same.locked-open",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-conn",
+          "ok": true,
+          "v": "undefined"
+        },
+        {
+          "id": "net.same.locked-beacon",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.eval-blocked",
+          "ok": true,
+          "eval": "threw:EvalError",
+          "fn": "threw:EvalError"
+        },
+        {
+          "id": "nonce.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nonce.cross.no-nonce",
+          "ok": true,
+          "r": {
+            "nonces": "|",
+            "steal": "threw:TypeError"
+          }
+        },
+        {
+          "id": "integrity.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "integrity.cross.ran",
+          "ok": true,
+          "r": {
+            "learned": true,
+            "create": "threw:TypeError",
+            "createNS": "threw:TypeError",
+            "clone": "threw:TypeError",
+            "frag": "threw:TypeError",
+            "link": "threw:TypeError",
+            "modlink": "threw:TypeError",
+            "inner": "threw:TypeError",
+            "outer": "threw:TypeError",
+            "adjacent": "threw:TypeError",
+            "parser": "threw:TypeError",
+            "implementation": "threw:TypeError",
+            "template": "threw:TypeError",
+            "unsafe": "threw:TypeError",
+            "write": "threw:TypeError",
+            "exec": "undefined",
+            "xslt": "undefined",
+            "ce": "undefined",
+            "restore": "false/false",
+            "ttdup": "threw:TypeError",
+            "ttpolicy": "threw:TypeError",
+            "done": 1
+          }
+        },
+        {
+          "id": "integrity.cross.refused-create",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-createNS",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-frag",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-link",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-modlink",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-inner",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-outer",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-adjacent",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-parser",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-implementation",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-template",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-write",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.trusted-types-default-taken",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "integrity.same.ran",
+          "ok": true,
+          "r": {
+            "learned": true,
+            "create": "threw:TypeError",
+            "createNS": "threw:TypeError",
+            "clone": "threw:TypeError",
+            "frag": "threw:TypeError",
+            "link": "threw:TypeError",
+            "modlink": "threw:TypeError",
+            "inner": "threw:TypeError",
+            "outer": "threw:TypeError",
+            "adjacent": "threw:TypeError",
+            "parser": "threw:TypeError",
+            "implementation": "threw:TypeError",
+            "template": "threw:TypeError",
+            "unsafe": "threw:TypeError",
+            "write": "threw:TypeError",
+            "exec": "undefined",
+            "xslt": "undefined",
+            "ce": "undefined",
+            "restore": "false/false",
+            "ttdup": "threw:TypeError",
+            "ttpolicy": "threw:TypeError",
+            "done": 1
+          }
+        },
+        {
+          "id": "integrity.same.refused-create",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-createNS",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-frag",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-link",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-modlink",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-inner",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-outer",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-adjacent",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-parser",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-implementation",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-template",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-write",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.trusted-types-default-taken",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "rtc.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "rtc.cross.no-stun-or-turn",
+          "ok": true,
+          "udp": 0,
+          "tcp": 0
+        },
+        {
+          "id": "rtc.cross.constructors-locked",
+          "ok": true,
+          "r": {
+            "RTCPeerConnection": "undefined",
+            "webkitRTCPeerConnection": "undefined",
+            "mozRTCPeerConnection": "undefined",
+            "configurable": "false",
+            "pc": "threw:TypeError",
+            "restore": "undefined",
+            "proto": "",
+            "devices": "undefined"
+          }
+        },
+        {
+          "id": "rtc.cross.not-restorable",
+          "ok": true,
+          "r": "undefined"
+        },
+        {
+          "id": "rtc.same.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "rtc.same.no-stun-or-turn",
+          "ok": true,
+          "udp": 0,
+          "tcp": 0
+        },
+        {
+          "id": "rtc.same.constructors-locked",
+          "ok": true,
+          "r": {
+            "RTCPeerConnection": "undefined",
+            "webkitRTCPeerConnection": "undefined",
+            "mozRTCPeerConnection": "undefined",
+            "configurable": "false",
+            "pc": "threw:TypeError",
+            "restore": "undefined",
+            "proto": "",
+            "devices": "undefined"
+          }
+        },
+        {
+          "id": "rtc.same.not-restorable",
+          "ok": true,
+          "r": "undefined"
+        },
+        {
+          "id": "realm.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "realm.cross.no-iframe",
+          "ok": true,
+          "r": {
+            "iframe": "threw:TypeError",
+            "iframeHtml": "threw:TypeError",
+            "open": "undefined",
+            "docopen": "undefined",
+            "fetchWrite": "undefined",
+            "fetchDefine": "threw:TypeError",
+            "fetchDelete": "false/undefined",
+            "frames": "0",
+            "newDoc": "threw:TypeError",
+            "navProto": "undefined/undefined",
+            "ttScriptUrl": "threw:TypeError"
+          }
+        },
+        {
+          "id": "realm.cross.fetch-stays-locked",
+          "ok": true,
+          "r": {
+            "iframe": "threw:TypeError",
+            "iframeHtml": "threw:TypeError",
+            "open": "undefined",
+            "docopen": "undefined",
+            "fetchWrite": "undefined",
+            "fetchDefine": "threw:TypeError",
+            "fetchDelete": "false/undefined",
+            "frames": "0",
+            "newDoc": "threw:TypeError",
+            "navProto": "undefined/undefined",
+            "ttScriptUrl": "threw:TypeError"
+          }
+        },
+        {
+          "id": "realm.cross.navigator-locked",
+          "ok": true,
+          "r": "undefined/undefined"
+        },
+        {
+          "id": "realm.cross.new-document-cannot-create-link",
+          "ok": true,
+          "r": "threw:TypeError"
+        },
+        {
+          "id": "inject.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "inject.cross.script-field-ran-html-script-did-not",
+          "ok": true,
+          "r": {
+            "ran": 1,
+            "inputs": 0
+          }
+        },
+        {
+          "id": "static.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "static.cross.no-author-code",
+          "ok": true,
+          "r": null
+        },
+        {
+          "id": "tamper.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "tamper.cross.edited-script-blocked",
+          "ok": true,
+          "r": null,
+          "errors": [
+            1
+          ]
+        },
+        {
+          "id": "nav.assign.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.assign.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.replace.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.replace.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.href.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.href.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.anchor.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.anchor.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.anchorTop.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.anchorTop.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.meta.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.meta.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.metaHtml.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.metaHtml.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.navigation.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.navigation.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.topLocation.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.topLocation.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.open.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.open.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.form.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.form.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "proto.real-ready-only",
+          "ok": true,
+          "ready": 4,
+          "faults": []
+        },
+        {
+          "id": "proto.no-forged-navigation",
+          "ok": true,
+          "positions": [
+            [
+              139,
+              0,
+              0,
+              "present"
+            ]
+          ]
+        },
+        {
+          "id": "proto.no-window-open",
+          "ok": true,
+          "opens": 0
+        },
+        {
+          "id": "proto.preload-unverified",
+          "ok": true,
+          "offline": [
+            "unverified"
+          ]
+        },
+        {
+          "id": "proto.no-frame-keys-reached-onKey",
+          "ok": true,
+          "keys": []
+        },
+        {
+          "id": "proto.gesture-forgery-ignored",
+          "ok": true,
+          "opens": 0,
+          "keys": []
+        },
+        {
+          "id": "proto.gated-keys-from-frame-dropped",
+          "ok": true,
+          "opens": 0,
+          "last": [
+            1391,
+            1,
+            0,
+            "present"
+          ]
+        },
+        {
+          "id": "proto.flood-rate-limited",
+          "ok": true,
+          "pressed": 60,
+          "elapsedMs": 114,
+          "moves": 10,
+          "worstPerSecond": 10
+        },
+        {
+          "id": "abuse.busy.documented-freeze",
+          "ok": true,
+          "gapMs": 8005,
+          "watchdogAtMs": 8762,
+          "fallbackAtMs": 8782,
+          "responsiveMs": 5,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.busy.fallback-after-watchdog",
+          "ok": true,
+          "gapMs": 8005,
+          "watchdogAtMs": 8762,
+          "fallbackAtMs": 8782,
+          "responsiveMs": 5,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.alloc.page-recovers",
+          "ok": true,
+          "gapMs": 297,
+          "watchdogAtMs": null,
+          "fallbackAtMs": null,
+          "responsiveMs": 7,
+          "faults": []
+        },
+        {
+          "id": "abuse.raf.page-recovers",
+          "ok": true,
+          "gapMs": 108,
+          "watchdogAtMs": null,
+          "fallbackAtMs": null,
+          "responsiveMs": 5,
+          "faults": []
+        },
+        {
+          "id": "abuse.dom.page-recovers",
+          "ok": true,
+          "gapMs": 3337,
+          "watchdogAtMs": 4355,
+          "fallbackAtMs": 4367,
+          "responsiveMs": 7,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.dom.fallback-after-watchdog",
+          "ok": true,
+          "gapMs": 3337,
+          "watchdogAtMs": 4355,
+          "fallbackAtMs": 4367,
+          "responsiveMs": 7,
+          "faults": [
+            "unresponsive"
+          ]
+        }
+      ],
+      "measurements": {
+        "net.cross": {
+          "result": {
+            "fetch": "threw:TypeError",
+            "xhr": "threw:TypeError",
+            "ws": "threw:TypeError",
+            "es": "threw:TypeError",
+            "beacon": "threw:TypeError",
+            "img": "set",
+            "font": "set",
+            "css": "set",
+            "worker": "threw:TypeError",
+            "shared": "threw:TypeError",
+            "wt": "threw:TypeError",
+            "bc": "undefined",
+            "open": "threw:TypeError",
+            "conn": "undefined",
+            "eval": "threw:EvalError",
+            "fn": "threw:EvalError",
+            "import": "rejected"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "net.same": {
+          "result": {
+            "fetch": "threw:TypeError",
+            "xhr": "threw:TypeError",
+            "ws": "threw:TypeError",
+            "es": "threw:TypeError",
+            "beacon": "threw:TypeError",
+            "img": "set",
+            "font": "set",
+            "css": "set",
+            "worker": "threw:TypeError",
+            "shared": "threw:TypeError",
+            "wt": "threw:TypeError",
+            "bc": "undefined",
+            "open": "threw:TypeError",
+            "conn": "undefined",
+            "eval": "threw:EvalError",
+            "fn": "threw:EvalError",
+            "import": "rejected"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "nonce.cross": {
+          "result": {
+            "nonces": "|",
+            "steal": "threw:TypeError"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "integrity.cross": {
+          "result": {
+            "learned": true,
+            "create": "threw:TypeError",
+            "createNS": "threw:TypeError",
+            "clone": "threw:TypeError",
+            "frag": "threw:TypeError",
+            "link": "threw:TypeError",
+            "modlink": "threw:TypeError",
+            "inner": "threw:TypeError",
+            "outer": "threw:TypeError",
+            "adjacent": "threw:TypeError",
+            "parser": "threw:TypeError",
+            "implementation": "threw:TypeError",
+            "template": "threw:TypeError",
+            "unsafe": "threw:TypeError",
+            "write": "threw:TypeError",
+            "exec": "undefined",
+            "xslt": "undefined",
+            "ce": "undefined",
+            "restore": "false/false",
+            "ttdup": "threw:TypeError",
+            "ttpolicy": "threw:TypeError",
+            "done": 1
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "integrity.same": {
+          "result": {
+            "learned": true,
+            "create": "threw:TypeError",
+            "createNS": "threw:TypeError",
+            "clone": "threw:TypeError",
+            "frag": "threw:TypeError",
+            "link": "threw:TypeError",
+            "modlink": "threw:TypeError",
+            "inner": "threw:TypeError",
+            "outer": "threw:TypeError",
+            "adjacent": "threw:TypeError",
+            "parser": "threw:TypeError",
+            "implementation": "threw:TypeError",
+            "template": "threw:TypeError",
+            "unsafe": "threw:TypeError",
+            "write": "threw:TypeError",
+            "exec": "undefined",
+            "xslt": "undefined",
+            "ce": "undefined",
+            "restore": "false/false",
+            "ttdup": "threw:TypeError",
+            "ttpolicy": "threw:TypeError",
+            "done": 1
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "rtc.cross": {
+          "result": {
+            "RTCPeerConnection": "undefined",
+            "webkitRTCPeerConnection": "undefined",
+            "mozRTCPeerConnection": "undefined",
+            "configurable": "false",
+            "pc": "threw:TypeError",
+            "restore": "undefined",
+            "proto": "",
+            "devices": "undefined"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "rtc.same": {
+          "result": {
+            "RTCPeerConnection": "undefined",
+            "webkitRTCPeerConnection": "undefined",
+            "mozRTCPeerConnection": "undefined",
+            "configurable": "false",
+            "pc": "threw:TypeError",
+            "restore": "undefined",
+            "proto": "",
+            "devices": "undefined"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "realm.cross": {
+          "result": {
+            "iframe": "threw:TypeError",
+            "iframeHtml": "threw:TypeError",
+            "open": "undefined",
+            "docopen": "undefined",
+            "fetchWrite": "undefined",
+            "fetchDefine": "threw:TypeError",
+            "fetchDelete": "false/undefined",
+            "frames": "0",
+            "newDoc": "threw:TypeError",
+            "navProto": "undefined/undefined",
+            "ttScriptUrl": "threw:TypeError"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "inject.cross": {
+          "result": {
+            "ran": 1,
+            "inputs": 0
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "static.cross": {
+          "result": null,
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "tamper.cross": {
+          "result": null,
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [
+            1
+          ],
+          "faults": []
+        },
+        "rtc.control": {
+          "title": "created",
+          "udp": 0,
+          "tcp": 0
+        },
+        "rtc.provable": false,
+        "nav": {
+          "assign.cross": 0,
+          "assign.same": 0,
+          "replace.cross": 0,
+          "replace.same": 0,
+          "href.cross": 0,
+          "href.same": 0,
+          "anchor.cross": 0,
+          "anchor.same": 0,
+          "anchorTop.cross": 0,
+          "anchorTop.same": 0,
+          "meta.cross": 0,
+          "meta.same": 0,
+          "metaHtml.cross": 0,
+          "metaHtml.same": 0,
+          "navigation.cross": 0,
+          "navigation.same": 0,
+          "topLocation.cross": 0,
+          "topLocation.same": 0,
+          "open.cross": 0,
+          "open.same": 0,
+          "form.cross": 0,
+          "form.same": 0,
+          "own-origin.cross": [
+            {
+              "kind": "content",
+              "cookie": false
+            }
+          ],
+          "own-origin.same": [
+            {
+              "kind": "app",
+              "cookie": false
+            }
+          ]
+        },
+        "flood": {
+          "pressed": 60,
+          "elapsedMs": 114,
+          "moves": 10,
+          "worstPerSecond": 10
+        },
+        "abuse.busy": {
+          "gapMs": 8005,
+          "watchdogAtMs": 8762,
+          "fallbackAtMs": 8782,
+          "responsiveMs": 5,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        "abuse.alloc": {
+          "gapMs": 297,
+          "watchdogAtMs": null,
+          "fallbackAtMs": null,
+          "responsiveMs": 7,
+          "faults": []
+        },
+        "abuse.raf": {
+          "gapMs": 108,
+          "watchdogAtMs": null,
+          "fallbackAtMs": null,
+          "responsiveMs": 5,
+          "faults": []
+        },
+        "abuse.dom": {
+          "gapMs": 3337,
+          "watchdogAtMs": 4355,
+          "fallbackAtMs": 4367,
+          "responsiveMs": 7,
+          "faults": [
+            "unresponsive"
+          ]
+        }
+      }
+    },
+    "webkit": {
+      "version": "27.2",
+      "checks": [
+        {
+          "id": "api.ready-matches-expect",
+          "ok": true,
+          "log": []
+        },
+        {
+          "id": "api.uplot-draws-under-lockdown",
+          "ok": true,
+          "r": {
+            "uplot": "function",
+            "canvas": 1,
+            "seen": "enter0"
+          }
+        },
+        {
+          "id": "api.onEnter-called",
+          "ok": true,
+          "seen": "enter0"
+        },
+        {
+          "id": "api.broken-and-throwing-scripts-reported",
+          "ok": true,
+          "errors": [
+            2
+          ]
+        },
+        {
+          "id": "api.input-keeps-its-keys",
+          "ok": true,
+          "slider": "11",
+          "afterSlider": [
+            161,
+            0,
+            0,
+            "present"
+          ]
+        },
+        {
+          "id": "api.escape-returns-keyboard",
+          "ok": true,
+          "before": 0,
+          "after": 1
+        },
+        {
+          "id": "api.onStep-and-setSteps",
+          "ok": true,
+          "last": [
+            1584,
+            0,
+            1,
+            "present"
+          ],
+          "seen": "enter0,step1"
+        },
+        {
+          "id": "api.callback-errors-reported",
+          "ok": true,
+          "errors": [
+            2,
+            1
+          ]
+        },
+        {
+          "id": "api.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "net.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "net.cross.locked-fetch",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-xhr",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-ws",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-es",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-worker",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-shared",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-wt",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-bc",
+          "ok": true,
+          "v": "undefined"
+        },
+        {
+          "id": "net.cross.locked-open",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.locked-conn",
+          "ok": true,
+          "v": "undefined"
+        },
+        {
+          "id": "net.cross.locked-beacon",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.cross.eval-blocked",
+          "ok": true,
+          "eval": "threw:EvalError",
+          "fn": "threw:EvalError"
+        },
+        {
+          "id": "net.same.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "net.same.locked-fetch",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-xhr",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-ws",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-es",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-worker",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-shared",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-wt",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-bc",
+          "ok": true,
+          "v": "undefined"
+        },
+        {
+          "id": "net.same.locked-open",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.locked-conn",
+          "ok": true,
+          "v": "undefined"
+        },
+        {
+          "id": "net.same.locked-beacon",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "net.same.eval-blocked",
+          "ok": true,
+          "eval": "threw:EvalError",
+          "fn": "threw:EvalError"
+        },
+        {
+          "id": "nonce.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nonce.cross.no-nonce",
+          "ok": true,
+          "r": {
+            "nonces": "|",
+            "steal": "threw:TypeError"
+          }
+        },
+        {
+          "id": "integrity.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "integrity.cross.ran",
+          "ok": true,
+          "r": {
+            "learned": true,
+            "create": "threw:TypeError",
+            "createNS": "threw:TypeError",
+            "clone": "threw:TypeError",
+            "frag": "threw:TypeError",
+            "link": "threw:TypeError",
+            "modlink": "threw:TypeError",
+            "inner": "threw:TypeError",
+            "outer": "threw:TypeError",
+            "adjacent": "threw:TypeError",
+            "parser": "threw:TypeError",
+            "implementation": "threw:TypeError",
+            "template": "threw:TypeError",
+            "unsafe": "threw:TypeError",
+            "write": "threw:TypeError",
+            "exec": "undefined",
+            "xslt": "undefined",
+            "ce": "undefined",
+            "restore": "false/false",
+            "ttdup": "threw:TypeError",
+            "ttpolicy": "threw:TypeError",
+            "done": 1
+          }
+        },
+        {
+          "id": "integrity.cross.refused-create",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-createNS",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-frag",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-link",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-modlink",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-inner",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-outer",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-adjacent",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-parser",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-implementation",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-template",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.refused-write",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.cross.trusted-types-default-taken",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "integrity.same.ran",
+          "ok": true,
+          "r": {
+            "learned": true,
+            "create": "threw:TypeError",
+            "createNS": "threw:TypeError",
+            "clone": "threw:TypeError",
+            "frag": "threw:TypeError",
+            "link": "threw:TypeError",
+            "modlink": "threw:TypeError",
+            "inner": "threw:TypeError",
+            "outer": "threw:TypeError",
+            "adjacent": "threw:TypeError",
+            "parser": "threw:TypeError",
+            "implementation": "threw:TypeError",
+            "template": "threw:TypeError",
+            "unsafe": "threw:TypeError",
+            "write": "threw:TypeError",
+            "exec": "undefined",
+            "xslt": "undefined",
+            "ce": "undefined",
+            "restore": "false/false",
+            "ttdup": "threw:TypeError",
+            "ttpolicy": "threw:TypeError",
+            "done": 1
+          }
+        },
+        {
+          "id": "integrity.same.refused-create",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-createNS",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-frag",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-link",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-modlink",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-inner",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-outer",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-adjacent",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-parser",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-implementation",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-template",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.refused-write",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "integrity.same.trusted-types-default-taken",
+          "ok": true,
+          "v": "threw:TypeError"
+        },
+        {
+          "id": "rtc.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "rtc.cross.no-stun-or-turn",
+          "ok": true,
+          "udp": 0,
+          "tcp": 0
+        },
+        {
+          "id": "rtc.cross.constructors-locked",
+          "ok": true,
+          "r": {
+            "RTCPeerConnection": "undefined",
+            "webkitRTCPeerConnection": "undefined",
+            "mozRTCPeerConnection": "undefined",
+            "configurable": "false",
+            "pc": "threw:TypeError",
+            "restore": "undefined",
+            "proto": "",
+            "devices": "undefined"
+          }
+        },
+        {
+          "id": "rtc.cross.not-restorable",
+          "ok": true,
+          "r": "undefined"
+        },
+        {
+          "id": "rtc.same.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "rtc.same.no-stun-or-turn",
+          "ok": true,
+          "udp": 0,
+          "tcp": 0
+        },
+        {
+          "id": "rtc.same.constructors-locked",
+          "ok": true,
+          "r": {
+            "RTCPeerConnection": "undefined",
+            "webkitRTCPeerConnection": "undefined",
+            "mozRTCPeerConnection": "undefined",
+            "configurable": "false",
+            "pc": "threw:TypeError",
+            "restore": "undefined",
+            "proto": "",
+            "devices": "undefined"
+          }
+        },
+        {
+          "id": "rtc.same.not-restorable",
+          "ok": true,
+          "r": "undefined"
+        },
+        {
+          "id": "realm.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "realm.cross.no-iframe",
+          "ok": true,
+          "r": {
+            "iframe": "threw:TypeError",
+            "iframeHtml": "threw:TypeError",
+            "open": "undefined",
+            "docopen": "undefined",
+            "fetchWrite": "undefined",
+            "fetchDefine": "threw:TypeError",
+            "fetchDelete": "false/undefined",
+            "frames": "0",
+            "newDoc": "threw:TypeError",
+            "navProto": "undefined/undefined",
+            "ttScriptUrl": "threw:TypeError"
+          }
+        },
+        {
+          "id": "realm.cross.fetch-stays-locked",
+          "ok": true,
+          "r": {
+            "iframe": "threw:TypeError",
+            "iframeHtml": "threw:TypeError",
+            "open": "undefined",
+            "docopen": "undefined",
+            "fetchWrite": "undefined",
+            "fetchDefine": "threw:TypeError",
+            "fetchDelete": "false/undefined",
+            "frames": "0",
+            "newDoc": "threw:TypeError",
+            "navProto": "undefined/undefined",
+            "ttScriptUrl": "threw:TypeError"
+          }
+        },
+        {
+          "id": "realm.cross.navigator-locked",
+          "ok": true,
+          "r": "undefined/undefined"
+        },
+        {
+          "id": "realm.cross.new-document-cannot-create-link",
+          "ok": true,
+          "r": "threw:TypeError"
+        },
+        {
+          "id": "inject.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "inject.cross.script-field-ran-html-script-did-not",
+          "ok": true,
+          "r": {
+            "ran": 1,
+            "inputs": 0
+          }
+        },
+        {
+          "id": "static.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "static.cross.no-author-code",
+          "ok": true,
+          "r": null
+        },
+        {
+          "id": "tamper.cross.no-listener-hits",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "tamper.cross.edited-script-blocked",
+          "ok": true,
+          "r": null,
+          "errors": [
+            1
+          ]
+        },
+        {
+          "id": "nav.assign.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.assign.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.replace.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.replace.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.href.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.href.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.anchor.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.anchor.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.anchorTop.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.anchorTop.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.meta.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.meta.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.metaHtml.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.metaHtml.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.navigation.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.navigation.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.topLocation.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.topLocation.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.open.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.open.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.form.cross.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "nav.form.same.no-attacker-hit",
+          "ok": true,
+          "hits": []
+        },
+        {
+          "id": "proto.real-ready-only",
+          "ok": true,
+          "ready": 4,
+          "faults": []
+        },
+        {
+          "id": "proto.no-forged-navigation",
+          "ok": true,
+          "positions": [
+            [
+              107,
+              0,
+              0,
+              "present"
+            ]
+          ]
+        },
+        {
+          "id": "proto.no-window-open",
+          "ok": true,
+          "opens": 0
+        },
+        {
+          "id": "proto.preload-unverified",
+          "ok": true,
+          "offline": [
+            "unverified"
+          ]
+        },
+        {
+          "id": "proto.no-frame-keys-reached-onKey",
+          "ok": true,
+          "keys": []
+        },
+        {
+          "id": "proto.gesture-forgery-ignored",
+          "ok": true,
+          "opens": 0,
+          "keys": []
+        },
+        {
+          "id": "proto.gated-keys-from-frame-dropped",
+          "ok": true,
+          "opens": 0,
+          "last": [
+            1341,
+            1,
+            0,
+            "present"
+          ]
+        },
+        {
+          "id": "proto.flood-rate-limited",
+          "ok": true,
+          "pressed": 60,
+          "elapsedMs": 150,
+          "moves": 10,
+          "worstPerSecond": 10
+        },
+        {
+          "id": "abuse.busy.documented-freeze",
+          "ok": true,
+          "gapMs": 8042,
+          "watchdogAtMs": 9040,
+          "fallbackAtMs": 8808,
+          "responsiveMs": 4,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.busy.fallback-after-watchdog",
+          "ok": true,
+          "gapMs": 8042,
+          "watchdogAtMs": 9040,
+          "fallbackAtMs": 8808,
+          "responsiveMs": 4,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.alloc.page-recovers",
+          "ok": true,
+          "gapMs": 221,
+          "watchdogAtMs": null,
+          "fallbackAtMs": null,
+          "responsiveMs": 4,
+          "faults": []
+        },
+        {
+          "id": "abuse.raf.page-recovers",
+          "ok": true,
+          "gapMs": 48,
+          "watchdogAtMs": null,
+          "fallbackAtMs": null,
+          "responsiveMs": 5,
+          "faults": []
+        },
+        {
+          "id": "abuse.dom.page-recovers",
+          "ok": true,
+          "gapMs": 3263,
+          "watchdogAtMs": 5197,
+          "fallbackAtMs": 5212,
+          "responsiveMs": 5,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.dom.fallback-after-watchdog",
+          "ok": true,
+          "gapMs": 3263,
+          "watchdogAtMs": 5197,
+          "fallbackAtMs": 5212,
+          "responsiveMs": 5,
+          "faults": [
+            "unresponsive"
+          ]
+        }
+      ],
+      "measurements": {
+        "net.cross": {
+          "result": {
+            "fetch": "threw:TypeError",
+            "xhr": "threw:TypeError",
+            "ws": "threw:TypeError",
+            "es": "threw:TypeError",
+            "beacon": "threw:TypeError",
+            "img": "set",
+            "font": "set",
+            "css": "set",
+            "worker": "threw:TypeError",
+            "shared": "threw:TypeError",
+            "wt": "threw:TypeError",
+            "bc": "undefined",
+            "open": "threw:TypeError",
+            "conn": "undefined",
+            "eval": "threw:EvalError",
+            "fn": "threw:EvalError",
+            "import": "rejected"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "net.same": {
+          "result": {
+            "fetch": "threw:TypeError",
+            "xhr": "threw:TypeError",
+            "ws": "threw:TypeError",
+            "es": "threw:TypeError",
+            "beacon": "threw:TypeError",
+            "img": "set",
+            "font": "set",
+            "css": "set",
+            "worker": "threw:TypeError",
+            "shared": "threw:TypeError",
+            "wt": "threw:TypeError",
+            "bc": "undefined",
+            "open": "threw:TypeError",
+            "conn": "undefined",
+            "eval": "threw:EvalError",
+            "fn": "threw:EvalError",
+            "import": "rejected"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "nonce.cross": {
+          "result": {
+            "nonces": "|",
+            "steal": "threw:TypeError"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "integrity.cross": {
+          "result": {
+            "learned": true,
+            "create": "threw:TypeError",
+            "createNS": "threw:TypeError",
+            "clone": "threw:TypeError",
+            "frag": "threw:TypeError",
+            "link": "threw:TypeError",
+            "modlink": "threw:TypeError",
+            "inner": "threw:TypeError",
+            "outer": "threw:TypeError",
+            "adjacent": "threw:TypeError",
+            "parser": "threw:TypeError",
+            "implementation": "threw:TypeError",
+            "template": "threw:TypeError",
+            "unsafe": "threw:TypeError",
+            "write": "threw:TypeError",
+            "exec": "undefined",
+            "xslt": "undefined",
+            "ce": "undefined",
+            "restore": "false/false",
+            "ttdup": "threw:TypeError",
+            "ttpolicy": "threw:TypeError",
+            "done": 1
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "integrity.same": {
+          "result": {
+            "learned": true,
+            "create": "threw:TypeError",
+            "createNS": "threw:TypeError",
+            "clone": "threw:TypeError",
+            "frag": "threw:TypeError",
+            "link": "threw:TypeError",
+            "modlink": "threw:TypeError",
+            "inner": "threw:TypeError",
+            "outer": "threw:TypeError",
+            "adjacent": "threw:TypeError",
+            "parser": "threw:TypeError",
+            "implementation": "threw:TypeError",
+            "template": "threw:TypeError",
+            "unsafe": "threw:TypeError",
+            "write": "threw:TypeError",
+            "exec": "undefined",
+            "xslt": "undefined",
+            "ce": "undefined",
+            "restore": "false/false",
+            "ttdup": "threw:TypeError",
+            "ttpolicy": "threw:TypeError",
+            "done": 1
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "rtc.cross": {
+          "result": {
+            "RTCPeerConnection": "undefined",
+            "webkitRTCPeerConnection": "undefined",
+            "mozRTCPeerConnection": "undefined",
+            "configurable": "false",
+            "pc": "threw:TypeError",
+            "restore": "undefined",
+            "proto": "",
+            "devices": "undefined"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "rtc.same": {
+          "result": {
+            "RTCPeerConnection": "undefined",
+            "webkitRTCPeerConnection": "undefined",
+            "mozRTCPeerConnection": "undefined",
+            "configurable": "false",
+            "pc": "threw:TypeError",
+            "restore": "undefined",
+            "proto": "",
+            "devices": "undefined"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "realm.cross": {
+          "result": {
+            "iframe": "threw:TypeError",
+            "iframeHtml": "threw:TypeError",
+            "open": "undefined",
+            "docopen": "undefined",
+            "fetchWrite": "undefined",
+            "fetchDefine": "threw:TypeError",
+            "fetchDelete": "false/undefined",
+            "frames": "0",
+            "newDoc": "threw:TypeError",
+            "navProto": "undefined/undefined",
+            "ttScriptUrl": "threw:TypeError"
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "inject.cross": {
+          "result": {
+            "ran": 1,
+            "inputs": 0
+          },
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "static.cross": {
+          "result": null,
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [],
+          "faults": []
+        },
+        "tamper.cross": {
+          "result": null,
+          "hits": [],
+          "udp": 0,
+          "tcp": 0,
+          "errors": [
+            1
+          ],
+          "faults": []
+        },
+        "rtc.control": {
+          "title": "threw",
+          "udp": 0,
+          "tcp": 0
+        },
+        "rtc.provable": false,
+        "nav": {
+          "assign.cross": 0,
+          "assign.same": 0,
+          "replace.cross": 0,
+          "replace.same": 0,
+          "href.cross": 0,
+          "href.same": 0,
+          "anchor.cross": 0,
+          "anchor.same": 0,
+          "anchorTop.cross": 0,
+          "anchorTop.same": 0,
+          "meta.cross": 0,
+          "meta.same": 0,
+          "metaHtml.cross": 0,
+          "metaHtml.same": 0,
+          "navigation.cross": 0,
+          "navigation.same": 0,
+          "topLocation.cross": 0,
+          "topLocation.same": 0,
+          "open.cross": 0,
+          "open.same": 0,
+          "form.cross": 0,
+          "form.same": 0,
+          "own-origin.cross": [
+            {
+              "kind": "content",
+              "cookie": false
+            }
+          ],
+          "own-origin.same": [
+            {
+              "kind": "app",
+              "cookie": true
+            }
+          ]
+        },
+        "flood": {
+          "pressed": 60,
+          "elapsedMs": 150,
+          "moves": 10,
+          "worstPerSecond": 10
+        },
+        "abuse.busy": {
+          "gapMs": 8042,
+          "watchdogAtMs": 9040,
+          "fallbackAtMs": 8808,
+          "responsiveMs": 4,
+          "faults": [
+            "unresponsive"
+          ]
+        },
+        "abuse.alloc": {
+          "gapMs": 221,
+          "watchdogAtMs": null,
+          "fallbackAtMs": null,
+          "responsiveMs": 4,
+          "faults": []
+        },
+        "abuse.raf": {
+          "gapMs": 48,
+          "watchdogAtMs": null,
+          "fallbackAtMs": null,
+          "responsiveMs": 5,
+          "faults": []
+        },
+        "abuse.dom": {
+          "gapMs": 3263,
+          "watchdogAtMs": 5197,
+          "fallbackAtMs": 5212,
+          "responsiveMs": 5,
+          "faults": [
+            "unresponsive"
+          ]
+        }
+      }
+    }
+  }
+}

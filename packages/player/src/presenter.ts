@@ -194,6 +194,7 @@ export const PRESENTER_CSS = `
 .pp-sections tr[data-state=upcoming]{color:#A3A9B8}
 .pp-black{position:fixed;left:24px;bottom:24px;margin:0;padding:8px 12px;border-radius:6px;background:#000;color:#F2EFE9;border:1px solid #8B8FA0}
 .pp-offline{display:flex;align-items:center;gap:8px;color:#A3A9B8;font-size:.875rem}
+.pp-script-error{color:#FF9F43;font-size:.875rem}
 .pp-offline i{flex:none;width:8px;height:8px;border-radius:50%}
 .pp-endcue{margin:0;color:#A3A9B8;font:500 .875rem/1.3 "JetBrains Mono",ui-monospace,monospace}
 .pp-panel{color:#A3A9B8;font-size:.875rem;text-decoration:underline;text-underline-offset:3px}
@@ -254,6 +255,10 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
   const offlineDot = el(doc, "i");
   const offlineText = el(doc, "span");
   offlineEl.append(offlineDot, offlineText);
+  // Interactive mode: author script errors on the audience screen are reported here only (never on the canvas).
+  const scriptNotice = el(doc, "div", "pp-script-error");
+  scriptNotice.setAttribute("role", "status");
+  scriptNotice.hidden = true;
   const actions = el(doc, "div", "pp-actions");
   const button = (label: string, fn: () => void): HTMLButtonElement => {
     const b = el(doc, "button", "", label);
@@ -306,7 +311,7 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
     notesEl,
   );
   main.append(left, right);
-  bar.append(pos, endCue, clockBox, offlineEl, actions);
+  bar.append(pos, endCue, clockBox, offlineEl, scriptNotice, actions);
   if (panelLink) bar.append(panelLink);
   shell.append(bar, main, blackEl, finishedEl);
   root.replaceChildren(shell);
@@ -555,6 +560,12 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
       if (message.type === "hello") {
         sync?.send({ v: PROTOCOL_VERSION, type: "nav", ...position });
         sync?.send({ v: PROTOCOL_VERSION, type: "black", on: black });
+        return;
+      }
+      if (message.type === "script-error") {
+        scriptNotice.hidden = false;
+        scriptNotice.textContent = `${t.scriptError} (${t.slide} ${message.slide + 1})`;
+        scriptNotice.dataset.slide = String(message.slide);
         return;
       }
       remote = true;

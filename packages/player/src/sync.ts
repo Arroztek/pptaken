@@ -6,6 +6,8 @@
 //   hello {}             a window joined; the others answer with their position (nav) and black screen (black)
 //   nav {slide, step}    this window moved (by its own input); the others follow without echoing it back
 //   black {on}           black screen on/off
+//   script-error {slide} the main window's author script of this slide failed (interactive mode, ADR-020): the
+//                        presenter view shows a discreet notice; the audience screen shows nothing
 //
 // The channel never carries notes or anything else from the presenter data: only positions.
 
@@ -16,7 +18,8 @@ export const SYNC_VERSION = 1;
 export type SyncMessage =
   | { v: 1; type: "hello" }
   | { v: 1; type: "nav"; slide: number; step: number }
-  | { v: 1; type: "black"; on: boolean };
+  | { v: 1; type: "black"; on: boolean }
+  | { v: 1; type: "script-error"; slide: number };
 
 /** Channel names: `pptaken:` plus a deck key (ULIDs and test keys fit). */
 export const SYNC_CHANNEL_PATTERN = /^pptaken:[A-Za-z0-9_-]{1,64}$/;
@@ -41,6 +44,11 @@ export function parseSyncMessage(data: unknown): SyncMessage | null {
     case "black": {
       const m = envelope(data, "black", ["on"]);
       return m && typeof m.on === "boolean" ? { v: 1, type: "black", on: m.on } : null;
+    }
+    case "script-error": {
+      const m = envelope(data, "script-error", ["slide"]);
+      if (!m || !isBoundedInt(m.slide, MAX_SLIDES - 1)) return null;
+      return { v: 1, type: "script-error", slide: m.slide };
     }
     default:
       return null;

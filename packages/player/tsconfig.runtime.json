@@ -8,5 +8,5 @@
     "sourceMap": false,
     "removeComments": true
   },
-  "include": ["src/runtime.ts", "src/keys.ts", "src/messages.ts"]
+  "include": ["src/runtime.ts", "src/keys.ts", "src/messages.ts", "src/lockdown.ts"]
 }

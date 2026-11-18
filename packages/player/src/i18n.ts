@@ -57,6 +57,11 @@ const en = {
   offlineCopy: "Ready to present offline. A copy is saved on this device.",
   offlineUnavailable:
     "This presentation is not available offline. Open it once with a connection to keep a copy on this device.",
+  offlineUnverified:
+    "Interactive presentation: online only. An offline copy is the static version.",
+  scriptsStopped:
+    "The interactive content stopped responding and was closed. Loading the static version of the slides…",
+  scriptError: "A script of this slide failed",
 } as const;
 
 export type LabelKey = keyof typeof en;
@@ -116,6 +121,11 @@ const es: Labels = {
   offlineCopy: "Lista para presentar sin conexión. Hay una copia guardada en este dispositivo.",
   offlineUnavailable:
     "Esta presentación no está disponible sin conexión. Ábrela una vez con conexión para guardar una copia en este dispositivo.",
+  offlineUnverified:
+    "Presentación interactiva: solo con conexión. Una copia sin conexión es la versión estática.",
+  scriptsStopped:
+    "El contenido interactivo dejó de responder y se cerró. Cargando la versión estática de las diapositivas…",
+  scriptError: "Falló un script de esta diapositiva",
 };
 
 export const LABELS: Readonly<Record<Locale, Labels>> = { en, es };

@@ -11,10 +11,14 @@ import {
   type Deck,
   FONT_CATALOG,
   type FontName,
+  LIB_CATALOG,
+  scriptProblem,
 } from "@pptaken/schema";
 import { assertAssetBaseUrl, assertNonce, type CspOptions, contentSecurityPolicy } from "./csp.js";
+import { LIB_SOURCES } from "./libs-source.js";
 import { SLIDE_ID_PATTERN } from "./protocol.js";
-import { RUNTIME_SOURCE } from "./runtime-source.js";
+import { RUNTIME_SHA256, RUNTIME_SOURCE } from "./runtime-source.js";
+import { sha256Base64, sha256Hex } from "./sha256.js";
 
 /** One `@font-face` rule of a bundled font (a variable WOFF2 subset). All fields are validated. */
 export interface FontFaceSpec {
@@ -31,8 +35,22 @@ export interface FontFaceSpec {
 }
 
 export interface BuildOptions {
-  /** Per-response nonce (at least 128 random bits, base64), also used in the CSP header. Required. */
-  nonce: string;
+  /**
+   * Per-response nonce (at least 128 random bits, base64), also used in the CSP header. Required for a static
+   * document; must be absent in script mode (no nonce anywhere in a scripted document, ADR-020).
+   */
+  nonce?: string | undefined;
+  /**
+   * Script mode (ADR-020): embed the deck's libraries and author scripts and serve a hash-only CSP. Only for the
+   * owner's approved session; the caller (the server) decides. Without it, `script` and `libs` are ignored and
+   * the document is the static rendering.
+   */
+  scripts?: boolean | undefined;
+  /**
+   * Script mode: vendored scripts stored on the instance, by SHA-256 (hex) of the JavaScript, in addition to the
+   * bundled ones (`LIB_SOURCES`). The extension point of ingest-time vendoring (ADR-020 §2).
+   */
+  vendoredScripts?: ReadonlyMap<string, VendoredScriptSource> | undefined;
   /** Absolute URL of the content asset path; `asset:<hex>` references are rewritten to `<assetBaseUrl><hex>`. */
   assetBaseUrl?: string | undefined;
   /** Absolute URL of the bundled-font path (ending in `/`); required to use `fontFaces`. */
@@ -43,6 +61,28 @@ export interface BuildOptions {
   lang?: string | undefined;
   /** Origins allowed to frame the document (CSP `frame-ancestors`). */
   frameAncestors?: readonly string[] | undefined;
+}
+
+/** The stored files of a vendored script. */
+export interface VendoredScriptSource {
+  js: string;
+  /** Optional stylesheet that ships with it. */
+  css?: string | undefined;
+}
+
+/** Bundled vendored scripts by SHA-256 (hex), plus the caller's. */
+function vendoredScriptSources(
+  extra: ReadonlyMap<string, VendoredScriptSource> | undefined,
+): Map<string, VendoredScriptSource> {
+  const out = new Map<string, VendoredScriptSource>();
+  for (const [id, lib] of Object.entries(LIB_SOURCES)) {
+    const pinned = Object.hasOwn(LIB_CATALOG, id)
+      ? LIB_CATALOG[id as keyof typeof LIB_CATALOG]
+      : null;
+    if (pinned) out.set(pinned.sha256, { js: lib.js, css: lib.css });
+  }
+  for (const [sha, source] of extra ?? []) out.set(sha, source);
+  return out;
 }
 
 export interface DeckDocument {
@@ -167,7 +207,12 @@ function checkedCss(css: string, where: string): string {
  * inline `<script nonce>`. Throws a `TypeError` on invalid options or on input that cannot have been sanitized.
  */
 export function buildDeckDocument(deck: Deck, options: BuildOptions): DeckDocument {
-  assertNonce(options?.nonce);
+  const scripted = options?.scripts === true;
+  if (scripted) {
+    if (options.nonce !== undefined) throw new TypeError("a scripted document has no nonce");
+  } else {
+    assertNonce(options?.nonce);
+  }
   const base = options.assetBaseUrl;
   if (base !== undefined) assertAssetBaseUrl(base);
   const lang = options.lang ?? deck.lang;
@@ -194,8 +239,9 @@ export function buildDeckDocument(deck: Deck, options: BuildOptions): DeckDocume
     ids.add(slide.id);
     const label = slide.title ? ` aria-label="${escapeHtml(slide.title)}"` : "";
     const group = slide.section ? ` data-section="${escapeHtml(slide.section)}"` : "";
+    const marked = scripted && slide.script !== undefined ? " data-pptaken-script" : "";
     sections.push(
-      `<section data-slide="${escapeHtml(slide.id)}"${group} role="group" aria-roledescription="slide"${label} hidden>` +
+      `<section data-slide="${escapeHtml(slide.id)}"${group}${marked} role="group" aria-roledescription="slide"${label} hidden>` +
         `${rewriteAssets(slide.html, base, true)}</section>`,
     );
     if (slide.css) {
@@ -206,28 +252,77 @@ export function buildDeckDocument(deck: Deck, options: BuildOptions): DeckDocume
     ? rewriteAssets(checkedCss(deck.theme.css, "theme.css"), base, false)
     : "";
 
+  // Script mode: libraries first, then one wrapped script per slide, as the last elements of <body>.
+  const libCss: string[] = [];
+  const tail: string[] = [];
+  const hashes: string[] = [RUNTIME_SHA256];
+  if (scripted) {
+    const stored = vendoredScriptSources(options.vendoredScripts);
+    (deck.libs ?? []).forEach((ref, index) => {
+      const lib = stored.get(ref.sha256);
+      if (lib === undefined) throw new TypeError(`libs[${index}]: vendored script not available`);
+      // The stored bytes must be exactly the referenced ones, and fit in an inline <script>.
+      if (sha256Hex(lib.js) !== ref.sha256) throw new TypeError(`libs[${index}]: hash mismatch`);
+      if (/<\/?script|<!--/i.test(lib.js)) throw new TypeError(`libs[${index}]: cannot be inlined`);
+      if (lib.css) libCss.push(checkedCss(lib.css, `libs[${index}]`));
+      tail.push(`<script>${lib.js}</script>`);
+      hashes.push(scriptHash(lib.js));
+    });
+    deck.slides.forEach((slide, index) => {
+      if (slide.script === undefined) return;
+      const text = wrapAuthorScript(slide.id, slide.script, `slides[${index}].script`);
+      tail.push(`<script>${text}</script>`);
+      hashes.push(scriptHash(text));
+    });
+  }
+
   const html = [
     "<!doctype html>",
-    `<html${lang === undefined ? "" : ` lang="${escapeHtml(lang)}"`}>`,
+    `<html${lang === undefined ? "" : ` lang="${escapeHtml(lang)}"`}${scripted ? " data-pptaken-scripts" : ""}>`,
     "<head>",
     '<meta charset="utf-8">',
     `<title>${escapeHtml(deck.title)}</title>`,
     `<style>${fontCss}</style>`,
     `<style>${themeCss}</style>`,
     `<style>${slideCss.join("\n")}</style>`,
+    ...(libCss.length > 0 ? [`<style>${libCss.join("\n")}</style>`] : []),
     `<style>${stageCss(width, height)}</style>`,
-    `<script nonce="${escapeHtml(options.nonce)}">${RUNTIME_SOURCE}</script>`,
+    scripted
+      ? `<script>${RUNTIME_SOURCE}</script>`
+      : `<script nonce="${escapeHtml(options.nonce ?? "")}">${RUNTIME_SOURCE}</script>`,
     "</head>",
     "<body>",
     `<div id="pptaken-stage" data-width="${width}" data-height="${height}">`,
     ...sections,
     "</div>",
+    ...tail,
     "</body>",
     "</html>",
     "",
   ].join("\n");
 
-  const csp: CspOptions = { nonce: options.nonce, assetBaseUrl: base, fontBaseUrl: fontBase };
+  const csp: CspOptions = scripted
+    ? { scriptHashes: hashes, assetBaseUrl: base, fontBaseUrl: fontBase }
+    : { nonce: options.nonce, assetBaseUrl: base, fontBaseUrl: fontBase };
   if (options.frameAncestors !== undefined) csp.frameAncestors = options.frameAncestors;
   return { html, csp: contentSecurityPolicy(csp) };
+}
+
+/**
+ * The text of a slide's author script as embedded in a scripted document: line breaks normalized to LF (as the
+ * HTML parser does, so the server's hash matches the browser's) and wrapped as
+ * `pptaken.register("<id>", function (slide) { … });`. Throws a `TypeError` when the text could escape its
+ * `<script>` element (the schema refuses such scripts on ingest; this is the builder's own check).
+ */
+export function wrapAuthorScript(slideId: string, script: string, where = "script"): string {
+  if (!SLIDE_ID_PATTERN.test(slideId)) throw new TypeError(`${where}: invalid slide id`);
+  const problem = scriptProblem(script);
+  if (problem !== null) throw new TypeError(`${where}: ${problem}`);
+  const body = script.replace(/\r\n?/g, "\n");
+  return `pptaken.register(${JSON.stringify(slideId)},function(slide){\n${body}\n});`;
+}
+
+/** CSP hash source value (SHA-256, base64) of an inline script's text. */
+export function scriptHash(text: string): string {
+  return sha256Base64(text);
 }

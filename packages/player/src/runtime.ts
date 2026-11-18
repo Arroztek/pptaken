@@ -10,7 +10,15 @@
 // globals that content could define (named elements): everything is captured before the content is parsed,
 // because the builder puts this script in the document head.
 
+//
+// Script mode (ADR-020, `<html data-pptaken-scripts>`): before anything else the runtime captures the intrinsics
+// it needs, runs the lockdown (lockdown.ts), opens a private MessageChannel to the shell (the very first message,
+// posted from <head> before any author script exists) and defines `pptaken.register`, the only way author scripts
+// (the last elements of <body>, each wrapped by the builder) receive their slide API. It then sends a heartbeat
+// every second and reports author errors per slide. The shell trusts none of it beyond its own validation.
+
 import { keyCodeOf } from "./keys.js";
+import { lockdown } from "./lockdown.js";
 import {
   type ContentMessage,
   MAX_PRELOAD_FAILED,
@@ -63,8 +71,136 @@ const captionOf = new WeakMap<Element, number>();
 /** Overview cell geometry of the last layout: columns, cell width, row height, thumbnail height. */
 let grid = { cols: 1, cell: 0, row: 0, thumb: 0 };
 
+// ---------------------------------------------------------------------------------------------------------------
+// Script mode setup. Runs while <head> is parsed: no author code exists yet, so everything captured is pristine.
+
+const scriptMode = root.hasAttribute("data-pptaken-scripts");
+const apply = Reflect.apply;
+const portPost = MessagePort.prototype.postMessage;
+const startTimer = win.setInterval.bind(win);
+const activeElementOf = Object.getOwnPropertyDescriptor(Document.prototype, "activeElement")?.get;
+const closest = Element.prototype.closest;
+/** Steps declared by author scripts with `setSteps`, by slide index. */
+const declaredSteps = new Map<number, number>();
+let port: MessagePort | null = null;
+
+interface AuthorHooks {
+  enter: ((step: number) => void)[];
+  leave: (() => void)[];
+  step: ((step: number) => void)[];
+}
+type AuthorSetup = (slide: unknown) => void;
+const registered = new Map<string, AuthorSetup>();
+const hooks = new Map<number, AuthorHooks>();
+const errorsBySlide = new Map<number, number>();
+let setupDone = false;
+/** The slide whose author code is running (setup or callback), for error attribution. */
+let runningSlide = -1;
+let entered = -1;
+
+if (scriptMode) {
+  lockdown(win, doc);
+  const channel = new MessageChannel();
+  port = channel.port1;
+  shell.postMessage({ v: PROTOCOL_VERSION, type: "hello" }, "*", [channel.port2]);
+  const register = (id: unknown, setup: unknown): void => {
+    if (setupDone || typeof id !== "string" || typeof setup !== "function") return;
+    if (!registered.has(id)) registered.set(id, setup as AuthorSetup);
+  };
+  Object.defineProperty(win, "pptaken", {
+    value: Object.freeze({ register }),
+    writable: false,
+    enumerable: false,
+    configurable: false,
+  });
+  // Heartbeat for the shell's watchdog: a busy author script stops it.
+  startTimer(() => post({ v: PROTOCOL_VERSION, type: "beat" }), 1000);
+  win.addEventListener("error", () => reportError(runningSlide >= 0 ? runningSlide : current));
+  win.addEventListener("unhandledrejection", () => reportError(current));
+}
+
 function post(message: ContentMessage): void {
+  if (port !== null) {
+    // Captured method and an array literal: author code cannot intercept or rewrite the message path.
+    apply(portPost, port, [message]);
+    return;
+  }
   shell.postMessage(message, "*");
+}
+
+/** Reports an author error of `slide` (at most 5 per slide; no text crosses the boundary). */
+function reportError(slide: number): void {
+  if (slide < 0 || slide >= slides.length) return;
+  const count = (errorsBySlide.get(slide) ?? 0) + 1;
+  errorsBySlide.set(slide, count);
+  if (count > 5) return;
+  // The shell only knows the deck after `ready`: errors of the setup phase wait for it.
+  if (readySent) post({ v: PROTOCOL_VERSION, type: "error", slide });
+  else earlyErrors.push(slide);
+}
+
+let readySent = false;
+const earlyErrors: number[] = [];
+
+/** Runs author code for `slide`, catching and reporting anything it throws. */
+function guarded(slide: number, run: () => void): void {
+  const previous = runningSlide;
+  runningSlide = slide;
+  try {
+    run();
+  } catch {
+    reportError(slide);
+  } finally {
+    runningSlide = previous;
+  }
+}
+
+/** Calls each registered setup with its slide API (once, at init, before `ready`). */
+function runAuthorSetups(): void {
+  slides.forEach((view, index) => {
+    const setup = registered.get(view.id);
+    if (setup === undefined) return;
+    const h: AuthorHooks = { enter: [], leave: [], step: [] };
+    hooks.set(index, h);
+    const fn = (list: unknown[]) => (cb: unknown) => {
+      if (typeof cb === "function") list.push(cb);
+    };
+    const api = Object.freeze({
+      root: view.section,
+      onEnter: fn(h.enter),
+      onLeave: fn(h.leave),
+      onStep: fn(h.step),
+      setSteps: (n: unknown) => {
+        if (!setupDone && typeof n === "number" && Number.isInteger(n) && n >= 0) {
+          declaredSteps.set(index, Math.min(n, MAX_STEPS));
+        }
+      },
+    });
+    guarded(index, () => setup(api));
+  });
+  setupDone = true;
+}
+
+/** Steps of a slide: its `data-step` groups, or more when its script declared them. */
+function stepsOf(index: number): number {
+  return Math.max(slides[index]?.stages.length ?? 0, declaredSteps.get(index) ?? 0);
+}
+
+/** Author callbacks after a change of the shown slide or step (present mode only). */
+function notifyAuthor(slide: number, step: number, slideChanged: boolean): void {
+  if (!scriptMode || mode !== "present") return;
+  if (slideChanged && entered >= 0) {
+    const left = entered;
+    for (const cb of hooks.get(left)?.leave ?? []) guarded(left, () => cb());
+    entered = -1;
+  }
+  const h = hooks.get(slide);
+  if (slideChanged) {
+    entered = slide;
+    for (const cb of h?.enter ?? []) guarded(slide, () => cb(step));
+  } else {
+    for (const cb of h?.step ?? []) guarded(slide, () => cb(step));
+  }
 }
 
 /**
@@ -201,17 +337,22 @@ function setMode(next: Mode): void {
 function show(slide: number, step: number, report: boolean): void {
   const view = slides[slide];
   if (!view) return;
-  if (slide !== current) {
+  const slideChanged = slide !== current;
+  if (slideChanged) {
     slides[current]?.section.setAttribute("hidden", "");
     view.section.removeAttribute("hidden");
     current = slide;
   }
-  const revealed = Math.min(step, view.stages.length);
+  const before = shownStep;
+  const revealed = Math.min(step, stepsOf(slide));
   view.stages.forEach((group, index) => {
     for (const e of group) e.classList.toggle(REVEALED, index < revealed);
   });
   shownStep = revealed;
   if (mode === "overview") highlight();
+  if (slideChanged || revealed !== before || entered !== slide) {
+    notifyAuthor(slide, revealed, slideChanged || entered !== slide);
+  }
   if (report) post({ v: PROTOCOL_VERSION, type: "state", slide, step: revealed });
 }
 
@@ -295,15 +436,26 @@ function init(): void {
       slides.push({ section, id, stages: stagesOf(section) });
     }
   }
+  if (scriptMode) {
+    runAuthorSetups();
+    // A slide whose script never registered failed to parse or threw at the top level.
+    slides.forEach((view, index) => {
+      if (view.section.hasAttribute("data-pptaken-script") && !registered.has(view.id)) {
+        reportError(index);
+      }
+    });
+  }
   fit();
   show(0, 0, false);
   post({
     v: PROTOCOL_VERSION,
     type: "ready",
-    slides: slides.map((s) => ({ id: s.id, steps: s.stages.length })),
+    slides: slides.map((s, index) => ({ id: s.id, steps: stepsOf(index) })),
     width,
     height,
   });
+  readySent = true;
+  for (const slide of earlyErrors.splice(0)) post({ v: PROTOCOL_VERSION, type: "error", slide });
   void preload();
 }
 
@@ -313,6 +465,11 @@ win.addEventListener("message", (event) => {
   if (!message) return;
   if (message.type === "goto") return show(message.slide, message.step, true);
   setMode(message.mode);
+  if (scriptMode && message.mode !== "present" && entered >= 0) {
+    const left = entered;
+    for (const cb of hooks.get(left)?.leave ?? []) guarded(left, () => cb());
+    entered = -1;
+  }
   // Acknowledge: the shell waits for this before printing.
   post({ v: PROTOCOL_VERSION, type: "state", slide: current, step: shownStep });
 });
@@ -321,20 +478,35 @@ win.addEventListener("message", (event) => {
 win.addEventListener(
   "keydown",
   (event) => {
+    // Script mode: synthetic events (dispatched by author code) are never forwarded; keys typed into a form
+    // control stay there, except Escape, b and f.
+    if (scriptMode && !event.isTrusted) return;
     const code = keyCodeOf(event);
     if (!code) return;
+    if (scriptMode && code !== "Escape" && code !== "KeyB" && code !== "KeyF" && inControl())
+      return;
     event.preventDefault();
     post({ v: PROTOCOL_VERSION, type: "key", code });
   },
   true,
 );
 
+/** Focus is in a form control of the content (script mode: inputs, selects, buttons...). */
+function inControl(): boolean {
+  const active = activeElementOf ? apply(activeElementOf, doc, []) : null;
+  if (!(active instanceof Element)) return false;
+  return apply(closest, active, [CONTROLS]) !== null;
+}
+
+const CONTROLS = "input,select,textarea,button,[contenteditable]";
+
 // In the overview, a click on a thumbnail (content inside it does not take pointer events) or on its caption
 // reports the slide; the shell decides what to do with it.
 doc.addEventListener(
   "click",
   (event) => {
-    if (mode !== "overview") return;
+    // Script mode: a click dispatched by author code (isTrusted false) never selects a slide.
+    if (mode !== "overview" || (scriptMode && !event.isTrusted)) return;
     const t = event.target;
     if (!(t instanceof Element)) return;
     const section = t.closest("section[data-slide]");

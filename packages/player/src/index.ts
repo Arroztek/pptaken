@@ -13,6 +13,9 @@ export {
   type DeckDocument,
   escapeHtml,
   type FontFaceSpec,
+  scriptHash,
+  type VendoredScriptSource,
+  wrapAuthorScript,
 } from "./builder.js";
 export {
   assetHeaders,
@@ -30,6 +33,13 @@ export {
   type LaserGeometry,
   laserGeometry,
 } from "./laser.js";
+export { LIB_SOURCES, type LibSource } from "./libs-source.js";
+export {
+  FORBIDDEN_ELEMENTS,
+  FORBIDDEN_MARKUP,
+  LOCKED_GLOBALS,
+  LOCKED_NAVIGATOR,
+} from "./lockdown.js";
 export * as navigation from "./navigation.js";
 export {
   type DeckShape,
@@ -69,9 +79,13 @@ export {
   parsePresenterData,
 } from "./presenter-data.js";
 export {
+  type BeatMessage,
   type ContentMessage,
+  type ErrorMessage,
   type GotoMessage,
+  type HelloMessage,
   isBoundedInt,
+  isHelloMessage,
   KEY_CODES,
   type KeyMessage,
   MAX_CANVAS,

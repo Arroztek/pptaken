@@ -27,8 +27,11 @@ import {
 } from "./messages.js";
 
 export {
+  type BeatMessage,
   type ContentMessage,
+  type ErrorMessage,
   type GotoMessage,
+  type HelloMessage,
   isBoundedInt,
   type KeyMessage,
   MAX_PRELOAD_COUNT,
@@ -131,6 +134,13 @@ export function parseContentMessage(data: unknown): ContentMessage | null {
       if (!m || !isBoundedInt(m.slide, MAX_SLIDES - 1)) return null;
       return { v: 1, type: "select", slide: m.slide };
     }
+    case "beat":
+      return envelope(data, "beat", []) ? { v: 1, type: "beat" } : null;
+    case "error": {
+      const m = envelope(data, "error", ["slide"]);
+      if (!m || !isBoundedInt(m.slide, MAX_SLIDES - 1)) return null;
+      return { v: 1, type: "error", slide: m.slide };
+    }
     case "preload": {
       const m = envelope(data, "preload", ["ok", "images", "fonts", "failed"]);
       if (!m || typeof m.ok !== "boolean") return null;
@@ -143,6 +153,11 @@ export function parseContentMessage(data: unknown): ContentMessage | null {
     default:
       return null;
   }
+}
+
+/** Script mode: the runtime's first message (`hello`), which must carry exactly one `MessagePort`. */
+export function isHelloMessage(data: unknown, ports: readonly unknown[]): boolean {
+  return envelope(data, "hello", []) !== null && ports.length === 1;
 }
 
 function parseFailures(value: unknown): PreloadFailure[] | null {
