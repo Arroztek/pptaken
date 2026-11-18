@@ -3,15 +3,16 @@
 // slide HTML, inline SVG and CSS. Barriers 2 and 3 (sandboxed iframe, no-network CSP) must stay in place: this
 // package reduces risk, it does not replace isolation.
 
-import type { Deck, Slide } from "@pptaken/schema";
+import { type Deck, hasScripts, type Slide } from "@pptaken/schema";
 import { type CssResult, sanitizeCss } from "./css.js";
 import { type HtmlResult, sanitizeSlideHtml } from "./html.js";
+import type { SanitizerProfile } from "./policy.js";
 import type { Warning } from "./warnings.js";
 
 export { type CssOptions, type CssResult, sanitizeCss } from "./css.js";
 export { type HtmlOptions, type HtmlResult, sanitizeSlideHtml } from "./html.js";
 export * as policy from "./policy.js";
-export { SANITIZER_LIMITS } from "./policy.js";
+export { SANITIZER_LIMITS, type SanitizerProfile } from "./policy.js";
 export {
   MAX_WARNINGS_PER_FIELD,
   WARNING_CODES,
@@ -27,6 +28,8 @@ export interface DeckOptions {
    * attribute the player puts on the element that contains the slide.
    */
   slideScope?: (slideId: string) => string;
+  /** HTML profile (see `HtmlOptions.profile`). Default `safe`. */
+  profile?: SanitizerProfile;
 }
 
 export interface DeckResult {
@@ -46,11 +49,12 @@ export function defaultSlideScope(slideId: string): string {
  */
 export function sanitizeDeck(deck: Deck, options: DeckOptions = {}): DeckResult {
   const scopeOf = options.slideScope ?? defaultSlideScope;
+  const profile: SanitizerProfile = options.profile === "interactive" ? "interactive" : "safe";
   const warnings: Warning[] = [];
   const slides = deck.slides.map((slide, index): Slide => {
     const base = `slides[${index}]`;
     const out: Slide = { ...slide };
-    const html: HtmlResult = sanitizeSlideHtml(slide.html, { path: `${base}.html` });
+    const html: HtmlResult = sanitizeSlideHtml(slide.html, { path: `${base}.html`, profile });
     out.html = html.html;
     warnings.push(...html.warnings);
     if (slide.css !== undefined) {
@@ -83,4 +87,20 @@ export function sanitizeDeck(deck: Deck, options: DeckOptions = {}): DeckResult 
     }
   }
   return { deck: result, warnings };
+}
+
+/**
+ * The static fallback of a deck (ADR-020): the same slides without author scripts and libraries, re-sanitized
+ * with the `safe` profile (canvas, controls and `data-*` of the interactive profile are removed). This is what
+ * everyone sees except the owner's approved session: presenter previews, phones, exports, offline copies. Decks
+ * without scripts are returned unchanged (they were sanitized with the safe profile on ingest).
+ */
+export function staticDeck(deck: Deck, options: Omit<DeckOptions, "profile"> = {}): DeckResult {
+  if (!hasScripts(deck)) return { deck, warnings: [] };
+  const { libs: _libs, ...rest } = deck;
+  const stripped: Deck = {
+    ...rest,
+    slides: deck.slides.map(({ script: _script, ...slide }) => slide),
+  };
+  return sanitizeDeck(stripped, { ...options, profile: "safe" });
 }

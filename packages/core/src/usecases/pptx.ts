@@ -116,6 +116,7 @@ export async function importPptx(
         summary: "Imported from PowerPoint",
         warnings,
         detail: { source: "pptx", warnings: warnings.length },
+        stripScripts: true,
       },
     );
     const head = await ctx.store.decks.get(principal.workspaceId, result.presentationId);

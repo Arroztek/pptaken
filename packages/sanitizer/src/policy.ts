@@ -284,7 +284,15 @@ export type AttributeKind =
   | "svgCss"
   | "svgFragment"
   | "svgToken"
-  | "svgEnum";
+  | "svgEnum"
+  // interactive profile kinds
+  | "number"
+  | "inputType"
+  | "inputStep"
+  | "buttonType"
+  | "idref"
+  | "idrefs"
+  | "data";
 
 /**
  * SVG attributes. `svgCss` attributes are presentation attributes, validated as a CSS value of the CSS property
@@ -1175,3 +1183,90 @@ export const CSS_PSEUDO_ELEMENTS: ReadonlySet<string> = new Set([
 
 /** Allowed conditional/grouping at-rules. Everything else (`@import`, `@font-face`, `@property`...) is removed. */
 export const CSS_AT_RULES: ReadonlySet<string> = new Set(["media", "supports", "keyframes"]);
+
+// ---------------------------------------------------------------------------------------------------------------
+// Interactive profile (ADR-020): decks with author scripts. A strict superset of the safe profile that adds
+// controls a script can drive and `data-*` attributes it can read. It still contains nothing executable or
+// navigating: no `on*` attributes, links, forms, frames, media or scripts. Applied on ingest to decks that declare
+// scripts or libraries; at serve time the static fallback re-sanitizes them with the safe profile.
+
+/** Sanitizer profiles: `safe` (every deck) and `interactive` (decks with author scripts, owner-approved). */
+export const PROFILES = ["safe", "interactive"] as const;
+export type SanitizerProfile = (typeof PROFILES)[number];
+
+/** HTML elements the interactive profile adds, with their allowed attributes (on top of the global ones). */
+export const INTERACTIVE_ELEMENT_ATTRIBUTES: Readonly<
+  Record<string, Readonly<Record<string, AttributeKind>>>
+> = {
+  canvas: { width: "uint", height: "uint" },
+  button: { type: "buttonType", disabled: "boolean", value: "text" },
+  input: {
+    type: "inputType",
+    min: "number",
+    max: "number",
+    step: "inputStep",
+    value: "text",
+    checked: "boolean",
+    disabled: "boolean",
+  },
+  select: { disabled: "boolean", multiple: "boolean", size: "uint" },
+  option: { value: "text", selected: "boolean", disabled: "boolean", label: "text" },
+  label: { for: "idref" },
+  output: { for: "idrefs" },
+  progress: { value: "number", max: "number" },
+  meter: {
+    value: "number",
+    min: "number",
+    max: "number",
+    low: "number",
+    high: "number",
+    optimum: "number",
+  },
+};
+
+/** Elements added by the interactive profile. */
+export const INTERACTIVE_HTML_ELEMENTS: ReadonlySet<string> = new Set(
+  Object.keys(INTERACTIVE_ELEMENT_ATTRIBUTES),
+);
+
+/** The only `<input type>` values of the interactive profile; an input without one of them is removed. */
+export const INTERACTIVE_INPUT_TYPES: ReadonlySet<string> = new Set([
+  "range",
+  "number",
+  "checkbox",
+]);
+
+/** The only `<button type>` value (there are no forms, so `submit` and `reset` mean nothing). */
+export const INTERACTIVE_BUTTON_TYPES: ReadonlySet<string> = new Set(["button"]);
+
+/**
+ * `data-*` attribute names of the interactive profile: lowercase, at most 32 characters after `data-`. Names the
+ * player uses are reserved (`data-step` keeps its own validator).
+ */
+export const DATA_ATTRIBUTE_NAME = /^data-[a-z][a-z0-9-]{0,31}$/;
+export const RESERVED_DATA_ATTRIBUTES: ReadonlySet<string> = new Set([
+  "data-slide",
+  "data-section",
+  "data-width",
+  "data-height",
+  "data-scripts",
+]);
+
+/**
+ * What the interactive profile never allows, as one-line examples. The authoring guide prints this list and a
+ * contract test checks that every example is removed with a warning.
+ */
+export const INTERACTIVE_REMOVED_EXAMPLES: readonly string[] = [
+  "<script>…</script>",
+  '<button onclick="…">',
+  '<a href="…">',
+  "<form>",
+  "<iframe>",
+  "<video>",
+  "<audio>",
+  "<object>",
+  '<input type="text">',
+  '<input type="file">',
+  "<textarea>",
+  '<div data-slide="…">',
+];

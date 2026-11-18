@@ -4,6 +4,7 @@ import type { Deck } from "@pptaken/schema";
 import type { CoreWarning } from "../deck.js";
 import { presentationNotFound, revisionConflict } from "../errors.js";
 import type { CallContext, Principal } from "../principal.js";
+import { type ScriptsSummary, scriptsSummary } from "../scripts.js";
 import { actorRef, audit, type Ctx } from "./context.js";
 
 /** Result of every use case that writes a new revision. */
@@ -14,6 +15,8 @@ export interface RevisionWriteResult {
   slideCount: number;
   /** What the sanitizer removed and other non-fatal problems. The write succeeded. */
   warnings: CoreWarning[];
+  /** The author scripts of the new revision and their trust state (interactive mode, ADR-020). */
+  scripts: ScriptsSummary;
 }
 
 /**
@@ -66,15 +69,21 @@ export async function commitRevision(
       createdAt: now,
       createdBy: actorRef(principal),
     });
+    const approval = await tx.scriptApprovals.get(ws, args.deckId);
+    const scripts = scriptsSummary(args.document, approval?.digest ?? null);
     await audit(ctx, tx, principal, call, args.action, `deck:${args.deckId}`, "ok", {
       revision: number,
       ...args.detail,
+      ...(scripts.digest === null
+        ? {}
+        : { scriptsDigest: scripts.digest, scriptsState: scripts.state }),
     });
     return {
       presentationId: args.deckId,
       revision: number,
       slideCount: args.document.slides.length,
       warnings: args.warnings,
+      scripts,
     };
   });
 }

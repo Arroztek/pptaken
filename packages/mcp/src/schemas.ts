@@ -2,7 +2,7 @@
 // Input schemas of the MCP tools (architecture §5.3). Flat, snake_case, with descriptions and examples. They are
 // advertised in `tools/list` as JSON Schema and enforced by the tool handlers themselves (so that a failure is a
 // structured VALIDATION_ERROR with `path` and `hint`, not the SDK's plain-text message). The core validates again.
-import { FONT_CATALOG, LIMITS } from "@pptaken/schema";
+import { FONT_CATALOG, LIB_IDS, LIMITS, vendoredScriptSchema } from "@pptaken/schema";
 import { z } from "zod";
 
 const presentationId = z
@@ -48,6 +48,21 @@ const theme = z
   })
   .describe("Theme shared by all slides.");
 
+const script = z
+  .string()
+  .min(1)
+  .max(LIMITS.maxSlideScript)
+  .describe(
+    "Interactive mode: the slide's JavaScript, run only after the owner approves it (see the guide). Max 128 KB.",
+  );
+
+const libs = z
+  .array(z.union([z.enum(LIB_IDS), vendoredScriptSchema]))
+  .max(LIMITS.maxLibs)
+  .describe(
+    "Interactive mode: vendored scripts loaded before the slide scripts: a bundled id (see the guide) or { name, version, sha256, source } of a script stored on this instance.",
+  );
+
 const slide = z.strictObject({
   id: slideId.optional(),
   title: z
@@ -82,6 +97,7 @@ const slide = z.strictObject({
     .max(LIMITS.maxDurationHintSec)
     .optional()
     .describe("Planned seconds for this slide (speaker clock)."),
+  script: script.optional(),
 });
 
 export const createPresentationInput = z.strictObject({
@@ -92,6 +108,7 @@ export const createPresentationInput = z.strictObject({
     .optional()
     .describe('"16:9" (default, 1920×1080 canvas) or "4:3" (1440×1080).'),
   theme: theme.optional(),
+  libs: libs.optional(),
   slides: z
     .array(slide)
     .min(1)
@@ -145,6 +162,7 @@ export const updatePresentationInput = z.strictObject({
   aspect_ratio: z.enum(["16:9", "4:3"]).optional(),
   theme: theme.nullable().optional().describe("Replaces the whole theme; null removes it."),
   target_minutes: z.int().min(1).max(LIMITS.maxTargetMinutes).nullable().optional(),
+  libs: libs.nullable().optional(),
   slide_order: z
     .array(z.string().max(40))
     .max(LIMITS.maxSlides)
@@ -174,6 +192,7 @@ const upsert = z.strictObject({
   notes: z.string().max(LIMITS.maxNotes).nullable().optional().describe("null removes the notes."),
   section: z.string().max(LIMITS.maxSectionLength).nullable().optional(),
   duration_hint_sec: z.int().min(1).max(LIMITS.maxDurationHintSec).nullable().optional(),
+  script: script.nullable().optional(),
 });
 
 export const updateSlidesInput = z.strictObject({

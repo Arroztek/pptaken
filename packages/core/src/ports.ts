@@ -199,6 +199,27 @@ export interface AuditLog {
   ): Promise<AuditEntry[]>;
 }
 
+/**
+ * The owner's approval of a deck's author scripts (interactive mode, ADR-020): the digest the owner approved.
+ * The current state is derived by comparing it with the digest of the current revision, so it never goes stale.
+ */
+export interface ScriptApprovalRecord {
+  workspaceId: string;
+  deckId: string;
+  /** 64 lowercase hex characters (see `scriptsDigest`). */
+  digest: string;
+  approvedAt: number;
+  approvedBy: ActorRef;
+}
+
+export interface ScriptApprovalRepository {
+  get(workspaceId: string, deckId: string): Promise<ScriptApprovalRecord | null>;
+  /** Inserts or replaces the approval of the deck. */
+  set(record: ScriptApprovalRecord): Promise<void>;
+  /** Removes the approval; returns true when there was one. */
+  delete(workspaceId: string, deckId: string): Promise<boolean>;
+}
+
 export interface IdempotencyRepository {
   get(workspaceId: string, key: string): Promise<IdempotencyRecord | null>;
   /** Inserts the record. Throws if the key already exists. */
@@ -214,6 +235,7 @@ export interface Repositories {
   readonly assets: AssetRepository;
   readonly audit: AuditLog;
   readonly idempotency: IdempotencyRepository;
+  readonly scriptApprovals: ScriptApprovalRepository;
 }
 
 /**

@@ -207,6 +207,16 @@ allowed only in SVG `href`s (above) and in `url(#id)` for SVG paint/clip/mask/fi
 | Escapes | backslash escapes outside strings (`\75rl(`, `c\olor`) make css-tree produce raw or escaped tokens, which never match the allowlists. Escapes inside strings are decoded by css-tree and validated on the decoded value. Comments inside tokens (`u/**/rl(`) split them into tokens that do not match |
 | `z-index` | literal integers must be within ±9999 |
 
+### Interactive profile (ADR-020)
+
+`profile: "interactive"` (`sanitizeSlideHtml`, `sanitizeDeck`) adds, for decks with owner-approved author scripts only:
+`canvas`, `button` (type `button`), `input` (type `range`, `number` or `checkbox`; any other or no type removes the
+input), `select`, `option`, `label`, `output`, `progress`, `meter`, their value attributes
+(`INTERACTIVE_ELEMENT_ATTRIBUTES`) and `data-*` attributes except the reserved ones. Everything else above still
+applies: no `on*`, no links, forms, frames, media or scripts (`<script>` now warns that code belongs in the slide's
+`script` field). `staticDeck(deck)` is the static fallback: scripts and libraries dropped, HTML re-sanitized with the
+safe profile. See [docs/spec/sanitizer.md](../../docs/spec/sanitizer.md).
+
 ## Limits
 
 Size limits are those of `@pptaken/schema` `LIMITS` (slide HTML 256 KB, slide and theme CSS 64 KB, UTF-16 code

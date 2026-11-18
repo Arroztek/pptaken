@@ -6,6 +6,7 @@ import {
   type Deck,
   type Slide,
   type Theme,
+  type VendoredScript,
 } from "@pptaken/schema";
 import {
   applySlideEdits,
@@ -26,6 +27,7 @@ import {
   requireOwnerOrSystem,
   requireScope,
 } from "../principal.js";
+import { scriptsSummary } from "../scripts.js";
 import { sha256Hex, utf8Encode } from "../sha256.js";
 import { isUlid } from "../ulid.js";
 import { commitRevision, type RevisionWriteResult, summaryOf } from "./commit.js";
@@ -60,6 +62,8 @@ export interface CreatePresentationInput {
   /** 1..maxSlides slides. Missing ids are generated (`slide-1`, `slide-2`…). */
   slides: SlideInput[];
   targetMinutes?: number;
+  /** Vendored scripts for author scripts (interactive mode, ADR-020): bundled ids or full references. */
+  libs?: (string | VendoredScript)[];
   /** Repeating a call with the same key (same principal) returns the first result instead of creating again. */
   idempotencyKey?: string;
   /** Revision summary (default: "Created with N slides"). */
@@ -102,6 +106,8 @@ export interface PresentationView {
   updatedAt: number;
   outline?: OutlineItem[];
   theme?: Theme | null;
+  /** Vendored scripts of the author scripts (interactive mode), when the deck declares any. */
+  libs?: VendoredScript[];
   slides?: SlideView[];
   notes?: { id: string; notes: string }[];
 }
@@ -144,6 +150,8 @@ export interface UpdatePresentationInput {
   theme?: Theme | null;
   /** `null` removes the target. */
   targetMinutes?: number | null;
+  /** Replaces the vendored script list (interactive mode); `null` removes it. */
+  libs?: (string | VendoredScript)[] | null;
   /** New slide order; must contain exactly the current slide ids. */
   slideOrder?: string[];
   summary?: string;
@@ -272,6 +280,7 @@ export async function createPresentation(
         theme: input.theme,
         targetMinutes: input.targetMinutes,
         slides,
+        libs: input.libs,
       }),
       ctx.config.limits.maxSlides,
     );
@@ -308,11 +317,13 @@ export async function createPresentation(
         createdAt: now,
         createdBy: actorRef(principal),
       });
+      const scripts = scriptsSummary(deck, null);
       const result: CreatePresentationResult = {
         presentationId: id,
         revision: 1,
         slideCount: deck.slides.length,
         warnings,
+        scripts,
         replayed: false,
       };
       if (idemKey !== undefined) {
@@ -327,6 +338,9 @@ export async function createPresentation(
       }
       await audit(ctx, tx, principal, call, "presentation.create", `deck:${id}`, "ok", {
         revision: 1,
+        ...(scripts.digest === null
+          ? {}
+          : { scriptsDigest: scripts.digest, scriptsState: "pending" }),
       });
       return result;
     });
@@ -410,6 +424,7 @@ export async function getPresentation(
       updatedAt: deck.updatedAt,
     };
     if (include.has("outline")) view.outline = outlineOf(doc);
+    if (doc.libs !== undefined && doc.libs.length > 0) view.libs = doc.libs.map((l) => ({ ...l }));
     if (include.has("theme")) view.theme = doc.theme ?? null;
     if (include.has("slides")) {
       view.slides = selected.map(({ notes: _notes, ...rest }) => rest);
@@ -490,13 +505,14 @@ export async function updatePresentation(
     set("aspectRatio", input.aspectRatio);
     set("theme", input.theme);
     set("targetMinutes", input.targetMinutes);
+    set("libs", input.libs);
     if (input.slideOrder !== undefined) {
       next.slides = reorder(current.slides, input.slideOrder);
       changed.push("slideOrder");
     }
     if (changed.length === 0) {
       throw validationError("Nothing to update", {
-        hint: "Send at least one of title, lang, aspectRatio, theme, targetMinutes or slideOrder. Use `update_slides` to edit slides.",
+        hint: "Send at least one of title, lang, aspectRatio, theme, targetMinutes, libs or slideOrder. Use `update_slides` to edit slides.",
       });
     }
     const parsed = validateDeck(next, ctx.config.limits.maxSlides);
@@ -693,6 +709,7 @@ export async function purgeDeck(
       if (await tx.assets.deleteIfUnlinked(ws, sha)) deletedAssets.push(sha);
     }
     await tx.idempotency.deleteForDeck(ws, id);
+    await tx.scriptApprovals.delete(ws, id);
     await tx.decks.delete(ws, id);
     await audit(ctx, tx, principal, call, action, `deck:${id}`, "ok", {
       revisionsDeleted,

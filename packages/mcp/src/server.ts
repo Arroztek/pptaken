@@ -17,11 +17,19 @@ import {
   isDomainError,
   type Principal,
   requireScope,
+  type ScriptsSummary,
   type SlideUpsert,
 } from "@pptaken/core";
 import { LIMITS } from "@pptaken/schema";
 import { type ZodType, z } from "zod";
-import { AUTHORING_GUIDE, AUTHORING_GUIDE_VERSION, MAX_ASSET_BASE64_BYTES } from "./guide.js";
+import {
+  AUTHORING_GUIDE,
+  AUTHORING_GUIDE_VERSION,
+  libraryCatalog,
+  MAX_ASSET_BASE64_BYTES,
+  type ScriptsStatusLabel,
+  scriptsGuide,
+} from "./guide.js";
 import {
   addAssetInput,
   createPresentationInput,
@@ -55,6 +63,12 @@ export interface McpServerConfig {
   baseUrl: string;
   /** Rate limit per call (security §7: 120 calls/min, 20 writes/min per token). Optional. */
   rateLimit?: (input: { principal: Principal; tool: string; write: boolean }) => RateLimitDecision;
+  /**
+   * Interactive mode (ADR-020): `needs_owner_approval` when the operator enabled author scripts
+   * (PPTAKEN_SCRIPTS=owner), `off` otherwise (default). `separateSiteContent`: the content is served from a
+   * separate site (Firefox isolates the frame); without it a runaway script can freeze the presenter tab.
+   */
+  scripts?: { status: ScriptsStatusLabel; separateSiteContent: boolean };
   /** Called at the start of every tool call (agent-connection status). Errors are ignored. */
   onActivity?: (input: {
     principal: Principal;
@@ -156,7 +170,7 @@ function toBody(
 function warningsOf(warnings: readonly CoreWarning[]) {
   return warnings.map((w) => ({
     path: w.path ?? null,
-    code: w.code,
+    code: w.code as string,
     message: w.message,
     ...(w.slideId === undefined ? {} : { slide_id: w.slideId }),
   }));
@@ -235,6 +249,46 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
     manage: `${base}/decks/${encodeURIComponent(id)}`,
   });
 
+  const scriptsStatus: ScriptsStatusLabel = config.scripts?.status ?? "off";
+
+  /**
+   * The interactive-mode part of a write result: what the owner must do, and a warning with a distinct code.
+   * Agents can write scripts but never approve them (ADR-020).
+   */
+  const interactiveOf = (
+    id: string,
+    scripts: ScriptsSummary,
+    warnings: ReturnType<typeof warningsOf>,
+  ): Record<string, unknown> => {
+    if (scripts.digest === null) return {};
+    if (scriptsStatus === "off") {
+      warnings.push({
+        path: null,
+        code: "SCRIPTS_DISABLED",
+        message:
+          "Scripts are off on this instance: they are stored but never run, so every slide shows its static HTML/CSS.",
+      });
+      return { interactive: { status: "scripts_disabled" } };
+    }
+    if (scripts.state === "approved") return { interactive: { status: "approved" } };
+    const approveUrl = `${base}/decks/${encodeURIComponent(id)}#scripts`;
+    warnings.push({
+      path: null,
+      code: "SCRIPTS_PENDING_APPROVAL",
+      message:
+        "The scripts changed: the presentation shows its static version until the owner reviews and approves them in the panel. You cannot approve them.",
+    });
+    return {
+      interactive: {
+        status: "pending_owner_approval",
+        approve_url: approveUrl,
+        digest: scripts.digest,
+        script_slides: scripts.slides,
+        libs: scripts.libs,
+      },
+    };
+  };
+
   const server = new McpServer(
     { name: "pptaken", title: "PPTaken", version: config.version },
     { instructions: SERVER_INSTRUCTIONS, capabilities: { tools: { listChanged: false } } },
@@ -299,6 +353,14 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
         scopes: [...principal.scopes],
         ...(principal.tokenId === undefined ? {} : { token_id: principal.tokenId }),
         authoring_guide_version: AUTHORING_GUIDE_VERSION,
+        scripts: scriptsStatus,
+        script_libraries: libraryCatalog(),
+        ...(scriptsStatus === "needs_owner_approval" && config.scripts?.separateSiteContent !== true
+          ? {
+              scripts_warning:
+                "Content is not served from a separate site: a runaway script can freeze the presenter's tab in Firefox and Safari. The owner can set PPTAKEN_CONTENT_URL to another site.",
+            }
+          : {}),
         limits: {
           slides_per_presentation: l.maxSlides,
           slide_html_bytes: LIMITS.maxSlideHtml,
@@ -308,6 +370,9 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
           asset_bytes_per_call: Math.min(MAX_ASSET_BASE64_BYTES, l.maxAssetBytes),
           assets_per_presentation: l.maxAssetsPerDeck,
           asset_bytes_per_presentation: l.maxAssetBytesPerDeck,
+          slide_script_chars: LIMITS.maxSlideScript,
+          deck_script_chars: LIMITS.maxDeckScripts,
+          libs_per_presentation: LIMITS.maxLibs,
         },
       };
     },
@@ -324,7 +389,10 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
     write: false,
     run: async () => {
       requireScope(principal, "decks:read");
-      return { version: AUTHORING_GUIDE_VERSION, guide: AUTHORING_GUIDE };
+      return {
+        version: AUTHORING_GUIDE_VERSION,
+        guide: AUTHORING_GUIDE + scriptsGuide(scriptsStatus),
+      };
     },
   });
 
@@ -353,6 +421,7 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
             a.theme === undefined ? undefined : defined({ css: a.theme.css, fonts: a.theme.fonts }),
           targetMinutes: a.target_minutes,
           idempotencyKey: a.idempotency_key,
+          libs: a.libs,
           slides: a.slides.map((s) =>
             defined({
               id: s.id,
@@ -362,17 +431,21 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
               notes: s.notes,
               section: s.section,
               durationHintSec: s.duration_hint_sec,
+              script: s.script,
             }),
           ),
         }),
         call,
       );
+      const warnings = warningsOf(result.warnings);
+      const interactive = interactiveOf(result.presentationId, result.scripts, warnings);
       return {
         presentation_id: result.presentationId,
         revision: result.revision,
         slide_count: result.slideCount,
         urls: urlsOf(result.presentationId),
-        warnings: warningsOf(result.warnings),
+        ...interactive,
+        warnings,
         ...(result.replayed ? { replayed: true } : {}),
       };
     },
@@ -441,6 +514,7 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
           }),
         ),
         theme: view.theme,
+        libs: view.libs,
         slides: view.slides?.map((s) =>
           defined({
             id: s.id,
@@ -449,6 +523,7 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
             css: s.css,
             section: s.section,
             duration_hint_sec: s.durationHintSec,
+            script: s.script,
           }),
         ),
         notes: view.notes,
@@ -485,15 +560,19 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
           aspectRatio: a.aspect_ratio,
           theme,
           targetMinutes: a.target_minutes,
+          libs: a.libs,
           slideOrder: a.slide_order,
         }),
         call,
       );
+      const warnings = warningsOf(r.warnings);
+      const interactive = interactiveOf(r.presentationId, r.scripts, warnings);
       return {
         presentation_id: r.presentationId,
         revision: r.revision,
         slide_count: r.slideCount,
-        warnings: warningsOf(r.warnings),
+        ...interactive,
+        warnings,
       };
     },
   });
@@ -524,6 +603,7 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
             notes: u.notes,
             section: u.section,
             durationHintSec: u.duration_hint_sec,
+            script: u.script,
           }) as SlideUpsert,
       );
       const r = await core.updateSlides(
@@ -536,11 +616,14 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
         }),
         call,
       );
+      const warnings = warningsOf(r.warnings);
+      const interactive = interactiveOf(r.presentationId, r.scripts, warnings);
       return {
         presentation_id: r.presentationId,
         revision: r.revision,
         slide_count: r.slideCount,
-        warnings: warningsOf(r.warnings),
+        ...interactive,
+        warnings,
       };
     },
   });

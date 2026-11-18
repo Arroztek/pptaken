@@ -16,6 +16,7 @@ import type {
   RevisionRecord,
   RevisionRepository,
   RevisionSummary,
+  ScriptApprovalRepository,
 } from "@pptaken/core";
 import { type Kysely, type Selectable, sql } from "kysely";
 
@@ -220,8 +221,18 @@ export interface OAuthTokensTable {
   rotated_at: number | null;
 }
 
+export interface DeckScriptsApprovalTable {
+  workspace_id: string;
+  deck_id: string;
+  approved_digest: string;
+  approved_at: number;
+  approved_by_actor: string;
+  approved_by_token: string | null;
+}
+
 /** Typed view of the database for Kysely. */
 export interface Database {
+  deck_scripts_approval: DeckScriptsApprovalTable;
   deck: DeckTable;
   revision: RevisionTable;
   asset: AssetTable;
@@ -676,8 +687,59 @@ function idempotency(db: Db): IdempotencyRepository {
   };
 }
 
+function scriptApprovals(db: Db): ScriptApprovalRepository {
+  return {
+    async get(ws, deckId) {
+      const r = await db
+        .selectFrom("deck_scripts_approval")
+        .selectAll()
+        .where("workspace_id", "=", ws)
+        .where("deck_id", "=", deckId)
+        .executeTakeFirst();
+      if (r === undefined) return null;
+      return {
+        workspaceId: r.workspace_id,
+        deckId: r.deck_id,
+        digest: r.approved_digest,
+        approvedAt: r.approved_at,
+        approvedBy: { actor: r.approved_by_actor as Actor, tokenId: r.approved_by_token },
+      };
+    },
+    async set(r) {
+      await db
+        .insertInto("deck_scripts_approval")
+        .values({
+          workspace_id: r.workspaceId,
+          deck_id: r.deckId,
+          approved_digest: r.digest,
+          approved_at: r.approvedAt,
+          approved_by_actor: r.approvedBy.actor,
+          approved_by_token: r.approvedBy.tokenId,
+        })
+        .onConflict((oc) =>
+          oc.columns(["workspace_id", "deck_id"]).doUpdateSet({
+            approved_digest: r.digest,
+            approved_at: r.approvedAt,
+            approved_by_actor: r.approvedBy.actor,
+            approved_by_token: r.approvedBy.tokenId,
+          }),
+        )
+        .execute();
+    },
+    async delete(ws, deckId) {
+      const res = await db
+        .deleteFrom("deck_scripts_approval")
+        .where("workspace_id", "=", ws)
+        .where("deck_id", "=", deckId)
+        .executeTakeFirst();
+      return count(res.numDeletedRows) > 0;
+    },
+  };
+}
+
 export function createRepositories(db: Db): Repositories {
   return {
+    scriptApprovals: scriptApprovals(db),
     decks: decks(db),
     revisions: revisions(db),
     assets: assets(db),

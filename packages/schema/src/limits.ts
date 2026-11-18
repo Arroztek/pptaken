@@ -12,7 +12,43 @@ export const LIMITS = {
   maxThemeFonts: 4,
   maxDurationHintSec: 3600,
   maxTargetMinutes: 600,
+  /** Author script of one slide (interactive mode, ADR-020). */
+  maxSlideScript: 128 * 1024,
+  /** Sum of every slide's author script. */
+  maxDeckScripts: 1024 * 1024,
+  /** Vendored scripts (`libs`) per deck. */
+  maxLibs: 16,
 } as const;
+
+/**
+ * Vendored assets bundled with PPTaken (interactive mode, ADR-020). A deck's `libs` is a list of **vendored script
+ * assets**: a label, the SHA-256 of the stored file and the URL it came from. The general mechanism (next phase) is
+ * ingest-time vendoring: the server fetches a CDN script once, stores it as a content-addressed asset and records
+ * it here-like in the deck. These bundled entries are the first ones; an agent may also name them by id
+ * (`"uplot@1"`), which the schema expands to the full reference. `sha256` is the hex SHA-256 of the JavaScript
+ * file: the player build refuses a file that does not match, and it is part of the scripts digest.
+ */
+export const LIB_CATALOG = {
+  "uplot@1": {
+    name: "uPlot",
+    version: "1.6.32",
+    license: "MIT",
+    homepage: "https://github.com/leeoniya/uPlot",
+    /** Where the bundled file was vendored from (provenance; never fetched by viewers). */
+    source: "https://registry.npmjs.org/uplot/-/uplot-1.6.32.tgz#dist/uPlot.iife.min.js",
+    /** Global defined by the library. */
+    global: "uPlot",
+    sha256: "19c8d4c6ad88929a79f4ae49d6f7161566dfd0ba3d15cc495e974f787eb78f1f",
+    /** SHA-256 of the library's stylesheet, inserted as a `<style>` element. */
+    cssSha256: "df630c6a8d6f8eeaff264b50f73ce5b114f646ffd9a0bb74f049b0a00135fa04",
+    description: "Small, fast canvas charts for lines, areas, bars and time series.",
+  },
+} as const;
+
+export type LibId = keyof typeof LIB_CATALOG;
+
+/** Ids of the vendored libraries, for validation. */
+export const LIB_IDS = Object.keys(LIB_CATALOG) as LibId[];
 
 /** Closed catalog of fonts bundled with the player (see docs/foundation/05-visual-identity.md §7). */
 export const FONT_CATALOG = [

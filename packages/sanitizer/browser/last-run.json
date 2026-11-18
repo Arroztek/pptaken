@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-14T12:29:18.331Z",
+  "date": "2026-11-18T00:18:01.267Z",
   "vectors": 248,
   "legit": 17,
   "engines": {
@@ -8,9 +8,9 @@
       "sanitizedCspViolations": 12,
       "raw_planned": {
         "documentedLeaks": [
-          "raw-url-relative-api -> http://127.0.0.1:44451/api/pwned?v=url-relative-api",
+          "raw-url-relative-api -> http://127.0.0.1:57607/api/pwned?v=url-relative-api",
           "raw-url-meta-refresh -> http://evil.test/leak?v=url-meta-refresh",
-          "raw-url-meta-refresh-api -> http://127.0.0.1:44451/api/pwned?v=url-meta-refresh-api"
+          "raw-url-meta-refresh-api -> http://127.0.0.1:57607/api/pwned?v=url-meta-refresh-api"
         ],
         "contentRouteRequests": 34,
         "rendererCrashes": [
@@ -39,8 +39,8 @@
           "GET /c/raw-math-annotation-xml/x cookies=none",
           "GET /c/raw-math-mi-style-comment/x cookies=none",
           "GET /c/raw-math-svg-mixed/x cookies=none",
-          "GET /c/raw-mxss-noscript-title/x cookies=none",
           "GET /c/raw-mxss-svg-style-img/x cookies=none",
+          "GET /c/raw-mxss-noscript-title/x cookies=none",
           "GET /c/raw-mxss-noembed/x cookies=none",
           "GET /c/raw-mxss-iframe-rawtext/x cookies=none",
           "GET /c/raw-mxss-xmp/x cookies=none",
@@ -63,7 +63,7 @@
       "raw_hardened": {
         "documentedLeaks": [
           "raw-url-meta-refresh -> http://evil.test/leak?v=url-meta-refresh",
-          "raw-url-meta-refresh-api -> http://127.0.0.1:44451/api/pwned?v=url-meta-refresh-api"
+          "raw-url-meta-refresh-api -> http://127.0.0.1:57607/api/pwned?v=url-meta-refresh-api"
         ],
         "contentRouteRequests": 0,
         "rendererCrashes": [
@@ -86,9 +86,9 @@
       "sanitizedCspViolations": 12,
       "raw_planned": {
         "documentedLeaks": [
-          "raw-url-relative-api -> http://127.0.0.1:44451/api/pwned?v=url-relative-api",
+          "raw-url-relative-api -> http://127.0.0.1:57607/api/pwned?v=url-relative-api",
           "raw-url-meta-refresh -> http://evil.test/leak?v=url-meta-refresh",
-          "raw-url-meta-refresh-api -> http://127.0.0.1:44451/api/pwned?v=url-meta-refresh-api"
+          "raw-url-meta-refresh-api -> http://127.0.0.1:57607/api/pwned?v=url-meta-refresh-api"
         ],
         "contentRouteRequests": 32,
         "rendererCrashes": [],
@@ -135,7 +135,7 @@
       "raw_hardened": {
         "documentedLeaks": [
           "raw-url-meta-refresh -> http://evil.test/leak?v=url-meta-refresh",
-          "raw-url-meta-refresh-api -> http://127.0.0.1:44451/api/pwned?v=url-meta-refresh-api"
+          "raw-url-meta-refresh-api -> http://127.0.0.1:57607/api/pwned?v=url-meta-refresh-api"
         ],
         "contentRouteRequests": 0,
         "rendererCrashes": [],
@@ -154,40 +154,40 @@
       "sanitizedCspViolations": 12,
       "raw_planned": {
         "documentedLeaks": [
-          "raw-url-relative-api -> http://127.0.0.1:44451/api/pwned?v=url-relative-api",
+          "raw-url-relative-api -> http://127.0.0.1:57607/api/pwned?v=url-relative-api",
           "raw-url-meta-refresh -> http://evil.test/leak?v=url-meta-refresh",
-          "raw-url-meta-refresh-api -> http://127.0.0.1:44451/api/pwned?v=url-meta-refresh-api"
+          "raw-url-meta-refresh-api -> http://127.0.0.1:57607/api/pwned?v=url-meta-refresh-api"
         ],
         "contentRouteRequests": 31,
         "rendererCrashes": [],
         "cspViolations": 105,
         "serverHits": [
           "GET /c/raw-enc-nul-in-tag/x%EF%BF%BD cookies=sid,legacy",
-          "GET /c/raw-on-uppercase/x cookies=sid,legacy",
-          "GET /c/raw-on-mixed-case/x cookies=sid,legacy",
           "GET /c/raw-on-backticks/x cookies=sid,legacy",
-          "GET /c/raw-on-tab-in-name/x cookies=sid,legacy",
-          "GET /c/raw-on-null-in-name/x cookies=sid,legacy",
-          "GET /c/raw-on-newline-separators/x cookies=sid,legacy",
           "GET /c/raw-on-slash-separators/x/onerror=alert(1) cookies=sid,legacy",
+          "GET /c/raw-on-mixed-case/x cookies=sid,legacy",
+          "GET /c/raw-on-null-in-name/x cookies=sid,legacy",
+          "GET /c/raw-on-tab-in-name/x cookies=sid,legacy",
+          "GET /c/raw-on-newline-separators/x cookies=sid,legacy",
           "GET /c/raw-on-img-onerror/x cookies=sid,legacy",
+          "GET /c/raw-on-uppercase/x cookies=sid,legacy",
           "GET /c/raw-on-quoted-entity/x cookies=sid,legacy",
           "GET /c/raw-html5-noframes/x cookies=sid,legacy",
-          "GET /c/raw-html5-comment-bogus/x cookies=sid,legacy",
           "GET /c/raw-html5-comment-dash-bang/x cookies=sid,legacy",
           "GET /c/raw-html5-downlevel-revealed/x cookies=sid,legacy",
+          "GET /c/raw-html5-comment-bogus/x cookies=sid,legacy",
           "GET /c/raw-html5-slot-shadowroot/x cookies=sid,legacy",
           "GET /c/raw-math-annotation-xml/x cookies=sid,legacy",
-          "GET /c/raw-math-svg-mixed/x cookies=sid,legacy",
-          "GET /c/raw-mxss-noembed/x cookies=sid,legacy",
-          "GET /c/raw-mxss-svg-style-img/x cookies=sid,legacy",
-          "GET /c/raw-mxss-xmp/x cookies=sid,legacy",
           "GET /c/raw-math-mi-style-comment/x cookies=sid,legacy",
-          "GET /c/raw-mxss-unwrap-into-table/x cookies=sid,legacy",
           "GET /c/raw-mxss-noscript-title/x cookies=sid,legacy",
+          "GET /c/raw-mxss-noembed/x cookies=sid,legacy",
+          "GET /c/raw-math-svg-mixed/x cookies=sid,legacy",
+          "GET /c/raw-mxss-xmp/x cookies=sid,legacy",
           "GET /c/raw-mxss-iframe-rawtext/x cookies=sid,legacy",
-          "GET /c/raw-mxss-textarea/x cookies=sid,legacy",
+          "GET /c/raw-mxss-unwrap-into-table/x cookies=sid,legacy",
           "GET /c/raw-mxss-comment-in-attr/x cookies=sid,legacy",
+          "GET /c/raw-mxss-svg-style-img/x cookies=sid,legacy",
+          "GET /c/raw-mxss-textarea/x cookies=sid,legacy",
           "GET /c/raw-mxss-title-element/x cookies=sid,legacy",
           "GET /c/raw-svg-foreignobject/x cookies=sid,legacy",
           "GET /c/raw-svg-desc-html/x cookies=sid,legacy",
@@ -198,31 +198,31 @@
         ],
         "sessionCookieSent": [
           "GET /c/raw-enc-nul-in-tag/x%EF%BF%BD cookies=sid,legacy",
-          "GET /c/raw-on-uppercase/x cookies=sid,legacy",
-          "GET /c/raw-on-mixed-case/x cookies=sid,legacy",
           "GET /c/raw-on-backticks/x cookies=sid,legacy",
-          "GET /c/raw-on-tab-in-name/x cookies=sid,legacy",
-          "GET /c/raw-on-null-in-name/x cookies=sid,legacy",
-          "GET /c/raw-on-newline-separators/x cookies=sid,legacy",
           "GET /c/raw-on-slash-separators/x/onerror=alert(1) cookies=sid,legacy",
+          "GET /c/raw-on-mixed-case/x cookies=sid,legacy",
+          "GET /c/raw-on-null-in-name/x cookies=sid,legacy",
+          "GET /c/raw-on-tab-in-name/x cookies=sid,legacy",
+          "GET /c/raw-on-newline-separators/x cookies=sid,legacy",
           "GET /c/raw-on-img-onerror/x cookies=sid,legacy",
+          "GET /c/raw-on-uppercase/x cookies=sid,legacy",
           "GET /c/raw-on-quoted-entity/x cookies=sid,legacy",
           "GET /c/raw-html5-noframes/x cookies=sid,legacy",
-          "GET /c/raw-html5-comment-bogus/x cookies=sid,legacy",
           "GET /c/raw-html5-comment-dash-bang/x cookies=sid,legacy",
           "GET /c/raw-html5-downlevel-revealed/x cookies=sid,legacy",
+          "GET /c/raw-html5-comment-bogus/x cookies=sid,legacy",
           "GET /c/raw-html5-slot-shadowroot/x cookies=sid,legacy",
           "GET /c/raw-math-annotation-xml/x cookies=sid,legacy",
-          "GET /c/raw-math-svg-mixed/x cookies=sid,legacy",
-          "GET /c/raw-mxss-noembed/x cookies=sid,legacy",
-          "GET /c/raw-mxss-svg-style-img/x cookies=sid,legacy",
-          "GET /c/raw-mxss-xmp/x cookies=sid,legacy",
           "GET /c/raw-math-mi-style-comment/x cookies=sid,legacy",
-          "GET /c/raw-mxss-unwrap-into-table/x cookies=sid,legacy",
           "GET /c/raw-mxss-noscript-title/x cookies=sid,legacy",
+          "GET /c/raw-mxss-noembed/x cookies=sid,legacy",
+          "GET /c/raw-math-svg-mixed/x cookies=sid,legacy",
+          "GET /c/raw-mxss-xmp/x cookies=sid,legacy",
           "GET /c/raw-mxss-iframe-rawtext/x cookies=sid,legacy",
-          "GET /c/raw-mxss-textarea/x cookies=sid,legacy",
+          "GET /c/raw-mxss-unwrap-into-table/x cookies=sid,legacy",
           "GET /c/raw-mxss-comment-in-attr/x cookies=sid,legacy",
+          "GET /c/raw-mxss-svg-style-img/x cookies=sid,legacy",
+          "GET /c/raw-mxss-textarea/x cookies=sid,legacy",
           "GET /c/raw-mxss-title-element/x cookies=sid,legacy",
           "GET /c/raw-svg-foreignobject/x cookies=sid,legacy",
           "GET /c/raw-svg-desc-html/x cookies=sid,legacy",
@@ -236,7 +236,7 @@
       "raw_hardened": {
         "documentedLeaks": [
           "raw-url-meta-refresh -> http://evil.test/leak?v=url-meta-refresh",
-          "raw-url-meta-refresh-api -> http://127.0.0.1:44451/api/pwned?v=url-meta-refresh-api"
+          "raw-url-meta-refresh-api -> http://127.0.0.1:57607/api/pwned?v=url-meta-refresh-api"
         ],
         "contentRouteRequests": 0,
         "rendererCrashes": [],

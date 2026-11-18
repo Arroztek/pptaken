@@ -88,6 +88,8 @@ export type {
   RevisionRecord,
   RevisionRepository,
   RevisionSummary,
+  ScriptApprovalRecord,
+  ScriptApprovalRepository,
   UnitOfWork,
 } from "./ports.js";
 export {
@@ -103,6 +105,15 @@ export {
   type Scope,
   systemPrincipal,
 } from "./principal.js";
+export {
+  SCRIPTS_DIGEST_PATTERN,
+  SCRIPTS_DIGEST_VERSION,
+  type ScriptsState,
+  type ScriptsSummary,
+  scriptsDigest,
+  scriptsStateOf,
+  scriptsSummary,
+} from "./scripts.js";
 export { sha256Hex, utf8Encode } from "./sha256.js";
 export { createUlidFactory, isUlid, type RandomSource, ULID_PATTERN, ulidTime } from "./ulid.js";
 export type {
@@ -140,6 +151,7 @@ export {
   type UpdateSlidesInput,
 } from "./usecases/presentations.js";
 export type { RevisionDetail, RevisionInfo } from "./usecases/revisions.js";
+export type { ScriptsStatus } from "./usecases/scripts.js";
 
 /** The system clock (`Date.now()`). */
 export const systemClock: Clock = { now: () => Date.now() };

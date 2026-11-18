@@ -382,6 +382,56 @@ export function runIdempotencyRepositoryContract(name: string, factory: StorageF
   });
 }
 
+export function runScriptApprovalRepositoryContract(name: string, factory: StorageFactory): void {
+  describe(`${name}: ScriptApprovalRepository contract`, () => {
+    const uow = useHarness(factory);
+
+    it("sets, replaces, isolates workspaces and deletes", async () => {
+      const deck = makeDeckRecord();
+      await uow().decks.insert(deck);
+      expect(await uow().scriptApprovals.get(WS, deck.id)).toBeNull();
+      const first = {
+        workspaceId: WS,
+        deckId: deck.id,
+        digest: "a".repeat(64),
+        approvedAt: 10,
+        approvedBy: { actor: "owner" as const, tokenId: null },
+      };
+      await uow().scriptApprovals.set(first);
+      expect(await uow().scriptApprovals.get(WS, deck.id)).toEqual(first);
+      expect(await uow().scriptApprovals.get(OTHER_WS, deck.id)).toBeNull();
+      const second = { ...first, digest: "b".repeat(64), approvedAt: 20 };
+      await uow().scriptApprovals.set(second);
+      expect(await uow().scriptApprovals.get(WS, deck.id)).toEqual(second);
+      expect(await uow().scriptApprovals.delete(WS, deck.id)).toBe(true);
+      expect(await uow().scriptApprovals.delete(WS, deck.id)).toBe(false);
+      expect(await uow().scriptApprovals.get(WS, deck.id)).toBeNull();
+    });
+
+    it("refuses an approval for an unknown deck and keeps a deck with an approval", async () => {
+      await expect(
+        uow().scriptApprovals.set({
+          workspaceId: WS,
+          deckId: makeDeckRecord().id,
+          digest: "c".repeat(64),
+          approvedAt: 1,
+          approvedBy: { actor: "owner", tokenId: null },
+        }),
+      ).rejects.toThrow();
+      const deck = makeDeckRecord();
+      await uow().decks.insert(deck);
+      await uow().scriptApprovals.set({
+        workspaceId: WS,
+        deckId: deck.id,
+        digest: "d".repeat(64),
+        approvedAt: 1,
+        approvedBy: { actor: "owner", tokenId: null },
+      });
+      await expect(uow().decks.delete(WS, deck.id)).rejects.toThrow();
+    });
+  });
+}
+
 export function runUnitOfWorkContract(name: string, factory: StorageFactory): void {
   describe(`${name}: UnitOfWork (transaction) contract`, () => {
     const uow = useHarness(factory);
@@ -469,5 +519,6 @@ export function runStorageContract(name: string, factory: StorageFactory): void 
   runAssetRepositoryContract(name, factory);
   runAuditLogContract(name, factory);
   runIdempotencyRepositoryContract(name, factory);
+  runScriptApprovalRepositoryContract(name, factory);
   runUnitOfWorkContract(name, factory);
 }

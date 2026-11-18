@@ -67,7 +67,7 @@ describe("sqlite oauth schema", () => {
       await sql`DELETE FROM oauth_clients`.execute(storage.kysely);
       expect(await store.getGrant("default", "01G")).toBeNull();
       expect(await store.getTokenByHash("h")).toBeNull();
-      expect(storage.schemaVersion()).toBe(4);
+      expect(storage.schemaVersion()).toBe(5);
     } finally {
       await storage.close();
     }

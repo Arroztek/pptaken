@@ -12,6 +12,7 @@ import {
   GUIDE_EXAMPLE,
   type McpServerConfig,
   SERVER_INSTRUCTIONS,
+  scriptsGuide,
   TOOL_NAMES,
 } from "../src/index.js";
 
@@ -113,7 +114,7 @@ describe("authoring guide", () => {
     const { call } = await connect();
     const r = await call("get_authoring_guide");
     expect(r.isError).toBe(false);
-    expect(r.body.guide).toBe(AUTHORING_GUIDE);
+    expect(r.body.guide).toBe(AUTHORING_GUIDE + scriptsGuide("off"));
   });
 
   it("its example renders without sanitizer warnings", async () => {

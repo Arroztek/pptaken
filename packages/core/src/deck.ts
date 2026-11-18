@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Pure deck operations: validation with agent-friendly errors, sanitizing, slide edits, outline.
 import { type Warning as SanitizerWarning, sanitizeDeck } from "@pptaken/sanitizer";
-import { type Deck, LIMITS, parseDeck, type Slide } from "@pptaken/schema";
+import { type Deck, hasScripts, LIB_CATALOG, LIMITS, parseDeck, type Slide } from "@pptaken/schema";
 import { limitExceeded, validationError } from "./errors.js";
 
 /** Codes the core adds to the sanitizer's warning codes. */
@@ -31,6 +31,12 @@ function hintForIssue(path: string, message: string): string {
   }
   if (/\.id$/.test(path)) {
     return "Slide ids must be unique and use 1 to 40 characters from a-z, 0-9 and '-'. Omit `id` to have one generated.";
+  }
+  if (/\.script$/.test(path)) {
+    return `\`${path}\` must be an inline classic script of at most ${LIMITS.maxSlideScript / 1024} KB (all scripts together at most ${LIMITS.maxDeckScripts / 1024} KB), without "<script", "</script" or "<!--". No CDN or network: list vendored libraries in \`libs\`.`;
+  }
+  if (/^libs/.test(path)) {
+    return "`libs` lists library ids from the vendored catalog (see `get_authoring_guide` or `whoami`), each at most once.";
   }
   if (/fonts/.test(path)) {
     return "Use font names from the bundled catalog only (see `get_authoring_guide`).";
@@ -78,7 +84,10 @@ export function sanitizeAndCheck(
   maxSlides: number,
   knownAssets?: readonly string[],
 ): { deck: Deck; warnings: CoreWarning[] } {
-  const sanitized = sanitizeDeck(deck);
+  // Decks with author scripts or libraries use the interactive profile (ADR-020); the static fallback served to
+  // everyone else is re-sanitized with the safe profile at serve time.
+  checkVendoredScripts(deck);
+  const sanitized = sanitizeDeck(deck, { profile: hasScripts(deck) ? "interactive" : "safe" });
   const clean = validateDeck(sanitized.deck, maxSlides);
   const warnings: CoreWarning[] = sanitized.warnings.map((w) => toCoreWarning(w, clean));
   if (knownAssets !== undefined) {
@@ -103,6 +112,30 @@ export function sanitizeAndCheck(
     });
   }
   return { deck: clean, warnings };
+}
+
+/** SHA-256 of the vendored scripts this instance can serve: the bundled ones (ADR-020). */
+const KNOWN_VENDORED_SCRIPTS: ReadonlySet<string> = new Set(
+  Object.values(LIB_CATALOG).map((lib) => lib.sha256),
+);
+
+/**
+ * Every vendored script a deck references must be stored on the instance, or the scripted document could not be
+ * built. Today that is the bundled set; ingest-time vendoring (fetching a CDN URL once into the asset store) is the
+ * extension point of the next phase (ADR-020 §2): it adds the stored hashes here.
+ */
+export function checkVendoredScripts(
+  deck: Pick<Deck, "libs">,
+  known = KNOWN_VENDORED_SCRIPTS,
+): void {
+  (deck.libs ?? []).forEach((lib, i) => {
+    if (!known.has(lib.sha256)) {
+      throw validationError(`libs[${i}]: this vendored script is not stored on this instance`, {
+        path: `libs[${i}].sha256`,
+        hint: 'Use a bundled script id from the guide (for example "uplot@1"). Vendoring scripts from a CDN URL is not available yet.',
+      });
+    }
+  });
 }
 
 function toCoreWarning(w: SanitizerWarning, deck: Deck): CoreWarning {
@@ -179,9 +212,11 @@ export interface SlideUpsert {
   notes?: string | null;
   section?: string | null;
   durationHintSec?: number | null;
+  /** Author script of the slide (interactive mode, ADR-020); `null` removes it. */
+  script?: string | null;
 }
 
-const OPTIONAL_FIELDS = ["css", "notes", "section", "durationHintSec"] as const;
+const OPTIONAL_FIELDS = ["css", "notes", "section", "durationHintSec", "script"] as const;
 
 /**
  * Applies upserts (in order) and then removals to a copy of `slides`. Throws `VALIDATION_ERROR` for references

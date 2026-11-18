@@ -5,7 +5,7 @@
 // assets are still untrusted and must go through the core's import (validation, sanitizing, type sniffing).
 
 import { createHash } from "node:crypto";
-import type { Deck } from "@pptaken/schema";
+import { type Deck, hasScripts } from "@pptaken/schema";
 import { exportFilenames } from "./filename.js";
 import { printable } from "./text.js";
 import { readZip, writeZip, ZipError, type ZipErrorCode } from "./zip.js";
@@ -47,7 +47,16 @@ export interface ArchiveManifest {
   /** Whether speaker notes were kept in `deck.json`. */
   notes: boolean;
   assets: ArchiveManifestAsset[];
+  /**
+   * Features a reader must support to import the archive (ADR-020): `["scripts"]` when `deck.json` has author
+   * scripts or libraries. A reader refuses any requirement it does not know (fail closed). Omitted when empty.
+   */
+  requires?: ArchiveRequirement[];
 }
+
+/** Features an archive can require. */
+export const ARCHIVE_REQUIREMENTS = ["scripts"] as const;
+export type ArchiveRequirement = (typeof ARCHIVE_REQUIREMENTS)[number];
 
 export type ArchiveErrorCode =
   | ZipErrorCode
@@ -143,6 +152,7 @@ export function writeArchive(input: WriteArchiveInput): WrittenArchive {
     generator: input.generator,
     deck: { title: deck.title, lang: deck.lang ?? null },
     notes: includeNotes,
+    ...(hasScripts(deck) ? { requires: ["scripts" as const] } : {}),
     assets: assets.map((a) => {
       const item: ArchiveManifestAsset = {
         sha256: a.sha256,
@@ -284,6 +294,22 @@ export function parseManifest(value: unknown, maxAssets: number): ArchiveManifes
     if (height !== undefined) item.height = height;
     return item;
   });
+  let requires: ArchiveRequirement[] | undefined;
+  if (value.requires !== undefined) {
+    if (!Array.isArray(value.requires) || value.requires.length > 16) {
+      throw bad("requires must be an array of feature names");
+    }
+    requires = [];
+    for (const item of value.requires) {
+      if (!(ARCHIVE_REQUIREMENTS as readonly unknown[]).includes(item)) {
+        throw new ArchiveError(
+          "UNSUPPORTED_VERSION",
+          `This archive requires a feature this PPTaken does not support (${printable(String(item), 40)}). Update PPTaken to import it.`,
+        );
+      }
+      if (!requires.includes(item as ArchiveRequirement)) requires.push(item as ArchiveRequirement);
+    }
+  }
   return {
     format: ARCHIVE_FORMAT,
     formatVersion: version,
@@ -292,6 +318,7 @@ export function parseManifest(value: unknown, maxAssets: number): ArchiveManifes
     deck: { title: deck.title, lang: typeof deck.lang === "string" ? deck.lang : null },
     notes: value.notes,
     assets,
+    ...(requires !== undefined && requires.length > 0 ? { requires } : {}),
   };
 }
 

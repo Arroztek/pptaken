@@ -90,6 +90,48 @@
           "additionalProperties": false,
           "description": "Theme shared by all slides."
         },
+        "libs": {
+          "maxItems": 16,
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "uplot@1"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9@/._+-]{1,80}$"
+                  },
+                  "version": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9._+-]{1,40}$"
+                  },
+                  "sha256": {
+                    "type": "string",
+                    "pattern": "^[0-9a-f]{64}$"
+                  },
+                  "source": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "pattern": "^https:\\/\\/[^\\s\"'<>]+$"
+                  }
+                },
+                "required": [
+                  "name",
+                  "sha256"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "description": "Interactive mode: vendored scripts loaded before the slide scripts: a bundled id (see the guide) or { name, version, sha256, source } of a script stored on this instance."
+        },
         "slides": {
           "minItems": 1,
           "maxItems": 200,
@@ -132,6 +174,12 @@
                 "type": "integer",
                 "minimum": 1,
                 "maximum": 3600
+              },
+              "script": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 131072,
+                "description": "Interactive mode: the slide's JavaScript, run only after the owner approves it (see the guide). Max 128 KB."
               }
             },
             "required": [
@@ -347,6 +395,55 @@
             }
           ]
         },
+        "libs": {
+          "anyOf": [
+            {
+              "maxItems": 16,
+              "type": "array",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "uplot@1"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9@/._+-]{1,80}$"
+                      },
+                      "version": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9._+-]{1,40}$"
+                      },
+                      "sha256": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{64}$"
+                      },
+                      "source": {
+                        "type": "string",
+                        "maxLength": 2048,
+                        "pattern": "^https:\\/\\/[^\\s\"'<>]+$"
+                      }
+                    },
+                    "required": [
+                      "name",
+                      "sha256"
+                    ],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "description": "Interactive mode: vendored scripts loaded before the slide scripts: a bundled id (see the guide) or { name, version, sha256, source } of a script stored on this instance."
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "slide_order": {
           "description": "New order: exactly the current slide ids, each once.",
           "maxItems": 200,
@@ -456,6 +553,19 @@
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 3600
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "script": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 131072,
+                    "description": "Interactive mode: the slide's JavaScript, run only after the owner approves it (see the guide). Max 128 KB."
                   },
                   {
                     "type": "null"

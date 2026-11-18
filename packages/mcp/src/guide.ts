@@ -2,7 +2,8 @@
 // The authoring guide returned by `get_authoring_guide`: everything an agent needs to write a deck that renders
 // well on the first try. Kept under 2,500 tokens (checked by a test). Facts come from @pptaken/schema (limits,
 // font catalog) and the sanitizer policy (packages/sanitizer/README.md); keep them in sync when either changes.
-import { FONT_CATALOG, LIMITS } from "@pptaken/schema";
+import { policy } from "@pptaken/sanitizer";
+import { FONT_CATALOG, LIB_CATALOG, LIMITS } from "@pptaken/schema";
 
 /** Version of the guide, bumped with the deck format or the sanitizer policy. */
 export const AUTHORING_GUIDE_VERSION = "1";
@@ -92,3 +93,77 @@ With \`theme\`: ${JSON.stringify(GUIDE_EXAMPLE.theme)}
 ## Flow
 \`create_presentation\` with all slides in one call → give \`urls.present\` to the user. To edit: \`get_presentation\` (outline by default) shows slide ids and \`revision\`; pass it as \`expected_revision\` to \`update_slides\` or \`update_presentation\`. On REVISION_CONFLICT, read again and reapply. Successful writes may return \`warnings\` listing what the sanitizer removed: fix those slides if the removal matters.
 `;
+
+// ---------------------------------------------------------------------------------------------------------------
+// Interactive scripts (ADR-020). The allowed and removed lists are generated from the sanitizer's policy constants;
+// a contract test sanitizes every listed item (allowed: no warning; removed: a warning).
+
+/** Status of author scripts on an instance, as `whoami` and the guide report it. */
+export type ScriptsStatusLabel = "off" | "needs_owner_approval";
+
+/** One allowed element of the interactive profile, as the guide shows it and the contract test builds it. */
+export interface InteractiveExample {
+  tag: string;
+  /** Allowed attributes (the global ones such as class, id, style, aria-*, data-* are not repeated). */
+  attributes: string[];
+  /** A minimal valid instance, sanitized without warnings by the interactive profile. */
+  html: string;
+}
+
+/** The elements the interactive profile adds, from the sanitizer policy. */
+export function interactiveExamples(): InteractiveExample[] {
+  return Object.entries(policy.INTERACTIVE_ELEMENT_ATTRIBUTES).map(([tag, attrs]) => {
+    const attributes = Object.keys(attrs);
+    const html =
+      tag === "input"
+        ? `<input type="${[...policy.INTERACTIVE_INPUT_TYPES][0]}">`
+        : tag === "option"
+          ? '<select><option value="a">A</option></select>'
+          : `<${tag}></${tag}>`;
+    return { tag, attributes, html };
+  });
+}
+
+/** The library catalog as the guide and `whoami` show it. */
+export function libraryCatalog(): {
+  id: string;
+  name: string;
+  version: string;
+  global: string;
+  license: string;
+  sha256: string;
+  source: string;
+}[] {
+  return Object.entries(LIB_CATALOG).map(([id, lib]) => ({
+    id,
+    name: lib.name,
+    version: lib.version,
+    global: lib.global,
+    license: lib.license,
+    sha256: lib.sha256,
+    source: lib.source,
+  }));
+}
+
+/** The guide's script section for an instance; short when scripts are off. */
+export function scriptsGuide(status: ScriptsStatusLabel): string {
+  if (status === "off") {
+    return "\n## Interactive scripts\nOff on this instance: `script` and `libs` are stored but never run, so every slide shows its static HTML/CSS. Do not rely on them.\n";
+  }
+  const elements = interactiveExamples()
+    .map((e) => (e.attributes.length > 0 ? `${e.tag} (${e.attributes.join(" ")})` : e.tag))
+    .join("; ");
+  const types = [...policy.INTERACTIVE_INPUT_TYPES].join("/");
+  const libs = libraryCatalog()
+    .map((l) => `\`${l.id}\` (${l.name} ${l.version}, global \`${l.global}\`, ${l.license})`)
+    .join(", ");
+  return `
+## Interactive scripts (status: needs_owner_approval)
+- A slide's code goes in its \`script\` field: an inline classic script, at most ${kb(LIMITS.maxSlideScript)} per slide and ${kb(LIMITS.maxDeckScripts)} per deck, without "<script", "</script" or "<!--". \`<script>\` in \`html\` is removed.
+- It runs once as \`function (slide) { … }\` with \`slide = { root, onEnter(fn(step)), onLeave(fn), onStep(fn(step)), setSteps(n) }\`; \`root\` is the slide's \`<section>\`. Call \`setSteps\` during setup only. Use \`addEventListener\`, never on* attributes.
+- No network and no CDN: fetch, XHR, WebSocket, WebRTC, workers, eval/new Function, iframes, \`<script>\`/\`<link>\` elements and \`document.write\` are blocked. Libraries are vendored scripts stored on this instance, listed in load order in the deck's \`libs\` (a bundled id is enough): ${libs}. Vendoring other libraries from a CDN URL is not available yet.
+- Extra HTML in decks with scripts: ${elements}; input type ${types}; data-* attributes. Still removed: ${policy.INTERACTIVE_REMOVED_EXAMPLES.join(" ")}.
+- Mandatory static fallback: the slide's html/css must make sense without the script. Exports, phones, the presenter preview and any deck the owner has not approved show only that.
+- Scripts run only after the owner approves them in the panel; any change to a script or to \`libs\` needs approval again. Tool results report \`interactive.status\`; you cannot approve. Keys typed in inputs stay there; arrows and space still move the slides.
+`;
+}

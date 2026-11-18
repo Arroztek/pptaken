@@ -5,7 +5,12 @@ export {
   AUTHORING_GUIDE,
   AUTHORING_GUIDE_VERSION,
   GUIDE_EXAMPLE,
+  type InteractiveExample,
+  interactiveExamples,
+  libraryCatalog,
   MAX_ASSET_BASE64_BYTES,
+  type ScriptsStatusLabel,
+  scriptsGuide,
 } from "./guide.js";
 export {
   type CreateMcpServerOptions,

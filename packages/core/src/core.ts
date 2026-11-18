@@ -69,6 +69,12 @@ import {
   type RevisionInfo,
   restoreRevision,
 } from "./usecases/revisions.js";
+import {
+  approveScripts,
+  getScriptsStatus,
+  revokeScripts,
+  type ScriptsStatus,
+} from "./usecases/scripts.js";
 
 /** Everything the core needs, provided by the composition root (`apps/server`). */
 export interface CoreDeps {
@@ -205,6 +211,25 @@ export interface Core {
   /** Owner only (`decks:write`). Creates a new presentation from a PowerPoint file (needs `convertPptx`). */
   importPptx(p: Principal, input: ImportPptxInput, call?: CallContext): Promise<ImportPptxResult>;
 
+  /** `decks:read`. The scripts digest of the current revision and its trust state (ADR-020). */
+  getScriptsStatus(
+    p: Principal,
+    input: { presentationId: string },
+    call?: CallContext,
+  ): Promise<ScriptsStatus>;
+  /** Owner only (human). Approves the current scripts; `digest` must be the one the owner reviewed. Audited. */
+  approveScripts(
+    p: Principal,
+    input: { presentationId: string; digest: string },
+    call?: CallContext,
+  ): Promise<ScriptsStatus>;
+  /** Owner only (human). Withdraws the approval. Audited. */
+  revokeScripts(
+    p: Principal,
+    input: { presentationId: string },
+    call?: CallContext,
+  ): Promise<ScriptsStatus>;
+
   /** Owner only. Newest first. */
   listAuditLog(
     p: Principal,
@@ -243,6 +268,9 @@ export function createCore(deps: CoreDeps): Core {
     exportPresentation: (p, i, c) => exportPresentation(ctx, p, i, c),
     importPresentation: (p, i, c) => importPresentation(ctx, p, i, c),
     importPptx: (p, i, c) => importPptx(ctx, deps.convertPptx, p, i, c),
+    getScriptsStatus: (p, i, c) => getScriptsStatus(ctx, p, i, c),
+    approveScripts: (p, i, c) => approveScripts(ctx, p, i, c),
+    revokeScripts: (p, i, c) => revokeScripts(ctx, p, i, c),
     listAuditLog: (p, i, c) =>
       runRead(c, async () => {
         requireOwner(p, "read the audit log");

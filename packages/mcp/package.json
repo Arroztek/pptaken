@@ -21,6 +21,7 @@
   "dependencies": {
     "@modelcontextprotocol/server": "2.4.0",
     "@pptaken/core": "workspace:*",
+    "@pptaken/sanitizer": "workspace:*",
     "@pptaken/schema": "workspace:*",
     "zod": "4.6.7"
   },

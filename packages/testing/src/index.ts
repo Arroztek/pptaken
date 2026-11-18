@@ -15,6 +15,7 @@ export {
   runDeckRepositoryContract,
   runIdempotencyRepositoryContract,
   runRevisionRepositoryContract,
+  runScriptApprovalRepositoryContract,
   runStorageContract,
   runUnitOfWorkContract,
   type StorageFactory,

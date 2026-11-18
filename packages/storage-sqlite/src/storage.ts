@@ -9,6 +9,7 @@ import type {
   IdempotencyRepository,
   Repositories,
   RevisionRepository,
+  ScriptApprovalRepository,
   UnitOfWork,
 } from "@pptaken/core";
 import Database from "better-sqlite3";
@@ -55,6 +56,7 @@ export class SqliteStorage implements UnitOfWork {
   readonly assets: AssetRepository;
   readonly audit: AuditLog;
   readonly idempotency: IdempotencyRepository;
+  readonly scriptApprovals: ScriptApprovalRepository;
   /** Result of the migration run done at open. */
   readonly migration: MigrateResult;
 
@@ -71,6 +73,7 @@ export class SqliteStorage implements UnitOfWork {
     this.assets = repos.assets;
     this.audit = repos.audit;
     this.idempotency = repos.idempotency;
+    this.scriptApprovals = repos.scriptApprovals;
     this.migration = migration;
   }
 

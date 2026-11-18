@@ -24,6 +24,8 @@ import {
   type RevisionRecord,
   type RevisionRepository,
   type RevisionSummary,
+  type ScriptApprovalRecord,
+  type ScriptApprovalRepository,
   sha256Hex,
   type UnitOfWork,
 } from "@pptaken/core";
@@ -77,6 +79,7 @@ interface State {
   links: Map<string, { workspaceId: string; deckId: string; sha256: string; at: number }>;
   audit: Map<string, AuditEntry>;
   idempotency: Map<string, IdempotencyRecord>;
+  scriptApprovals: Map<string, ScriptApprovalRecord>;
 }
 
 function emptyState(): State {
@@ -87,6 +90,7 @@ function emptyState(): State {
     links: new Map(),
     audit: new Map(),
     idempotency: new Map(),
+    scriptApprovals: new Map(),
   };
 }
 
@@ -99,6 +103,7 @@ function cloneState(s: State): State {
     links: new Map(s.links),
     audit: new Map(s.audit),
     idempotency: new Map(s.idempotency),
+    scriptApprovals: new Map(s.scriptApprovals),
   };
 }
 
@@ -149,7 +154,8 @@ function repositories(exec: Exec): Repositories {
         if (!s.decks.has(k(ws, id))) return false;
         const used =
           [...s.revisions.values()].some((r) => r.workspaceId === ws && r.deckId === id) ||
-          [...s.links.values()].some((l) => l.workspaceId === ws && l.deckId === id);
+          [...s.links.values()].some((l) => l.workspaceId === ws && l.deckId === id) ||
+          s.scriptApprovals.has(k(ws, id));
         if (used) throw new Error("Foreign key constraint: the deck still has revisions or assets");
         s.decks.delete(k(ws, id));
         return true;
@@ -341,7 +347,17 @@ function repositories(exec: Exec): Repositories {
       }),
   };
 
-  return { decks, revisions, assets, audit, idempotency };
+  const scriptApprovals: ScriptApprovalRepository = {
+    get: (ws, deckId) => exec(false, (s) => clone(s.scriptApprovals.get(k(ws, deckId)) ?? null)),
+    set: (r) =>
+      exec(true, (s) => {
+        if (!s.decks.has(k(r.workspaceId, r.deckId))) throw new Error("Unknown deck");
+        s.scriptApprovals.set(k(r.workspaceId, r.deckId), clone(r));
+      }),
+    delete: (ws, deckId) => exec(true, (s) => s.scriptApprovals.delete(k(ws, deckId))),
+  };
+
+  return { decks, revisions, assets, audit, idempotency, scriptApprovals };
 }
 
 /**
@@ -357,6 +373,7 @@ export class MemoryUnitOfWork implements UnitOfWork {
   readonly assets: AssetRepository;
   readonly audit: AuditLog;
   readonly idempotency: IdempotencyRepository;
+  readonly scriptApprovals: ScriptApprovalRepository;
 
   constructor() {
     const repos = repositories(async (write, fn) => {
@@ -373,6 +390,7 @@ export class MemoryUnitOfWork implements UnitOfWork {
     this.assets = repos.assets;
     this.audit = repos.audit;
     this.idempotency = repos.idempotency;
+    this.scriptApprovals = repos.scriptApprovals;
   }
 
   transaction<T>(work: (tx: Repositories) => Promise<T>): Promise<T> {

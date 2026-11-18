@@ -53,6 +53,9 @@ importers:
       '@pptaken/realtime':
         specifier: workspace:*
         version: link:../../packages/realtime
+      '@pptaken/sanitizer':
+        specifier: workspace:*
+        version: link:../../packages/sanitizer
       '@pptaken/schema':
         specifier: workspace:*
         version: link:../../packages/schema
@@ -210,6 +213,9 @@ importers:
       '@pptaken/core':
         specifier: workspace:*
         version: link:../core
+      '@pptaken/sanitizer':
+        specifier: workspace:*
+        version: link:../sanitizer
       '@pptaken/schema':
         specifier: workspace:*
         version: link:../schema

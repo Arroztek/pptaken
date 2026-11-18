@@ -23,6 +23,11 @@ export interface CoreConfig {
   trashRetentionMs: number;
   /** Language applied when `createPresentation` gets none (default: none). */
   defaultLang?: string;
+  /**
+   * Interactive mode (ADR-020): the operator enabled author scripts for the instance (`PPTAKEN_SCRIPTS=owner`).
+   * Default false: scripts are stored but never approved or run.
+   */
+  scriptsEnabled: boolean;
 }
 
 export const DEFAULT_LIMITS: Readonly<CoreLimits> = Object.freeze({
@@ -39,6 +44,7 @@ export const DEFAULT_CONFIG: Readonly<CoreConfig> = Object.freeze({
   limits: DEFAULT_LIMITS,
   revisionsKept: 50,
   trashRetentionMs: 30 * DAY_MS,
+  scriptsEnabled: false,
 });
 
 export interface CoreConfigInput {
@@ -46,6 +52,7 @@ export interface CoreConfigInput {
   revisionsKept?: number;
   trashRetentionMs?: number;
   defaultLang?: string;
+  scriptsEnabled?: boolean;
 }
 
 /** Merges overrides with the defaults and checks them. Throws `RangeError` on a nonsensical value. */
@@ -61,6 +68,7 @@ export function resolveConfig(input: CoreConfigInput = {}): CoreConfig {
     limits,
     revisionsKept: input.revisionsKept ?? DEFAULT_CONFIG.revisionsKept,
     trashRetentionMs: input.trashRetentionMs ?? DEFAULT_CONFIG.trashRetentionMs,
+    scriptsEnabled: input.scriptsEnabled === true,
   };
   if (!Number.isSafeInteger(config.revisionsKept) || config.revisionsKept < 1) {
     throw new RangeError("revisionsKept must be a positive integer");

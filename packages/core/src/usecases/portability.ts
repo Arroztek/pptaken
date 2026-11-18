@@ -20,6 +20,7 @@ import { DomainError, internalError, limitExceeded, notFound, validationError } 
 import { normalizeMediaType, RASTER_MEDIA_TYPES, sniffImage } from "../media.js";
 import type { AssetRecord } from "../ports.js";
 import { type CallContext, type Principal, requireOwner, requireScope } from "../principal.js";
+import { scriptsSummary } from "../scripts.js";
 import { sha256Hex } from "../sha256.js";
 import type { RevisionWriteResult } from "./commit.js";
 import {
@@ -321,6 +322,11 @@ export interface ImportRecord {
   warnings: PortabilityWarning[];
   /** Extra audit facts (small, JSON-safe, never content). */
   detail: Record<string, unknown>;
+  /**
+   * Drop author scripts and libraries before validating (a converter never produces them; ADR-020). A `.pkn`
+   * import keeps them, and they start in `pending` (a new deck has no approval).
+   */
+  stripScripts?: boolean;
 }
 
 /**
@@ -343,6 +349,7 @@ export async function storeImported(
       deckInput = { ...(deckInput as Record<string, unknown>), title };
     }
   }
+  if (record.stripScripts === true) deckInput = withoutScripts(deckInput);
   const parsed = validateDeck(deckInput, limits.maxSlides, "deck.");
 
   const rawAssets = input.assets ?? [];
@@ -448,6 +455,23 @@ export async function storeImported(
       slideCount: deck.slides.length,
       assetCount: kept.length,
       warnings,
+      scripts: scriptsSummary(deck, null),
     };
   });
+}
+
+/** Removes `libs` and every slide's `script` from an untrusted deck envelope (shape unchecked). */
+function withoutScripts(input: unknown): unknown {
+  if (typeof input !== "object" || input === null || Array.isArray(input)) return input;
+  const { libs: _libs, ...rest } = input as Record<string, unknown>;
+  const slides = rest.slides;
+  if (!Array.isArray(slides)) return rest;
+  return {
+    ...rest,
+    slides: slides.map((s) => {
+      if (typeof s !== "object" || s === null || Array.isArray(s)) return s;
+      const { script: _script, ...slide } = s as Record<string, unknown>;
+      return slide;
+    }),
+  };
 }

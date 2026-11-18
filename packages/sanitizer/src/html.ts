@@ -16,12 +16,19 @@ import {
   ARIA_ROLES,
   type AttributeKind,
   CLOBBER_DENYLIST,
+  DATA_ATTRIBUTE_NAME,
   HTML_DROP_WITH_CONTENT,
   HTML_ELEMENT_ATTRIBUTES,
   HTML_ELEMENTS,
   HTML_GLOBAL_ATTRIBUTES,
+  INTERACTIVE_BUTTON_TYPES,
+  INTERACTIVE_ELEMENT_ATTRIBUTES,
+  INTERACTIVE_HTML_ELEMENTS,
+  INTERACTIVE_INPUT_TYPES,
+  RESERVED_DATA_ATTRIBUTES,
   RESERVED_PREFIX,
   SANITIZER_LIMITS,
+  type SanitizerProfile,
   SVG_ASSET_HREF_ELEMENTS,
   SVG_ATTRIBUTES,
   SVG_ELEMENTS,
@@ -45,6 +52,11 @@ export interface HtmlOptions {
   path?: string;
   /** Size limit in UTF-16 code units. Defaults to the schema limit for slide HTML. */
   maxLength?: number;
+  /**
+   * `safe` (default) or `interactive` (decks with owner-approved author scripts, ADR-020): the latter also keeps
+   * canvas, buttons, range/number/checkbox inputs, selects, labels, outputs, progress bars, meters and `data-*`.
+   */
+  profile?: SanitizerProfile;
 }
 
 export interface HtmlResult {
@@ -74,13 +86,14 @@ export function sanitizeSlideHtml(input: string, options: HtmlOptions = {}): Htm
     return { html: "", warnings: w.result() };
   }
   try {
-    let current = sanitizeOnce(input, w);
+    const profile: SanitizerProfile = options.profile === "interactive" ? "interactive" : "safe";
+    let current = sanitizeOnce(input, w, profile);
     // The serialized output must re-parse into exactly the tree we built. If a second pass changes anything,
     // keep the re-sanitized result; if it still does not converge, fail closed.
     let stable = false;
     for (let pass = 0; pass < 2 && !stable; pass++) {
       const extra = new WarningCollector(options.path);
-      const next = sanitizeOnce(current, extra);
+      const next = sanitizeOnce(current, extra, profile);
       stable = next === current;
       if (!stable) w.merge(extra);
       current = next;
@@ -104,12 +117,12 @@ function contextElement(): Element {
   return adapter.createElement("section", NS.HTML, []);
 }
 
-function sanitizeOnce(input: string, w: WarningCollector): string {
+function sanitizeOnce(input: string, w: WarningCollector, profile: SanitizerProfile): string {
   precheckCost(input);
   const source = parseFragment(contextElement(), input, { scriptingEnabled: true });
   checkLimits(source);
   const out = adapter.createDocumentFragment();
-  const state: State = { w, uses: [], ids: new Map() };
+  const state: State = { w, uses: [], ids: new Map(), profile };
   sanitizeChildren(source, out, "html", state, 0);
   validateUseReferences(state);
   return serialize(out);
@@ -293,6 +306,7 @@ interface State {
   w: WarningCollector;
   uses: Element[];
   ids: Map<string, Element>;
+  profile: SanitizerProfile;
 }
 
 function sanitizeChildren(
@@ -342,11 +356,20 @@ function sanitizeChildren(
 
 function sanitizeHtmlElement(el: Element, dst: ParentNode, state: State, depth: number): void {
   const tag = el.tagName;
-  if (HTML_DROP_WITH_CONTENT.has(tag)) {
+  const interactive = state.profile === "interactive" && INTERACTIVE_HTML_ELEMENTS.has(tag);
+  if (tag === "script") {
+    state.w.add(
+      "REMOVED_ELEMENT",
+      "Scripts in slide HTML are removed; put the slide's code in its `script` field (interactive mode)",
+      tag,
+    );
+    return;
+  }
+  if (!interactive && HTML_DROP_WITH_CONTENT.has(tag)) {
     state.w.add("REMOVED_ELEMENT", "Element is not allowed and was removed with its content", tag);
     return;
   }
-  if (!HTML_ELEMENTS.has(tag)) {
+  if (!interactive && !HTML_ELEMENTS.has(tag)) {
     state.w.add("UNWRAPPED_ELEMENT", "Element is not allowed; its content was kept", tag);
     sanitizeChildren(el, dst, "html", state, depth + 1);
     return;
@@ -411,6 +434,7 @@ const UINT = /^\d{1,5}$/;
 const INT = /^-?\d{1,9}$/;
 const STEP = /^(?:[1-9]\d?)?$/;
 const DATETIME = /^[0-9A-Za-z:+\-. ]{1,64}$/;
+const NUMBER = /^-?(?:\d{1,15}(?:\.\d{1,15})?|\.\d{1,15})(?:[eE][+-]?\d{1,3})?$/;
 const SVG_NUMBERS = /^[0-9A-Za-z.,%+\- ]{0,512}$/;
 const SVG_PATH = /^[0-9MmZzLlHhVvCcSsQqTtAaEe.,+\-\s]*$/;
 const SVG_POINTS = /^[0-9eE.,+\-\s]*$/;
@@ -481,11 +505,23 @@ function sanitizeAttributes(el: Element, kind: "html" | "svg", state: State): At
     if (kind === "html") {
       validator =
         own(own(HTML_ELEMENT_ATTRIBUTES, tag) ?? {}, name) ?? own(HTML_GLOBAL_ATTRIBUTES, name);
+      if (validator === undefined && state.profile === "interactive") {
+        validator = own(own(INTERACTIVE_ELEMENT_ATTRIBUTES, tag) ?? {}, name);
+      }
     } else {
       validator = own(SVG_ATTRIBUTES, name);
       if (name === "href" && !SVG_HREF_ELEMENTS.has(tag)) validator = undefined;
     }
     if (validator === undefined && ARIA_NAME.test(name)) validator = "aria";
+    if (
+      validator === undefined &&
+      state.profile === "interactive" &&
+      DATA_ATTRIBUTE_NAME.test(name) &&
+      !RESERVED_DATA_ATTRIBUTES.has(name) &&
+      !name.startsWith(`data-${RESERVED_PREFIX}`)
+    ) {
+      validator = "data";
+    }
     if (validator === undefined) {
       if (!(kind === "svg" && SILENT_SVG_ATTRIBUTES.has(qualified))) {
         const reason = /^on/i.test(name)
@@ -499,8 +535,13 @@ function sanitizeAttributes(el: Element, kind: "html" | "svg", state: State): At
     if (value === null) continue;
     if ((tag === "img" && name === "src") || (tag === "image" && name === "href"))
       hasValidSource = true;
+    if (kind === "html" && tag === "input" && name === "type") hasValidSource = true;
     seen.add(name);
     out.push({ name, value });
+  }
+  if (kind === "html" && tag === "input" && !hasValidSource) {
+    state.w.add("REMOVED_ELEMENT", "Inputs need type range, number or checkbox; removed", tag);
+    return null;
   }
   if ((kind === "html" && tag === "img") || (kind === "svg" && tag === "image")) {
     if (!hasValidSource) {
@@ -651,6 +692,28 @@ function validateAttribute(
       w.add("REMOVED_URL", "Only same-document #id references are allowed", name);
       return null;
     }
+    case "number":
+      return NUMBER.test(value) ? value : reject();
+    case "inputStep":
+      return value === "any" || NUMBER.test(value) ? value : reject();
+    case "inputType":
+      return INTERACTIVE_INPUT_TYPES.has(value.toLowerCase())
+        ? value.toLowerCase()
+        : reject("Input type must be range, number or checkbox");
+    case "buttonType":
+      return INTERACTIVE_BUTTON_TYPES.has(value.toLowerCase())
+        ? value.toLowerCase()
+        : reject("Button type must be button");
+    case "idref":
+      return ID.test(value) ? value : reject();
+    case "idrefs": {
+      const ids = value.split(/[\t\n\f\r ]+/).filter((t) => t !== "");
+      return ids.length > 0 && ids.length <= 16 && ids.every((t) => ID.test(t))
+        ? ids.join(" ")
+        : reject();
+    }
+    case "data":
+      return stripControl(value);
     case "svgCss": {
       const parsed = parseCssValue(value);
       if (parsed === null) return reject();
