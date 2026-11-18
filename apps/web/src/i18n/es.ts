@@ -317,6 +317,30 @@ export const webEs: WebDictionary = {
     text: "Revisa la dirección o vuelve a tus presentaciones.",
     back: "Ir a presentaciones",
   },
+  vendor: {
+    title: "Recursos guardados",
+    sectionText:
+      "Fuentes, imágenes, hojas de estilo y bibliotecas que tu agente indicó por URL. PPTaken descargó cada una una sola vez y la guarda aquí: quien ve la presentación nunca contacta esas direcciones.",
+    offTitle: "Este PPTaken no descarga recursos externos",
+    offText:
+      "Quien lo administra configuró PPTAKEN_VENDOR_FETCH=off. Los agentes reciben un error cuando indican fuentes, imágenes, hojas de estilo o bibliotecas por URL.",
+    failedTitle: "No se pudieron descargar {n} recurso(s)",
+    failedText:
+      "Quedaron fuera de la presentación. Tu agente recibió el motivo y puede usar otra dirección.",
+    kind_script: "Biblioteca",
+    kind_stylesheet: "Hoja de estilo",
+    kind_font: "Fuente",
+    kind_image: "Imagen",
+    original: "Indicado como",
+    final: "Respondió",
+    redirects: "Redirecciones",
+    size: "Tamaño",
+    fetched: "Descargado {when}",
+    failed: "No descargado",
+    error: "Motivo",
+    via: "Desde la hoja de estilo",
+    listLabel: "Recursos guardados",
+  },
   scripts: {
     title: "Scripts interactivos",
     off: "Los scripts están desactivados en este PPTaken. La presentación muestra su versión estática.",
@@ -378,6 +402,12 @@ export const webEs: WebDictionary = {
     libVersion: "Versión {v}",
     libSource: "Copiada de",
     libNoSource: "No hay dirección de origen registrada.",
+    libFinalUrl: "Respondió",
+    libRedirects: "Redirecciones",
+    libSize: "Tamaño",
+    deckScriptTitle: "Script de la presentación",
+    deckScriptText:
+      "Se ejecuta una vez, después de las bibliotecas y antes de los scripts de las diapositivas.",
     warningsTitle: "Lo que deja fuera la versión estática ({n})",
     warningsText:
       "Sin scripts se quitan estas partes. Comprueba que las diapositivas estáticas siguen teniendo sentido.",

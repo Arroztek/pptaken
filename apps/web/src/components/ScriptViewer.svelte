@@ -15,12 +15,14 @@
   interface Props {
     script: ScriptSource;
     open?: boolean;
+    /** Heading override (the deck-level script has no slide). */
+    title?: string;
   }
 
   /** Lines rendered before "show all". */
   const CAP = 200;
 
-  let { script, open = true }: Props = $props();
+  let { script, open = true, title }: Props = $props();
   let expanded = $state(false);
   let shown = $state(untrack(() => open));
 
@@ -33,7 +35,7 @@
 <article class="script" aria-labelledby="{uid}-title" data-slide-id={script.slideId}>
   <header class="script__head">
     <div class="script__title">
-      <h4 class="ppt-h3" id="{uid}-title">{t("scripts.scriptFor", { n: script.index + 1, id: script.slideId })}</h4>
+      <h4 class="ppt-h3" id="{uid}-title">{title ?? t("scripts.scriptFor", { n: script.index + 1, id: script.slideId })}</h4>
       <p class="script__meta">
         <span>{lines.length === 1 ? t("scripts.lineOne") : t("scripts.lines", { n: lines.length })}</span>
         <span aria-hidden="true">·</span>
@@ -57,7 +59,7 @@
     <!-- One scroll box: the gutter and the code scroll together vertically; only the code scrolls sideways. -->
     <!-- A scrollable region must be reachable by keyboard (arrow keys scroll it). -->
     <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-    <div class="code" role="region" aria-label={t("scripts.codeLabel", { n: script.index + 1 })} tabindex="0">
+    <div class="code" role="region" aria-label={title ?? t("scripts.codeLabel", { n: script.index + 1 })} tabindex="0">
       <pre class="code__gutter" aria-hidden="true">{gutter}</pre>
       <pre class="code__text"><code>{visible.join("\n")}</code></pre>
     </div>

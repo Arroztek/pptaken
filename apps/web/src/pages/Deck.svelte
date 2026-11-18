@@ -12,9 +12,9 @@
   import PageLayout from "../components/PageLayout.svelte";
   import PageSection from "../components/PageSection.svelte";
   import ScriptViewer from "../components/ScriptViewer.svelte";
-  import { ApiError, api, type DeckDetail, type ScriptsReview } from "../lib/api";
+  import { ApiError, api, type DeckDetail, type ScriptsReview, type VendoredResource } from "../lib/api";
   import { errorMessage } from "../lib/errors";
-  import { describeWhen, shortDigest } from "../lib/format";
+  import { describeWhen, formatBytes, shortDigest } from "../lib/format";
   import { deckIdOf } from "../lib/router";
   import { handleAuthError, prefs, route, t } from "../lib/state.svelte";
 
@@ -82,6 +82,17 @@
           : "pending",
   );
   const interactive = $derived(review !== null && review.digest !== null);
+  const vendored = $derived<VendoredResource[]>(deck?.vendored ?? []);
+  const failedCount = $derived(vendored.filter((v) => v.status === "failed").length);
+
+  function kindLabel(kind: VendoredResource["kind"]): string {
+    return t(`vendor.kind_${kind}`);
+  }
+
+  /** The redirect chain recorded for a vendored library (ADR-022), by its hash. */
+  function redirectsOf(sha256: string): string[] {
+    return vendored.find((v) => v.kind === "script" && v.sha256 === sha256)?.redirects ?? [];
+  }
   const freeze = $derived(review !== null && review.enabled && review.capability.freezeWarning);
 
   function meta(d: DeckDetail): string {
@@ -285,7 +296,14 @@
         </section>
 
         <div class="block" aria-labelledby="scripts-list-title">
-          <h3 class="ppt-h3" id="scripts-list-title">{t("scripts.scriptsTitle", { n: r.sources.length })}</h3>
+          <h3 class="ppt-h3" id="scripts-list-title">{t("scripts.scriptsTitle", { n: r.sources.length + (r.deckSource ? 1 : 0) })}</h3>
+          {#if r.deckSource}
+            <p class="ppt-muted ppt-small">{t("scripts.deckScriptText")}</p>
+            <ScriptViewer
+              script={{ slideId: "deck", index: 0, ...r.deckSource }}
+              title={t("scripts.deckScriptTitle")}
+              open={true} />
+          {/if}
           {#each r.sources as script, i (script.slideId)}
             <ScriptViewer {script} open={i < 3} />
           {/each}
@@ -309,6 +327,15 @@
                     <span class="lib__label">{t("scripts.libSource")}</span>
                     {#if lib.source}<code class="lib__mono">{lib.source}</code>{:else}<span class="ppt-muted">{t("scripts.libNoSource")}</span>{/if}
                   </p>
+                  {#if lib.finalUrl && lib.finalUrl !== lib.source}
+                    <p class="lib__line"><span class="lib__label">{t("scripts.libFinalUrl")}</span> <code class="lib__mono">{lib.finalUrl}</code></p>
+                  {/if}
+                  {#if redirectsOf(lib.sha256).length > 0}
+                    <p class="lib__line"><span class="lib__label">{t("scripts.libRedirects")}</span> <code class="lib__mono">{redirectsOf(lib.sha256).join(" → ")}</code></p>
+                  {/if}
+                  {#if lib.bytes !== null}
+                    <p class="lib__line"><span class="lib__label">{t("scripts.libSize")}</span> <span>{formatBytes(lib.bytes, prefs.locale)}</span></p>
+                  {/if}
                 </li>
               {/each}
             </ul>
@@ -330,6 +357,58 @@
         {/if}
       {/if}
     </PageSection>
+
+    {#if vendored.length > 0 || d.vendorFetch === "off"}
+      <PageSection id="vendored" title={t("vendor.title")} description={t("vendor.sectionText")}>
+        {#if d.vendorFetch === "off"}
+          <Notice tone="warning" title={t("vendor.offTitle")} text={t("vendor.offText")} />
+        {/if}
+        {#if failedCount > 0}
+          <div data-testid="vendor-failed">
+            <Notice tone="danger" title={t("vendor.failedTitle", { n: failedCount })} text={t("vendor.failedText")} />
+          </div>
+        {/if}
+        {#if vendored.length > 0}
+          <ul class="vendored" aria-label={t("vendor.listLabel")} data-testid="vendored-list">
+            {#each vendored as res, i (i)}
+              <li class="lib ppt-card" data-status={res.status} data-kind={res.kind}>
+                <p class="lib__name">
+                  <span class="ppt-badge" class:badge-ok={res.status === "vendored"} class:badge-pending={res.status === "failed"}>
+                    <span class="ppt-badge__dot" aria-hidden="true"></span>
+                    {kindLabel(res.kind)}
+                  </span>
+                  {#if res.status === "failed"}
+                    <span class="ppt-muted ppt-small">{t("vendor.failed")}</span>
+                  {:else}
+                    {@const when = describeWhen(new Date(res.fetchedAt).toISOString(), prefs.locale)}
+                    <span class="ppt-muted ppt-small">{t("vendor.fetched", { when: when.text })}</span>
+                  {/if}
+                </p>
+                <p class="lib__line"><span class="lib__label">{t("vendor.original")}</span> <code class="lib__mono">{res.url}</code></p>
+                {#if res.finalUrl && res.finalUrl !== res.url}
+                  <p class="lib__line"><span class="lib__label">{t("vendor.final")}</span> <code class="lib__mono">{res.finalUrl}</code></p>
+                {/if}
+                {#if res.redirects && res.redirects.length > 0}
+                  <p class="lib__line"><span class="lib__label">{t("vendor.redirects")}</span> <code class="lib__mono">{res.redirects.join(" → ")}</code></p>
+                {/if}
+                {#if res.via}
+                  <p class="lib__line"><span class="lib__label">{t("vendor.via")}</span> <code class="lib__mono">{res.via}</code></p>
+                {/if}
+                {#if res.bytes !== null}
+                  <p class="lib__line"><span class="lib__label">{t("vendor.size")}</span> <span>{formatBytes(res.bytes, prefs.locale)}</span></p>
+                {/if}
+                {#if res.sha256}
+                  <p class="lib__line"><span class="lib__label">SHA-256</span> <code class="lib__mono">{res.sha256}</code></p>
+                {/if}
+                {#if res.error}
+                  <p class="lib__line"><span class="lib__label">{t("vendor.error")}</span> <code class="lib__mono">{res.error}</code></p>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+        {/if}
+      </PageSection>
+    {/if}
   </PageLayout>
 
   <Dialog bind:open={approveOpen} title={t("scripts.confirmTitle")} dismissible={false}>

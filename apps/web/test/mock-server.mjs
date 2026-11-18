@@ -163,7 +163,9 @@ export function makeReview(deck, options = {}) {
         name: "uPlot",
         version: "1.6.32",
         sha256: sha("uplot-1.6.32"),
-        source: "https://cdn.jsdelivr.net/npm/uplot@1.6.32/dist/uPlot.iife.min.js",
+        source: "https://cdn.jsdelivr.net/npm/uplot@1/dist/uPlot.iife.min.js",
+        finalUrl: "https://cdn.jsdelivr.net/npm/uplot@1.6.32/dist/uPlot.iife.min.js",
+        bytes: 51081,
       },
     ],
     chars: sources.reduce((n, s) => n + s.source.length, 0),
@@ -188,6 +190,64 @@ export function makeReview(deck, options = {}) {
       },
     ],
   };
+}
+
+/** A realistic provenance list (ADR-022): Google Fonts CSS and two subsets, a jsDelivr redirect, an image, a failure. */
+export function vendoredSample(now = Date.now()) {
+  const at = now - 2 * 3600 * 1000;
+  const css2 = "https://fonts.googleapis.com/css2?family=Source+Serif+4:wght@400;700&display=swap";
+  return [
+    {
+      kind: "stylesheet",
+      url: css2,
+      status: "vendored",
+      finalUrl: css2,
+      sha256: sha("css2"),
+      bytes: 1840,
+      mediaType: "text/css",
+      fetchedAt: at,
+    },
+    {
+      kind: "font",
+      url: "https://fonts.gstatic.com/s/sourceserif4/v8/vEFy2_tTDB4M7-auWDN0ahZJW3IX2ih5nk3AucvUHf6OAVIJmeUDygwjihdqrhw.woff2",
+      status: "vendored",
+      finalUrl:
+        "https://fonts.gstatic.com/s/sourceserif4/v8/vEFy2_tTDB4M7-auWDN0ahZJW3IX2ih5nk3AucvUHf6OAVIJmeUDygwjihdqrhw.woff2",
+      sha256: sha("latin"),
+      bytes: 48212,
+      mediaType: "font/woff2",
+      fetchedAt: at,
+      via: css2,
+    },
+    {
+      kind: "script",
+      url: "https://cdn.jsdelivr.net/npm/uplot@1/dist/uPlot.iife.min.js",
+      status: "vendored",
+      finalUrl: "https://cdn.jsdelivr.net/npm/uplot@1.6.32/dist/uPlot.iife.min.js",
+      redirects: ["https://cdn.jsdelivr.net/npm/uplot@1.6.32/dist/uPlot.iife.min.js"],
+      sha256: sha("uplot-1.6.32"),
+      bytes: 51081,
+      mediaType: "text/javascript",
+      fetchedAt: at,
+    },
+    {
+      kind: "image",
+      url: "https://images.example.org/photos/bloch-sphere.webp",
+      status: "vendored",
+      finalUrl: "https://images.example.org/photos/bloch-sphere.webp",
+      sha256: sha("bloch"),
+      bytes: 183_406,
+      mediaType: "image/webp",
+      fetchedAt: at,
+    },
+    {
+      kind: "image",
+      url: "https://10.0.0.7/internal/chart.png",
+      status: "failed",
+      error: "blocked-address",
+      fetchedAt: at,
+    },
+  ];
 }
 
 /** The approval-screen data of a deck without scripts. */
@@ -220,6 +280,9 @@ export function createState(options = {}) {
     https: options.https ?? false,
     decks: Array.isArray(options.decks) ? options.decks : makeDecks(options.decks ?? 0),
     pageSize: options.pageSize ?? 6,
+    /** Ingest-time vendoring (ADR-022): the operator switch and a sample provenance list on deck_001. */
+    vendorFetch: options.vendorFetch ?? "on",
+    vendoredSample: options.vendored === true,
     connectDelayMs: options.connectDelayMs ?? 3000,
     loginLimit: options.loginLimit ?? 5,
     retryAfter: options.retryAfter ?? 30,
@@ -644,6 +707,9 @@ async function handleApi(state, req, res, url) {
     return send(res, 200, {
       ...deck,
       urls: { present: `${base}/p/${deck.id}`, manage: `${base}/decks/${deck.id}` },
+      vendorFetch: state.vendorFetch,
+      vendored:
+        deck.vendored ?? (state.vendoredSample && deck.id === "deck_001" ? vendoredSample() : []),
     });
   }
 

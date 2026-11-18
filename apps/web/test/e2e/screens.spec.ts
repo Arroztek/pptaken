@@ -245,6 +245,26 @@ const screens: Screen[] = [
     },
   },
   {
+    // Ingest-time vendoring (ADR-022): the "Vendored resources" section with a failed resource.
+    name: "deck-vendored",
+    options: { installed: true, decks: 3, vendored: true },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_001`);
+      await expect(page.locator("[data-testid=vendored-list] > li")).toHaveCount(5);
+      await expect(page.locator("[data-testid=vendor-failed]")).toBeVisible();
+    },
+  },
+  {
+    name: "deck-vendor-off",
+    options: { installed: true, decks: 3, vendorFetch: "off" },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_003`);
+      await expect(
+        page.locator('[aria-labelledby="vendored-title"] .ppt-notice--warning'),
+      ).toBeVisible();
+    },
+  },
+  {
     name: "deck-static",
     options: { installed: true, decks: 3 },
     prepare: async (page, mock) => {

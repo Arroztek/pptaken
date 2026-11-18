@@ -310,6 +310,31 @@ export const webEn = {
     text: "Check the address, or go back to your presentations.",
     back: "Go to presentations",
   },
+  vendor: {
+    // Ingest-time vendoring (ADR-022): the deck page's "Vendored resources" section.
+    title: "Vendored resources",
+    sectionText:
+      "Fonts, images, stylesheets and libraries your agent referenced by URL. PPTaken downloaded each one once and stores it here: viewers never contact these addresses.",
+    offTitle: "This PPTaken does not download external resources",
+    offText:
+      "Whoever runs it set PPTAKEN_VENDOR_FETCH=off. Agents get an error when they reference fonts, images, stylesheets or libraries by URL.",
+    failedTitle: "{n} resource(s) could not be downloaded",
+    failedText:
+      "They were left out of the presentation. Your agent received the reason and can use another address.",
+    kind_script: "Library",
+    kind_stylesheet: "Stylesheet",
+    kind_font: "Font",
+    kind_image: "Image",
+    original: "Referenced as",
+    final: "Answered by",
+    redirects: "Redirects",
+    size: "Size",
+    fetched: "Downloaded {when}",
+    failed: "Not downloaded",
+    error: "Reason",
+    via: "From stylesheet",
+    listLabel: "Vendored resources",
+  },
   scripts: {
     // Interactive mode (ADR-020). Shown by the approval screen of the next phase and by export notices.
     title: "Interactive scripts",
@@ -370,6 +395,11 @@ export const webEn = {
     libVersion: "Version {v}",
     libSource: "Vendored from",
     libNoSource: "No source address recorded.",
+    libFinalUrl: "Answered by",
+    libRedirects: "Redirects",
+    libSize: "Size",
+    deckScriptTitle: "Deck script",
+    deckScriptText: "Runs once, after the libraries and before the slide scripts.",
     warningsTitle: "What the static version leaves out ({n})",
     warningsText:
       "Without scripts these parts are removed. Check that the static slides still make sense.",

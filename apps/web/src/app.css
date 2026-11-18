@@ -386,9 +386,10 @@ html.drawer-open { overflow: hidden; }
 
 .block { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ppt-space-3); margin-top: var(--ppt-space-4); }
 .block__head { display: grid; gap: var(--ppt-space-1); }
-.libs, .warnings { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--ppt-space-2); }
+.libs, .warnings, .vendored { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--ppt-space-2); }
 .lib { display: grid; gap: var(--ppt-space-1); padding: var(--ppt-space-3) var(--ppt-space-4); }
 .lib__name { display: flex; flex-wrap: wrap; gap: var(--ppt-space-2); align-items: baseline; }
+.vendored { margin-top: var(--ppt-space-3); }
 .lib__line { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; font-size: var(--ppt-text-sm); }
 @media (min-width: 640px) { .lib__line { grid-template-columns: 140px minmax(0, 1fr); gap: var(--ppt-space-3); } }
 .lib__label { color: var(--ppt-text-muted); }

@@ -14,6 +14,7 @@ export interface MockDeck {
   updatedAt: string;
   createdBy: "owner" | "agent";
   scripts?: "none" | "pending" | "approved";
+  vendored?: unknown[];
 }
 
 /** The approval-screen data of a deck (ADR-021), as GET /api/v1/decks/:id/scripts returns it. */
@@ -74,6 +75,10 @@ export interface MockLogEntry {
 }
 
 export interface MockStateOptions {
+  /** Ingest-time vendoring switch reported by GET /decks/:id (ADR-022), default "on". */
+  vendorFetch?: "on" | "off";
+  /** Give deck_001 a sample list of vendored resources. */
+  vendored?: boolean;
   installed?: boolean;
   password?: string;
   https?: boolean;
@@ -138,3 +143,4 @@ export function createState(options?: MockStateOptions): MockState;
 export function startMockServer(
   options?: MockStateOptions & { port?: number; dist?: string },
 ): Promise<MockServer>;
+export function vendoredSample(now?: number): unknown[];

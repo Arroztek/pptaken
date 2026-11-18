@@ -147,6 +147,22 @@ const deckSummary = object({
   scripts: optionalNull(oneOf(SCRIPTS_STATES)),
 });
 const deckPage = object({ decks: arrayOf(deckSummary), nextCursor: nullable(str) });
+export const VENDOR_KINDS = ["script", "stylesheet", "font", "image"] as const;
+/** Provenance of one vendored external resource (ADR-022). URLs are shown as text, never followed. */
+const vendoredResource = object({
+  kind: oneOf(VENDOR_KINDS),
+  url: str,
+  status: oneOf(["vendored", "failed"] as const),
+  finalUrl: optionalNull(str),
+  redirects: optionalNull(arrayOf(str)),
+  sha256: optionalNull(str),
+  bytes: optionalNull(count),
+  mediaType: optionalNull(str),
+  fetchedAt: count,
+  error: optionalNull(str),
+  via: optionalNull(str),
+});
+export type VendoredResource = Infer<typeof vendoredResource>;
 const deckDetail = object({
   id: str,
   title: str,
@@ -157,6 +173,10 @@ const deckDetail = object({
   createdBy: oneOf(["owner", "agent"] as const),
   scripts: optionalNull(oneOf(SCRIPTS_STATES)),
   urls: object({ present: str }),
+  /** Ingest-time vendoring switch (ADR-022); absent from older servers. */
+  vendorFetch: optionalNull(oneOf(["on", "off"] as const)),
+  /** Provenance of the current revision's vendored resources (ADR-022). */
+  vendored: optionalNull(arrayOf(vendoredResource)),
 });
 
 // Interactive mode: the approval screen (ADR-021).
@@ -171,6 +191,9 @@ const vendoredScript = object({
   version: optionalNull(str),
   sha256: digest,
   source: optionalNull(str),
+  /** ADR-022: the URL that answered after redirects, and the stored size. */
+  finalUrl: optionalNull(str),
+  bytes: optionalNull(count),
 });
 const scriptSource = object({
   slideId: str,
@@ -195,6 +218,8 @@ const statusShape = {
   approvedDigest: nullable(digest),
   approvedAt: nullable(isoDate),
   slides: arrayOf(str),
+  /** A deck-level script exists (ADR-022); absent from older servers. */
+  deckScript: optionalNull(bool),
   libs: arrayOf(vendoredScript),
   chars: count,
   capability: object({
@@ -207,6 +232,7 @@ const scriptsStatus = object(statusShape);
 const scriptsReview = object({
   ...statusShape,
   sources: arrayOf(scriptSource),
+  deckSource: optionalNull(object({ source: str, sha256: digest, bytes: count })),
   warnings: arrayOf(scriptWarning),
   presenterPassword: object({ set: bool }),
 });
