@@ -25,32 +25,41 @@ libraries in `libs`: a CDN URL of the library's classic build (for example
 **once**, when the deck is written, stores it and pins its SHA-256 (ADR-022): you approve exactly those bytes, and
 nobody who views the deck ever contacts the CDN. It can also bring a whole HTML artifact with `import_html_deck`
 (see [Bring your Claude artifact](bring-your-artifact.md)). It cannot approve anything. After every change to the
-code or to a library, its tool result says `pending_owner_approval` with an `approve_url`; a good agent tells you to
-open that link and read the code. It should never tell you the code already runs.
+code or to a library, its tool result says `pending_owner_approval` with an `approve_url` and a short `message_for_user` that the agent
+relays to you word for word. It should never tell you the code already runs.
 
-## 3. Review and approve
+## 3. Allow them (one click)
 
-Open the presentation in the panel (**Presentations**, click its title; or the agent's link). The **Interactive
-scripts** section shows:
+Open the presentation in the panel (**Presentations**, click its title), or the link your agent gives you
+(`/decks/<id>/approve`: one screen with a single **Allow** button; if you are signed out you sign in and come back
+to it). The page says in one line what is being allowed: interactive parts Claude added, or a **new piece from an
+outside site** (a library). It runs only in your browser while you present; it cannot reach the internet or your
+files.
 
-- whether scripts are on for this PPTaken;
-- the approval state: waiting for your review, approved, or *changed since you approved it* (the agent edited the
-  code after your approval: the presentation is static again until you approve the new code);
-- the **fingerprint** (SHA-256 over every script and library): your approval binds to this exact value;
-- every script, with line numbers, its size and its own fingerprint (long scripts show the first 200 lines and a
-  "Show all" button);
-- the deck script (shared code that runs once before the slide scripts), when there is one;
-- the libraries, with version, fingerprint, size, the address they were copied from, the address that finally
-  answered and any redirects (viewers never contact them);
-- what the static version leaves out (for example a `<canvas>`), so you can check the slides still make sense
-  without the code.
+- **See what will run** (a quiet link) shows every piece of code with line numbers (long code shows the first 200
+  lines and "Show all"), the deck-level code and the libraries with the address they came from.
+- If the code has a mistake PPTaken can see without running it, the page says so and asks for one extra
+  **Allow anyway**.
+- If Claude changed the code while the page was open, nothing is allowed: the page says so and shows the new code.
 
-Read the code. **This code will run in your browser when you present this deck. It cannot reach the network.
-Approve only code you or your agent wrote and you have read.** Then press **Approve these scripts**, check the
-fingerprint in the dialog, tick the confirmation and approve. If the agent changed the code while you were reading,
-nothing is approved: the page tells you and shows the new code.
+### Later edits: allowed automatically (ADR-024)
 
-**Stop running scripts** withdraws the approval at once.
+With **Settings › Allow interactive updates automatically** on (the default), later edits Claude makes to the same
+presentation's code keep running **without asking**. The deck page says "Updated by Claude {time}; allowed
+automatically" and offers **Review changes** (before and now, side by side). It always asks again for:
+
+- a **new library** (a new address or new contents), even with the setting on;
+- any change, when you turned the setting off;
+- any change after **Turn interactive parts off for this presentation** (that ends the trust until you allow again).
+
+Automatically allowed code runs only in your own signed-in browser, never on presenter-password screens.
+
+### Developer details
+
+**Settings › Developer details** shows the technical side: the fingerprint (SHA-256 over every script and library)
+that an approval binds to, whether the approval was yours or automatic, the instance switch, the content origin, the
+static check, what the simple version leaves out, the provenance of saved files (URLs, redirects, hashes) and the raw
+script errors.
 
 ## 4. Where the code runs
 

@@ -122,6 +122,35 @@ Owner session only (cookie; API and OAuth tokens never reach these routes), CSRF
 - `POST /api/v1/decks/:id/scripts/approve` `{ "digest": "<64 hex>" }` → `200` (same shape). `409` when the scripts
   changed since the digest was read; `400` when the instance switch is off or the deck has no scripts. Audited.
 - `POST /api/v1/decks/:id/scripts/revoke` → `200`. Audited.
+- Since ADR-024 (trust lineage), the status (`GET …/scripts`, approve, revoke) also carries `approvalMode: "owner" |
+  "auto" | null`, `ownerApproved` (the owner clicked for exactly the current code), `newLibs` (libraries of the current
+  code never approved for this deck: they always need a click) and `previousRevision` (for `auto`). `GET …/scripts`
+  adds `previous: { revision, sources, deckSource, libs } | null` (the code an automatic approval replaced, for
+  "Review changes") and `autoApproveUpdates` (the owner setting). Agent writes that continue an approved lineage are
+  approved by the server itself (audited `presentation.scripts_auto_approve`); no route lets a caller ask for it.
+  Guest contexts (`X-PPTaken-View`/`X-PPTaken-Unlock`, `POST /presenter/unlock`) only run code with `ownerApproved`.
+
+### Owner settings (ADR-024)
+
+Owner session only, CSRF header on PUT.
+
+- `GET /api/v1/settings` → `200 { "autoApproveUpdates": boolean, "scripts": "owner" | "off" }`. Default `true`.
+- `PUT /api/v1/settings` `{ "autoApproveUpdates": boolean }` (strict) → `200` (same shape). Audited
+  (`settings.auto_approve_updates`). Off: every change of a deck's interactive code waits for the owner again.
+
+### Trash (owner session required)
+
+CSRF header on DELETE and POST; every step is audited by the core (`presentation.trash`, `presentation.restore`,
+`presentation.purge`). API and OAuth tokens never reach these routes (agents trash through the MCP tool, ADR-014).
+
+- `DELETE /api/v1/decks/:id` → `200 { "id", "trashed": true, "restorableUntil": iso }`. Moves a live presentation to
+  the trash; `404` when it is not live.
+- `GET /api/v1/decks?trash=1&cursor=` → `200 { "decks": [{ "id", "title", "lang", "slideCount", "revision",
+  "updatedAt", "deletedAt", "restorableUntil" }], "nextCursor" }`, newest first. The retention is 30 days.
+- `POST /api/v1/decks/:id/restore` → `200` (the deck summary, as in the list). `404` when it is not in the trash.
+- `DELETE /api/v1/trash/:id` → `204`. Permanent deletion of a presentation **in the trash** (its revisions, unused
+  assets and blobs, approvals and script errors); `400` for a live presentation, `404` when unknown. The panel asks
+  first, naming the presentation and saying it cannot be undone.
 
 ### Script errors (ADR-023)
 
