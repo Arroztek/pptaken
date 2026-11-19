@@ -338,14 +338,22 @@
                 {deck.createdBy === "agent" ? t("decks.byAgent") : t("decks.byOwner")}
               </span>
               {#if deck.scripts === "pending" || deck.scripts === "approved"}
+                {@const failing = deck.scripts === "approved" && (deck.scriptErrors ?? 0) > 0}
                 <span
                   class="ppt-badge deck-interactive"
-                  class:badge-ok={deck.scripts === "approved"}
-                  class:badge-pending={deck.scripts === "pending"}
+                  class:badge-ok={deck.scripts === "approved" && !failing}
+                  class:badge-pending={deck.scripts === "pending" || failing}
                   data-scripts={deck.scripts}
+                  data-script-errors={failing ? deck.scriptErrors : undefined}
                 >
                   <span class="ppt-badge__dot" aria-hidden="true"></span>
-                  {deck.scripts === "approved" ? t("decks.interactiveApproved") : t("decks.interactivePending")}
+                  {failing
+                    ? deck.scriptErrors === 1
+                      ? t("decks.interactiveErrorsOne")
+                      : t("decks.interactiveErrors", { n: deck.scriptErrors ?? 0 })
+                    : deck.scripts === "approved"
+                      ? t("decks.interactiveApproved")
+                      : t("decks.interactivePending")}
                 </span>
               {/if}
             {/snippet}

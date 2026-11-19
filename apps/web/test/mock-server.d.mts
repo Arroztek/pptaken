@@ -99,6 +99,10 @@ export interface MockStateOptions {
   contentOrigin?: "same-origin" | "same-site" | "separate-site";
   /** A presenter password already set. */
   presenterPassword?: string | null;
+  /** Script errors of deck_002 (ADR-023). Default "none". */
+  scriptErrors?: "none" | "errors" | "previous";
+  /** Adds the static check findings (ADR-023) to the reviews. */
+  scriptChecks?: boolean;
 }
 
 export interface MockState {
@@ -124,6 +128,9 @@ export interface MockState {
   contentOrigin: string;
   reviews: Map<string, MockReview>;
   presenterPassword: string | null;
+  scriptErrors: "none" | "errors" | "previous";
+  scriptChecks: boolean;
+  clearedErrors: Set<string>;
 }
 
 export interface MockServer {

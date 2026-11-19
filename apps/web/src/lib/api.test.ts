@@ -64,6 +64,50 @@ describe("request basics", () => {
     expect((calls[0]?.init.headers as Record<string, string>)["X-PPTaken-CSRF"]).toBe("1");
   });
 
+  it("reads script errors strictly and clears them with DELETE + CSRF (ADR-023)", async () => {
+    const item = {
+      kind: "setup",
+      slideId: "intro",
+      slideTitle: "Intro",
+      slideIndex: 0,
+      name: "ReferenceError",
+      message: "root is not defined",
+      stack: "",
+      count: 2,
+      firstSeen: NOW,
+      lastSeen: NOW,
+      hint: "declare-root",
+    };
+    const body = {
+      presentationId: "d",
+      revision: 1,
+      digest: "a".repeat(64),
+      state: "approved",
+      status: "errors",
+      approvedAt: NOW,
+      current: [item],
+      previous: [],
+      previousDigest: null,
+    };
+    const ok = fakeFetch(200, body);
+    expect((await ok.api.scriptErrors("d/x")).current[0]?.hint).toBe("declare-root");
+    expect(ok.calls[0]?.url).toBe("/api/v1/decks/d%2Fx/script-errors");
+    for (const bad of [
+      { ...body, current: [{ ...item, kind: "evil" }] },
+      { ...body, current: [{ ...item, count: -1 }] },
+      { ...body, current: [{ ...item, message: 3 }] },
+      { ...body, current: [{ ...item, hint: "run-this" }] },
+    ]) {
+      await expect(fakeFetch(200, bad).api.scriptErrors("d")).rejects.toMatchObject({
+        code: "BAD_RESPONSE",
+      });
+    }
+    const del = fakeFetch(204, undefined);
+    await del.api.clearScriptErrors("d");
+    expect(del.calls[0]?.init.method).toBe("DELETE");
+    expect((del.calls[0]?.init.headers as Record<string, string>)["X-PPTaken-CSRF"]).toBe("1");
+  });
+
   it("builds the decks query string", async () => {
     const { calls, api } = fakeFetch(200, { decks: [], nextCursor: null });
     await api.listDecks({ cursor: "abc", q: "q3 results" });

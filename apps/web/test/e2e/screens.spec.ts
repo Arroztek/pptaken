@@ -31,6 +31,8 @@ interface Screen {
   options?: MockOptions;
   /** Only these widths (default: all). */
   widths?: readonly number[];
+  /** Capture only this element (a block of a long page) instead of the page. */
+  element?: string;
   /** Bring the page to the state to capture. Runs once per variant on a fresh load. */
   prepare: (page: Page, mock: Mock) => Promise<void>;
 }
@@ -290,6 +292,66 @@ const screens: Screen[] = [
       await expect(page.locator("dialog[open]")).toBeVisible();
     },
   },
+  // Script error visibility (ADR-023): the errors block in its three states, the static checks, the extra
+  // confirmation for code with a syntax error, and the amber badge in the list.
+  {
+    name: "deck-errors-none",
+    options: { installed: true, decks: 3 },
+    element: "[data-testid=script-errors]",
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_002#script-errors`);
+      await expect(page.locator("[data-testid=script-errors]")).toHaveAttribute(
+        "data-status",
+        "no_errors",
+      );
+    },
+  },
+  {
+    name: "deck-errors-reported",
+    options: { installed: true, decks: 3, scriptErrors: "errors" },
+    element: "[data-testid=script-errors]",
+    prepare: async (page, mock) => {
+      mock.state.clearedErrors.clear();
+      await page.goto(`${mock.url}/decks/deck_002#script-errors`);
+      await expect(page.locator("[data-testid=script-errors-list] > li")).toHaveCount(4);
+    },
+  },
+  {
+    name: "deck-errors-previous",
+    options: { installed: true, decks: 3, scriptErrors: "previous" },
+    element: "[data-testid=script-errors]",
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_002#script-errors`);
+      await expect(page.locator("[data-testid=script-errors-previous] > li")).toHaveCount(2);
+    },
+  },
+  {
+    name: "deck-checks",
+    options: { installed: true, decks: 3, scriptChecks: true },
+    element: "[data-testid=script-checks]",
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_001`);
+      await expect(page.locator("[data-testid=script-checks] li")).toHaveCount(2);
+    },
+  },
+  {
+    name: "deck-approve-syntax-dialog",
+    options: { installed: true, decks: 3, scriptChecks: true },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_001`);
+      await page.locator(".meaning__actions .ppt-btn--primary").click();
+      await expect(page.locator("[data-testid=confirm-syntax]")).toBeVisible();
+    },
+  },
+  {
+    name: "decks-script-errors",
+    options: { installed: true, decks: 3, scriptErrors: "errors" },
+    prepare: async (page, mock) => {
+      mock.state.clearedErrors.clear();
+      await page.goto(`${mock.url}/decks`);
+      await expect(page.locator("[data-script-errors]")).toHaveCount(1);
+    },
+  },
   {
     name: "security-presenter",
     options: { installed: true, presenterPassword: "lantern folds 9 maps" },
@@ -352,8 +414,19 @@ for (const screen of screens.filter(
             if (screen.name.endsWith("-dialog") || screen.name === "nav-drawer")
               await page.waitForTimeout(250);
             await noHorizontalOverflow(page);
+            const file = join(OUT, `${screen.name}-${width}-${theme}-${lang}.png`);
+            if (screen.element) {
+              // The phone top bar is sticky: keep it from covering the block in an element capture.
+              // (CSSOM, not a <style> tag: the panel's CSP refuses inline styles, as it should.)
+              await page.evaluate(() => {
+                for (const h of document.querySelectorAll("header"))
+                  (h as HTMLElement).style.setProperty("position", "static", "important");
+              });
+              await page.locator(screen.element).screenshot({ path: file, animations: "disabled" });
+              continue;
+            }
             await page.screenshot({
-              path: join(OUT, `${screen.name}-${width}-${theme}-${lang}.png`),
+              path: file,
               fullPage: !screen.name.endsWith("-dialog") && screen.name !== "nav-drawer",
               animations: "disabled",
             });

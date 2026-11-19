@@ -145,6 +145,8 @@ const deckSummary = object({
   createdBy: oneOf(["owner", "agent"] as const),
   /** Trust state of the current revision's author scripts (ADR-020); absent from older servers. */
   scripts: optionalNull(oneOf(SCRIPTS_STATES)),
+  /** Distinct script errors reported for the current code (ADR-023); absent from older servers. */
+  scriptErrors: optionalNull(count),
 });
 const deckPage = object({ decks: arrayOf(deckSummary), nextCursor: nullable(str) });
 export const VENDOR_KINDS = ["script", "stylesheet", "font", "image"] as const;
@@ -208,6 +210,12 @@ const scriptWarning = object({
   path: optionalNull(str),
   name: optionalNull(str),
 });
+const scriptCheck = object({
+  code: str,
+  message: str,
+  path: optionalNull(str),
+  slideId: optionalNull(str),
+});
 const statusShape = {
   presentationId: str,
   revision: count,
@@ -234,9 +242,56 @@ const scriptsReview = object({
   sources: arrayOf(scriptSource),
   deckSource: optionalNull(object({ source: str, sha256: digest, bytes: count })),
   warnings: arrayOf(scriptWarning),
+  /** Static check of the scripts (ADR-023): syntax errors, a bare `root`, blocked APIs. Absent from older servers. */
+  checks: optionalNull(arrayOf(scriptCheck)),
   presenterPassword: object({ set: bool }),
 });
+// Script error visibility (ADR-023). Every text field was produced by code running in the sandboxed frame:
+// untrusted, shown ONLY as text (Svelte text interpolation, never {@html}).
+export const SCRIPT_ERROR_KINDS = [
+  "setup",
+  "handler",
+  "rejection",
+  "script-load",
+  "watchdog",
+] as const;
+export const SCRIPT_ERROR_HINTS = [
+  "declare-root",
+  "slide-api",
+  "selector-missed",
+  "network-disabled",
+  "blocked-api",
+  "syntax",
+  "frozen",
+] as const;
+const scriptError = object({
+  kind: oneOf(SCRIPT_ERROR_KINDS),
+  slideId: str,
+  slideTitle: nullable(str),
+  slideIndex: nullable(count),
+  name: str,
+  message: str,
+  stack: str,
+  count: count,
+  firstSeen: isoDate,
+  lastSeen: isoDate,
+  hint: nullable(oneOf(SCRIPT_ERROR_HINTS)),
+});
+const scriptErrors = object({
+  presentationId: str,
+  revision: count,
+  digest: nullable(digest),
+  state: oneOf(SCRIPTS_STATES),
+  status: oneOf(["none", "no_errors", "errors", "previous_only"] as const),
+  approvedAt: nullable(isoDate),
+  current: arrayOf(scriptError),
+  previous: arrayOf(scriptError),
+  previousDigest: nullable(digest),
+});
 const presenterPasswordStatus = object({ set: bool });
+export type ScriptError = Infer<typeof scriptError>;
+export type ScriptErrors = Infer<typeof scriptErrors>;
+export type ScriptCheck = Infer<typeof scriptCheck>;
 const presenterPasswordSet = object({ set: bool, change: oneOf(["set", "changed"] as const) });
 const importWarning = object({
   code: str,
@@ -445,6 +500,9 @@ export interface ApiClient {
    */
   approveScripts(id: string, digest: string): Promise<ScriptsStatus>;
   revokeScripts(id: string): Promise<ScriptsStatus>;
+  /** Script errors the owner's player reported (ADR-023). */
+  scriptErrors(id: string): Promise<ScriptErrors>;
+  clearScriptErrors(id: string): Promise<void>;
   presenterPassword(): Promise<{ set: boolean }>;
   setPresenterPassword(password: string): Promise<{ set: boolean; change: "set" | "changed" }>;
   removePresenterPassword(): Promise<void>;
@@ -565,6 +623,11 @@ export function createApi(
       }),
     revokeScripts: (id) =>
       request("POST", `/decks/${encodeURIComponent(id)}/scripts/revoke`, scriptsStatus),
+    scriptErrors: (id) =>
+      request("GET", `/decks/${encodeURIComponent(id)}/script-errors`, scriptErrors),
+    async clearScriptErrors(id) {
+      await request("DELETE", `/decks/${encodeURIComponent(id)}/script-errors`, null);
+    },
     presenterPassword: () => request("GET", "/presenter/password", presenterPasswordStatus),
     setPresenterPassword: (password) =>
       request("POST", "/presenter/password", presenterPasswordSet, { password }),

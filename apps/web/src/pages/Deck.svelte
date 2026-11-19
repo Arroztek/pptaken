@@ -4,6 +4,8 @@
   and presents it; the Interactive section is the owner's approval screen (ADR-021): instance switch, approval
   state, fingerprint, every script and library, what the static version loses, the content-origin capability, and
   Approve (binds the fingerprint shown) / Revoke. Decks without scripts get a calm "Static deck" note.
+  ADR-023: the Script errors block (#script-errors): what the owner's player reported, the static check of the code,
+  a plain-language hint per error, Clear, and "Copy for my agent". Error text is untrusted: text interpolation only.
 -->
 <script lang="ts">
   import { Button, Dialog, EmptyState, Icon, Notice, toast } from "@pptaken/ui";
@@ -12,10 +14,18 @@
   import PageLayout from "../components/PageLayout.svelte";
   import PageSection from "../components/PageSection.svelte";
   import ScriptViewer from "../components/ScriptViewer.svelte";
-  import { ApiError, api, type DeckDetail, type ScriptsReview, type VendoredResource } from "../lib/api";
+  import {
+    ApiError,
+    api,
+    type DeckDetail,
+    type ScriptErrors,
+    type ScriptsReview,
+    type VendoredResource,
+  } from "../lib/api";
   import { errorMessage } from "../lib/errors";
   import { describeWhen, formatBytes, shortDigest } from "../lib/format";
   import { deckIdOf } from "../lib/router";
+  import { agentSummary, hintText, slideLabel } from "../lib/script-errors";
   import { handleAuthError, prefs, route, t } from "../lib/state.svelte";
 
   const DOCS_CONTENT_ORIGIN =
@@ -37,6 +47,11 @@
   let reviewedDigest = $state<string | null>(null);
   let revokeOpen = $state(false);
   let revoking = $state(false);
+  let errors = $state<ScriptErrors | null>(null);
+  let errorsLoadFailed = $state(false);
+  let clearing = $state(false);
+  /** ADR-023: approving code with a syntax error needs a second, explicit confirmation. */
+  let syntaxConfirmed = $state(false);
 
   async function load(deckId: string, quiet = false) {
     if (!quiet) loading = true;
@@ -47,6 +62,7 @@
       if (deckId !== id) return;
       deck = d;
       review = r;
+      await loadErrors(deckId);
     } catch (e) {
       if (handleAuthError(e)) return;
       if (e instanceof ApiError && e.code === "NOT_FOUND") missing = true;
@@ -56,17 +72,50 @@
     }
   }
 
+  /** The Script errors block never blocks the page: a failure here only shows a line in the block. */
+  async function loadErrors(deckId: string) {
+    if (review?.digest === null && review?.state === "none") {
+      errors = null;
+      return;
+    }
+    try {
+      const e = await api.scriptErrors(deckId);
+      if (deckId !== id) return;
+      errors = e;
+      errorsLoadFailed = false;
+    } catch (e) {
+      if (handleAuthError(e)) return;
+      errorsLoadFailed = true;
+    }
+  }
+
+  async function clearErrors() {
+    clearing = true;
+    actionError = "";
+    try {
+      await api.clearScriptErrors(id);
+      toast.show(t("scriptErrors.clearedToast"));
+      await loadErrors(id);
+    } catch (e) {
+      if (handleAuthError(e)) return;
+      actionError = errorMessage(e, t);
+    } finally {
+      clearing = false;
+    }
+  }
+
   $effect(() => {
     const deckId = id;
     deck = null;
     review = null;
+    errors = null;
     changed = false;
     actionError = "";
     void load(deckId).then(async () => {
-      // Arriving from an agent's approve_url (#scripts): bring the section into view.
-      if (location.hash === "#scripts") {
+      // Arriving from an agent's approve_url (#scripts) or a script notice (#script-errors): bring it into view.
+      if (location.hash === "#scripts" || location.hash === "#script-errors") {
         await tick();
-        document.getElementById("scripts")?.scrollIntoView({ block: "start" });
+        document.getElementById(location.hash.slice(1))?.scrollIntoView({ block: "start" });
       }
     });
   });
@@ -94,6 +143,11 @@
     return vendored.find((v) => v.kind === "script" && v.sha256 === sha256)?.redirects ?? [];
   }
   const freeze = $derived(review !== null && review.enabled && review.capability.freezeWarning);
+  const checks = $derived(review?.checks ?? []);
+  const syntaxError = $derived(checks.some((c) => c.code === "SCRIPT_SYNTAX_ERROR"));
+  const errorList = $derived(errors?.current ?? []);
+  const previousList = $derived(errors?.previous ?? []);
+  const copyList = $derived(errorList.length > 0 ? errorList : previousList);
 
   function meta(d: DeckDetail): string {
     const slides = d.slideCount === 1 ? t("decks.slidesOne") : t("decks.slides", { n: d.slideCount });
@@ -123,12 +177,13 @@
     if (!review?.digest) return;
     reviewedDigest = review.digest;
     confirmed = false;
+    syntaxConfirmed = false;
     actionError = "";
     approveOpen = true;
   }
 
   async function approve() {
-    if (!reviewedDigest || !confirmed) return;
+    if (!reviewedDigest || !confirmed || (syntaxError && !syntaxConfirmed)) return;
     approving = true;
     actionError = "";
     try {
@@ -295,6 +350,96 @@
           </p>
         </section>
 
+        {#if checks.length > 0}
+          <div class="block" aria-labelledby="checks-title" data-testid="script-checks">
+            <div class="block__head">
+              <h3 class="ppt-h3" id="checks-title">{t("scriptErrors.checksTitle", { n: checks.length })}</h3>
+              <p class="ppt-muted ppt-small">{t("scriptErrors.checksText")}</p>
+            </div>
+            <ul class="warnings">
+              {#each checks as c, i (i)}
+                <li data-code={c.code}><code class="lib__mono">{c.path ?? ""}</code> {c.message}</li>
+              {/each}
+            </ul>
+          </div>
+        {/if}
+
+        <section class="serr" id="script-errors" aria-labelledby="serr-title" data-testid="script-errors"
+          data-status={errors?.status ?? "unknown"}>
+          <div class="serr__head">
+            <div>
+              <h3 class="ppt-h3" id="serr-title">{t("scriptErrors.title")}</h3>
+              <p class="ppt-muted ppt-small">{t("scriptErrors.description")}</p>
+            </div>
+            {#if errors && (errorList.length > 0 || previousList.length > 0)}
+              <div class="serr__actions">
+                <CopyButton size="sm" variant="secondary" label={t("scriptErrors.copy")}
+                  text={agentSummary(t, { id: d.id, title: d.title }, copyList)} />
+                <Button size="sm" variant="ghost" loading={clearing} onclick={clearErrors}>{t("scriptErrors.clear")}</Button>
+              </div>
+            {/if}
+          </div>
+          {#if errorsLoadFailed}
+            <p class="ppt-muted ppt-small" role="status">{t("scriptErrors.loadError")}</p>
+          {:else if errors}
+            {#if errorList.length > 0}
+              <div class="serr__panel" data-tone="warning" role="status">
+                <p class="serr__status">
+                  <span class="ppt-badge badge-error"><span class="ppt-badge__dot" aria-hidden="true"></span>
+                    {errorList.length === 1 ? t("scriptErrors.statusOne") : t("scriptErrors.statusMany", { n: errorList.length })}</span>
+                </p>
+                <p>{t("scriptErrors.whatHappened")}</p>
+                <p><strong>{t("scriptErrors.whatToDo")}</strong></p>
+              </div>
+            {:else if previousList.length > 0}
+              <div class="serr__panel" role="status">
+                <p class="serr__status">{t("scriptErrors.statusPrevious")}</p>
+                <p class="ppt-muted ppt-small">{t("scriptErrors.statusPreviousText")}</p>
+              </div>
+            {:else}
+              <div class="serr__panel" role="status">
+                <p class="serr__status">
+                  <span class="ppt-badge badge-ok"><span class="ppt-badge__dot" aria-hidden="true"></span>{t("scriptErrors.statusNone")}</span>
+                </p>
+                <p class="ppt-muted ppt-small">
+                  {errors.state === "approved" ? t("scriptErrors.statusNoneText") : t("scriptErrors.statusNotApproved")}
+                </p>
+              </div>
+            {/if}
+            {#each [{ list: errorList, previous: false }, { list: previousList, previous: true }] as group (group.previous)}
+              {#if group.list.length > 0}
+                {#if group.previous}
+                  <h4 class="ppt-h3">{t("scriptErrors.previousTitle", { n: group.list.length })}</h4>
+                {/if}
+                <ul class="serr__list" data-testid={group.previous ? "script-errors-previous" : "script-errors-list"}>
+                  {#each group.list as e, i (i)}
+                    {@const hint = hintText(t, e.hint)}
+                    {@const seen = describeWhen(e.lastSeen, prefs.locale)}
+                    <li class="serr__item ppt-card" data-kind={e.kind} data-slide={e.slideId}>
+                      <p class="serr__where">
+                        <strong>{slideLabel(t, e)}</strong>
+                        {#if e.slideIndex !== null}<span class="serr__id">{e.slideId}</span>{/if}
+                        <span class="ppt-muted">· {t(`scriptErrors.kind_${e.kind}`)}</span>
+                      </p>
+                      <p class="serr__msg"><span class="serr__name">{e.name}</span>{e.message ? `: ${e.message}` : ""}</p>
+                      <p class="serr__meta">
+                        <span>{e.count === 1 ? t("scriptErrors.countOne") : t("scriptErrors.countMany", { n: e.count })}</span>
+                        <span>{t("scriptErrors.lastSeen", { when: seen.text })}</span>
+                      </p>
+                      {#if hint}
+                        <p class="serr__hint"><span>{t("scriptErrors.hintLabel")}</span><span>{hint}</span></p>
+                      {/if}
+                    </li>
+                  {/each}
+                </ul>
+              {/if}
+            {/each}
+            {#if errorList.length > 0 || previousList.length > 0}
+              <p class="serr__note">{t("scriptErrors.textNote")}</p>
+            {/if}
+          {/if}
+        </section>
+
         <div class="block" aria-labelledby="scripts-list-title">
           <h3 class="ppt-h3" id="scripts-list-title">{t("scripts.scriptsTitle", { n: r.sources.length + (r.deckSource ? 1 : 0) })}</h3>
           {#if r.deckSource}
@@ -420,10 +565,19 @@
         <input type="checkbox" bind:checked={confirmed} name="confirm-approve" />
         <span>{t("scripts.confirmCheck")}</span>
       </label>
+      {#if syntaxError}
+        <div data-testid="confirm-syntax">
+          <Notice tone="warning" title={t("scriptErrors.confirmSyntax")} />
+        </div>
+        <label class="check">
+          <input type="checkbox" bind:checked={syntaxConfirmed} name="confirm-syntax" />
+          <span>{t("scriptErrors.confirmSyntaxCheck")}</span>
+        </label>
+      {/if}
     </div>
     {#snippet actions()}
       <Button variant="secondary" onclick={() => (approveOpen = false)}>{t("scripts.cancel")}</Button>
-      <Button variant="primary" disabled={!confirmed} loading={approving} onclick={approve}>{t("scripts.confirmApprove")}</Button>
+      <Button variant="primary" disabled={!confirmed || (syntaxError && !syntaxConfirmed)} loading={approving} onclick={approve}>{t("scripts.confirmApprove")}</Button>
     {/snippet}
   </Dialog>
 

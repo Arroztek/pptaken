@@ -420,6 +420,40 @@ html.drawer-open { overflow: hidden; }
 .code__text { overflow-x: visible; min-width: 0; }
 .code:focus-visible { outline: var(--ppt-border-focus) solid var(--ppt-focus-ring); outline-offset: 2px; }
 
+/* Script errors (ADR-023): status, what to do, the list. Error text is untrusted: plain text, wrapped anywhere. */
+.serr { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ppt-space-3); margin-top: var(--ppt-space-4); scroll-margin-top: var(--ppt-space-6); }
+.serr__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ppt-space-2) var(--ppt-space-4); }
+.serr__head > div { display: grid; gap: var(--ppt-space-1); min-width: 0; }
+.serr__head > div:first-child { flex: 1 1 32ch; }
+.serr__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ppt-space-2); flex: none; }
+.serr__status { display: flex; align-items: center; gap: var(--ppt-space-2); font-weight: var(--ppt-weight-medium); }
+.serr__panel {
+  display: grid; gap: var(--ppt-space-2);
+  padding: var(--ppt-space-4); border-radius: var(--ppt-radius-md);
+  border: var(--ppt-border-width) solid var(--ppt-border); background: var(--ppt-surface);
+}
+.serr__panel[data-tone="warning"] {
+  border-color: color-mix(in srgb, var(--ppt-warning) 45%, var(--ppt-border));
+  background: color-mix(in srgb, var(--ppt-warning) 7%, var(--ppt-surface));
+}
+.serr__panel p { max-width: 72ch; text-wrap: pretty; }
+.serr__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--ppt-space-2); }
+.serr__item { display: grid; gap: var(--ppt-space-2); padding: var(--ppt-space-3) var(--ppt-space-4); min-width: 0; }
+.serr__where { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ppt-space-1) var(--ppt-space-2); font-size: var(--ppt-text-sm); }
+.serr__where strong { overflow-wrap: anywhere; }
+.serr__id { font-family: var(--ppt-font-mono); font-size: var(--ppt-text-xs); color: var(--ppt-text-muted); }
+.serr__msg {
+  margin: 0; padding: var(--ppt-space-2) var(--ppt-space-3); border-radius: var(--ppt-radius-sm);
+  background: var(--ppt-surface-2); font-family: var(--ppt-font-mono); font-size: var(--ppt-text-xs);
+  white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word;
+}
+.serr__name { font-weight: var(--ppt-weight-semibold); }
+.serr__meta { display: flex; flex-wrap: wrap; gap: var(--ppt-space-1) var(--ppt-space-3); font-size: var(--ppt-text-sm); color: var(--ppt-text-muted); font-variant-numeric: tabular-nums; }
+.serr__hint { display: grid; gap: 2px; font-size: var(--ppt-text-sm); padding-left: var(--ppt-space-3); border-left: 3px solid var(--ppt-warning); }
+.serr__hint span:first-child { color: var(--ppt-text-muted); font-size: var(--ppt-text-xs); }
+.serr__note { color: var(--ppt-text-muted); font-size: var(--ppt-text-xs); }
+.badge-error { --_c: var(--ppt-warning); }
+
 .confirm { display: grid; gap: var(--ppt-space-3); }
 .confirm__digest { justify-self: start; font-family: var(--ppt-font-mono); font-size: var(--ppt-text-lg); font-weight: var(--ppt-weight-semibold); padding: var(--ppt-space-2) var(--ppt-space-3); border-radius: var(--ppt-radius-sm); background: var(--ppt-surface-2); overflow-wrap: anywhere; }
 .confirm .check { align-items: start; }
