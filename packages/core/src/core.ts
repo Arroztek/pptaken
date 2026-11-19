@@ -31,6 +31,7 @@ import {
   optionalLimit,
   requireObject,
   runRead,
+  type TrustPolicy,
 } from "./usecases/context.js";
 import {
   type ImportHtmlInput,
@@ -103,6 +104,8 @@ export interface CoreDeps {
   convertPptx?: PptxConverter;
   /** Ingest-time vendoring of external resources (ADR-022). Without it, external URLs are left to the sanitizer. */
   vendor?: VendorFetcher;
+  /** Trust lineage policy (ADR-024): automatic approval of edits to already-approved code. Off without it. */
+  trust?: TrustPolicy;
 }
 
 /**
@@ -300,6 +303,7 @@ export function createCore(deps: CoreDeps): Core {
     ids: deps.ids,
     config: resolveConfig(deps.config),
     vendor: deps.vendor,
+    trust: deps.trust,
   };
   return {
     config: ctx.config,

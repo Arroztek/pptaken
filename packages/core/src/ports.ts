@@ -209,8 +209,23 @@ export interface ScriptApprovalRecord {
   /** 64 lowercase hex characters (see `scriptsDigest`). */
   digest: string;
   approvedAt: number;
+  /** The owner for an explicit approval; the writer whose edit continued the lineage for an automatic one. */
   approvedBy: ActorRef;
+  /**
+   * Trust lineage (ADR-024). `owner`: the owner approved exactly `digest` with a click. `auto`: `digest` continued a
+   * lineage the owner started (an edit of already-approved code, no new library) while automatic updates were on.
+   */
+  mode: ApprovalMode;
+  /** The last digest the owner approved with a click in this lineage (guest contexts only run this one). */
+  ownerDigest: string;
+  /** Libraries approved anywhere in this lineage, as `"<sha256> <source>"` keys (see `libKey`). */
+  trustedLibs: string[];
+  /** For `auto`: the revision whose (approved) code this one replaced, for "Review changes". */
+  previousRevision: number | null;
 }
+
+/** How the current approval of a deck was given (ADR-024). */
+export type ApprovalMode = "owner" | "auto";
 
 export interface ScriptApprovalRepository {
   get(workspaceId: string, deckId: string): Promise<ScriptApprovalRecord | null>;

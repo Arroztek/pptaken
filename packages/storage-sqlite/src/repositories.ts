@@ -231,6 +231,11 @@ export interface DeckScriptsApprovalTable {
   approved_at: number;
   approved_by_actor: string;
   approved_by_token: string | null;
+  /** Migration 0007 (ADR-024). */
+  mode: string;
+  owner_digest: string | null;
+  trusted_libs: string;
+  previous_revision: number | null;
 }
 
 export interface DeckScriptErrorTable {
@@ -706,6 +711,16 @@ function idempotency(db: Db): IdempotencyRepository {
   };
 }
 
+/** The trusted library keys of a lineage (ADR-024); anything malformed reads as "nothing trusted" (fail closed). */
+function parseTrustedLibs(text: string): string[] {
+  try {
+    const value: unknown = JSON.parse(text);
+    return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 function scriptApprovals(db: Db): ScriptApprovalRepository {
   return {
     async get(ws, deckId) {
@@ -722,9 +737,19 @@ function scriptApprovals(db: Db): ScriptApprovalRepository {
         digest: r.approved_digest,
         approvedAt: r.approved_at,
         approvedBy: { actor: r.approved_by_actor as Actor, tokenId: r.approved_by_token },
+        mode: r.mode === "auto" ? "auto" : "owner",
+        ownerDigest: r.owner_digest ?? r.approved_digest,
+        trustedLibs: parseTrustedLibs(r.trusted_libs),
+        previousRevision: r.previous_revision,
       };
     },
     async set(r) {
+      const lineage = {
+        mode: r.mode,
+        owner_digest: r.ownerDigest,
+        trusted_libs: JSON.stringify(r.trustedLibs),
+        previous_revision: r.previousRevision,
+      };
       await db
         .insertInto("deck_scripts_approval")
         .values({
@@ -734,6 +759,7 @@ function scriptApprovals(db: Db): ScriptApprovalRepository {
           approved_at: r.approvedAt,
           approved_by_actor: r.approvedBy.actor,
           approved_by_token: r.approvedBy.tokenId,
+          ...lineage,
         })
         .onConflict((oc) =>
           oc.columns(["workspace_id", "deck_id"]).doUpdateSet({
@@ -741,6 +767,7 @@ function scriptApprovals(db: Db): ScriptApprovalRepository {
             approved_at: r.approvedAt,
             approved_by_actor: r.approvedBy.actor,
             approved_by_token: r.approvedBy.tokenId,
+            ...lineage,
           }),
         )
         .execute();

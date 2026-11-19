@@ -52,6 +52,8 @@ export const MAX_TOKEN_EXPIRY_DAYS = 3650;
 const INSTALL_CODE_SETTING = "install_code";
 /** Instance setting holding the presenter password's scrypt hash (ADR-021). Never the plain value. */
 export const PRESENTER_PASSWORD_SETTING = "presenter_password";
+/** ADR-024: "off" when the owner wants to approve every change of a deck's interactive code. Default on. */
+export const AUTO_APPROVE_SETTING = "scripts_auto_approve";
 /**
  * A well-formed hash (all-zero salt and key) that no password verifies against: checked when no presenter password
  * is set, so a request costs the same scrypt time whether or not one exists (no timing oracle).
@@ -373,6 +375,18 @@ export class LocalAuth implements AuthProvider {
   // Presenter password (ADR-021): one instance-wide secret, chosen by the owner, that unlocks approved author
   // scripts where no owner session exists (future presenter/public links). It is NOT the owner password: it can
   // never sign in, and the two may never be equal (checked both ways). Stored only as a scrypt hash.
+
+  /**
+   * ADR-024: whether edits of already-approved interactive code keep their approval without a click. On unless the
+   * owner turned it off from the panel. Only the owner's panel session can change it.
+   */
+  async autoApproveUpdates(): Promise<boolean> {
+    return (await this.store.getSetting(this.ws, AUTO_APPROVE_SETTING)) !== "off";
+  }
+
+  async setAutoApproveUpdates(on: boolean): Promise<void> {
+    await this.store.putSetting(this.ws, AUTO_APPROVE_SETTING, on ? "on" : "off", this.clock.now());
+  }
 
   /** Whether a presenter password is set. */
   async hasPresenterPassword(): Promise<boolean> {

@@ -18,6 +18,7 @@ import {
   type Scope,
   type SlideInput,
   sha256Hex,
+  type TrustPolicy,
   type UnitOfWork,
   type VendorFetcher,
 } from "@pptaken/core";
@@ -157,6 +158,8 @@ export function createTestCore(
     convertPptx?: PptxConverter;
     /** Ingest-time vendoring fetcher (ADR-022); tests pass a fake network. */
     vendor?: VendorFetcher;
+    /** Trust lineage policy (ADR-024): automatic approval of edits to already-approved code. */
+    trust?: TrustPolicy;
   } = {},
 ): TestCore {
   const clock = (options.clock as ManualClock | undefined) ?? new ManualClock();
@@ -171,6 +174,7 @@ export function createTestCore(
     ...(options.config === undefined ? {} : { config: options.config }),
     ...(options.convertPptx === undefined ? {} : { convertPptx: options.convertPptx }),
     ...(options.vendor === undefined ? {} : { vendor: options.vendor }),
+    ...(options.trust === undefined ? {} : { trust: options.trust }),
   });
   return { core, store, blobs, clock, ids };
 }

@@ -71,6 +71,7 @@ export {
 } from "./media.js";
 export type {
   ActorRef,
+  ApprovalMode,
   AssetRecord,
   AssetRepository,
   AuditEntry,
@@ -130,6 +131,9 @@ export {
   scriptErrorHint,
 } from "./script-errors.js";
 export {
+  type LineageDecision,
+  libKey,
+  lineageDecision,
   SCRIPTS_DIGEST_PATTERN,
   SCRIPTS_DIGEST_VERSION,
   type ScriptsState,
@@ -137,6 +141,7 @@ export {
   scriptsDigest,
   scriptsStateOf,
   scriptsSummary,
+  untrustedLibs,
 } from "./scripts.js";
 export { sha256Hex, utf8Encode } from "./sha256.js";
 export { createUlidFactory, isUlid, type RandomSource, ULID_PATTERN, ulidTime } from "./ulid.js";
@@ -146,6 +151,7 @@ export type {
   AssetInfo,
 } from "./usecases/assets.js";
 export type { RevisionWriteResult } from "./usecases/commit.js";
+export type { TrustPolicy } from "./usecases/context.js";
 export type { ImportHtmlInput, ImportHtmlResult } from "./usecases/import-html.js";
 export type {
   ExportedAsset,

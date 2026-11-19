@@ -49,6 +49,68 @@ export function scriptsStateOf(digest: string | null, approvedDigest: string | n
   return approvedDigest !== null && approvedDigest === digest ? "approved" : "pending";
 }
 
+/**
+ * Trust lineage key of a vendored library (ADR-024): its content hash and the address it came from. A library is
+ * "new" for a lineage when this exact pair was never part of an approved version of the deck, so a new origin OR new
+ * bytes (even under a known name or URL) both count as new third-party code.
+ */
+export function libKey(lib: { sha256: string; source?: string | null | undefined }): string {
+  return `${lib.sha256} ${lib.source ?? ""}`;
+}
+
+/** The libraries of `deck` that are not in `trusted` (keys from `libKey`), in load order. */
+export function untrustedLibs(
+  deck: Pick<DigestInput, "libs">,
+  trusted: readonly string[],
+): VendoredScript[] {
+  const known = new Set(trusted);
+  return (deck.libs ?? []).filter((lib) => !known.has(libKey(lib))).map((lib) => ({ ...lib }));
+}
+
+/** Why an edit did or did not continue a trust lineage (ADR-024), for the audit log and tests. */
+export type LineageDecision =
+  | { continue: true }
+  | {
+      continue: false;
+      reason:
+        | "no_lineage"
+        | "setting_off"
+        | "scripts_off"
+        | "no_scripts"
+        | "unchanged"
+        | "new_library";
+      newLibs?: VendoredScript[];
+    };
+
+/**
+ * The trust-lineage rule (ADR-024), pure. An edit continues the owner's approval without a click only when ALL hold:
+ * the instance runs scripts; automatic updates are on; the code being replaced was approved (`approvedDigest` equals
+ * `previousDigest`, so a lineage is alive: the owner approved it, or it continued one the owner approved); the new
+ * code differs and is not empty; and every library of the new code was part of an approved version of this deck
+ * (same hash AND same source). Anything else breaks the lineage: the deck waits for the owner's click.
+ */
+export function lineageDecision(input: {
+  scriptsEnabled: boolean;
+  autoApprove: boolean;
+  approvedDigest: string | null;
+  previousDigest: string | null;
+  nextDigest: string | null;
+  next: Pick<DigestInput, "libs">;
+  trustedLibs: readonly string[];
+}): LineageDecision {
+  if (input.approvedDigest === null || input.previousDigest === null)
+    return { continue: false, reason: "no_lineage" };
+  if (input.approvedDigest !== input.previousDigest)
+    return { continue: false, reason: "no_lineage" };
+  if (input.nextDigest === null) return { continue: false, reason: "no_scripts" };
+  if (input.nextDigest === input.previousDigest) return { continue: false, reason: "unchanged" };
+  if (!input.scriptsEnabled) return { continue: false, reason: "scripts_off" };
+  if (!input.autoApprove) return { continue: false, reason: "setting_off" };
+  const newLibs = untrustedLibs(input.next, input.trustedLibs);
+  if (newLibs.length > 0) return { continue: false, reason: "new_library", newLibs };
+  return { continue: true };
+}
+
 /** Short facts about a deck's scripts, for tool results and the panel. */
 export interface ScriptsSummary {
   digest: string | null;

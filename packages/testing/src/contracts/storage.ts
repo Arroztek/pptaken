@@ -396,11 +396,23 @@ export function runScriptApprovalRepositoryContract(name: string, factory: Stora
         digest: "a".repeat(64),
         approvedAt: 10,
         approvedBy: { actor: "owner" as const, tokenId: null },
+        mode: "owner" as const,
+        ownerDigest: "a".repeat(64),
+        trustedLibs: [`${"e".repeat(64)} https://cdn.example/lib.js`],
+        previousRevision: null,
       };
       await uow().scriptApprovals.set(first);
       expect(await uow().scriptApprovals.get(WS, deck.id)).toEqual(first);
       expect(await uow().scriptApprovals.get(OTHER_WS, deck.id)).toBeNull();
-      const second = { ...first, digest: "b".repeat(64), approvedAt: 20 };
+      // ADR-024: an automatic continuation keeps the owner's digest and records the replaced revision.
+      const second = {
+        ...first,
+        digest: "b".repeat(64),
+        approvedAt: 20,
+        approvedBy: { actor: "agent" as const, tokenId: "tok_1" },
+        mode: "auto" as const,
+        previousRevision: 3,
+      };
       await uow().scriptApprovals.set(second);
       expect(await uow().scriptApprovals.get(WS, deck.id)).toEqual(second);
       expect(await uow().scriptApprovals.delete(WS, deck.id)).toBe(true);
@@ -416,6 +428,10 @@ export function runScriptApprovalRepositoryContract(name: string, factory: Stora
           digest: "c".repeat(64),
           approvedAt: 1,
           approvedBy: { actor: "owner", tokenId: null },
+          mode: "owner",
+          ownerDigest: "c".repeat(64),
+          trustedLibs: [],
+          previousRevision: null,
         }),
       ).rejects.toThrow();
       const deck = makeDeckRecord();
@@ -426,6 +442,10 @@ export function runScriptApprovalRepositoryContract(name: string, factory: Stora
         digest: "d".repeat(64),
         approvedAt: 1,
         approvedBy: { actor: "owner", tokenId: null },
+        mode: "owner",
+        ownerDigest: "d".repeat(64),
+        trustedLibs: [],
+        previousRevision: null,
       });
       await expect(uow().decks.delete(WS, deck.id)).rejects.toThrow();
     });

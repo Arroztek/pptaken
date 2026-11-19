@@ -2,14 +2,17 @@
 // Interactive mode (ADR-020): status, approval and revocation of a deck's author scripts. Approval is a human-only
 // action (the owner's panel session); agents can write scripts but never approve them. Every approve and revoke
 // is audited with the digest, and so is every refused attempt.
+import type { Deck, VendoredScript } from "@pptaken/schema";
 import { DomainError, validationError } from "../errors.js";
-import type { Repositories } from "../ports.js";
+import type { ApprovalMode, Repositories, ScriptApprovalRecord } from "../ports.js";
 import { type CallContext, type Principal, requireOwner, requireScope } from "../principal.js";
 import {
+  libKey,
   SCRIPTS_DIGEST_PATTERN,
   type ScriptsState,
   type ScriptsSummary,
   scriptsSummary,
+  untrustedLibs,
 } from "../scripts.js";
 import { sha256Hex, utf8Encode } from "../sha256.js";
 import {
@@ -32,6 +35,28 @@ export interface ScriptsStatus extends ScriptsSummary {
   /** The approved digest, when one is stored (it may belong to older code: then `state` is `pending`). */
   approvedDigest: string | null;
   approvedAt: number | null;
+  /** ADR-024: how the stored approval was given (`null` without one). */
+  approvalMode: ApprovalMode | null;
+  /** True when the owner approved exactly the current code with a click (guest contexts need this). */
+  ownerApproved: boolean;
+  /** Libraries of the current code never approved for this deck (new third-party code): they always need a click. */
+  newLibs: VendoredScript[];
+  /** For an automatic approval: the revision whose approved code the current one replaced. */
+  previousRevision: number | null;
+}
+
+function lineageFacts(
+  doc: Deck,
+  digest: string | null,
+  approval: ScriptApprovalRecord | null,
+): Pick<ScriptsStatus, "approvalMode" | "ownerApproved" | "newLibs" | "previousRevision"> {
+  const current = approval !== null && digest !== null && approval.digest === digest;
+  return {
+    approvalMode: approval?.mode ?? null,
+    ownerApproved: digest !== null && approval?.ownerDigest === digest,
+    newLibs: current ? [] : untrustedLibs(doc, approval?.trustedLibs ?? []),
+    previousRevision: current && approval?.mode === "auto" ? approval.previousRevision : null,
+  };
 }
 
 async function statusOf(
@@ -52,6 +77,35 @@ async function statusOf(
     ...summary,
     approvedDigest: approval?.digest ?? null,
     approvedAt: approval?.approvedAt ?? null,
+    ...lineageFacts(revision.document, summary.digest, approval),
+  };
+}
+
+/** Every author script of a document, in deck order, with its hash and size. */
+function sourcesOf(document: Deck): {
+  sources: ScriptSource[];
+  deckSource: ScriptsReview["deckSource"];
+} {
+  const sources: ScriptSource[] = [];
+  document.slides.forEach((slide, index) => {
+    if (slide.script === undefined) return;
+    const bytes = utf8Encode(slide.script);
+    sources.push({
+      slideId: slide.id,
+      index,
+      source: slide.script,
+      sha256: sha256Hex(bytes),
+      bytes: bytes.length,
+    });
+  });
+  const deckScript = document.script;
+  const deckBytes = deckScript === undefined ? null : utf8Encode(deckScript);
+  return {
+    sources,
+    deckSource:
+      deckScript === undefined || deckBytes === null
+        ? null
+        : { source: deckScript, sha256: sha256Hex(deckBytes), bytes: deckBytes.length },
   };
 }
 
@@ -73,6 +127,16 @@ export interface ScriptsReview extends ScriptsStatus {
   sources: ScriptSource[];
   /** The deck-level script (ADR-022), run once before the slide scripts, or null. */
   deckSource: { source: string; sha256: string; bytes: number } | null;
+  /**
+   * ADR-024 "Review changes": for an automatic approval, the code it replaced (the previously approved revision),
+   * or null when there is none or that revision was pruned.
+   */
+  previous: {
+    revision: number;
+    sources: ScriptSource[];
+    deckSource: ScriptsReview["deckSource"];
+    libs: VendoredScript[];
+  } | null;
 }
 
 /**
@@ -93,20 +157,18 @@ export async function getScriptsReview(
     if (revision === null) throw validationError("The current revision is missing", { path: "" });
     const approval = await ctx.store.scriptApprovals.get(principal.workspaceId, id);
     const summary = scriptsSummary(revision.document, approval?.digest ?? null);
-    const sources: ScriptSource[] = [];
-    revision.document.slides.forEach((slide, index) => {
-      if (slide.script === undefined) return;
-      const bytes = utf8Encode(slide.script);
-      sources.push({
-        slideId: slide.id,
-        index,
-        source: slide.script,
-        sha256: sha256Hex(bytes),
-        bytes: bytes.length,
-      });
-    });
-    const deckScript = revision.document.script;
-    const deckBytes = deckScript === undefined ? null : utf8Encode(deckScript);
+    const facts = lineageFacts(revision.document, summary.digest, approval);
+    let previous: ScriptsReview["previous"] = null;
+    if (facts.previousRevision !== null) {
+      const old = await ctx.store.revisions.get(principal.workspaceId, id, facts.previousRevision);
+      if (old !== null) {
+        previous = {
+          revision: facts.previousRevision,
+          ...sourcesOf(old.document),
+          libs: (old.document.libs ?? []).map((lib) => ({ ...lib })),
+        };
+      }
+    }
     return {
       presentationId: id,
       revision: deck.currentRevision,
@@ -114,11 +176,9 @@ export async function getScriptsReview(
       ...summary,
       approvedDigest: approval?.digest ?? null,
       approvedAt: approval?.approvedAt ?? null,
-      sources,
-      deckSource:
-        deckScript === undefined || deckBytes === null
-          ? null
-          : { source: deckScript, sha256: sha256Hex(deckBytes), bytes: deckBytes.length },
+      ...facts,
+      ...sourcesOf(revision.document),
+      previous,
     };
   });
 }
@@ -180,12 +240,21 @@ export async function approveScripts(
         });
       }
       const now = ctx.clock.now();
+      // ADR-024: an explicit approval starts (or extends) the trust lineage: its libraries join the trusted set.
+      const existing = await tx.scriptApprovals.get(principal.workspaceId, id);
+      const trustedLibs = [
+        ...new Set([...(existing?.trustedLibs ?? []), ...status.libs.map(libKey)]),
+      ];
       await tx.scriptApprovals.set({
         workspaceId: principal.workspaceId,
         deckId: id,
         digest,
         approvedAt: now,
         approvedBy: actorRef(principal),
+        mode: "owner",
+        ownerDigest: digest,
+        trustedLibs,
+        previousRevision: null,
       });
       await audit(ctx, tx, principal, call, "presentation.scripts_approve", `deck:${id}`, "ok", {
         digest,
@@ -196,6 +265,10 @@ export async function approveScripts(
         state: "approved" as ScriptsState,
         approvedDigest: digest,
         approvedAt: now,
+        approvalMode: "owner" as const,
+        ownerApproved: true,
+        newLibs: [],
+        previousRevision: null,
       };
     });
   });

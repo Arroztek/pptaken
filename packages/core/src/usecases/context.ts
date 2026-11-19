@@ -29,6 +29,16 @@ export interface Ctx {
   config: CoreConfig;
   /** Ingest-time vendoring (ADR-022); without it external references are left to the sanitizer. */
   vendor?: VendorFetcher | undefined;
+  /** Trust lineage policy (ADR-024); without it no edit is ever approved automatically. */
+  trust?: TrustPolicy | undefined;
+}
+
+/**
+ * The owner's setting that lets edits of already-approved code keep their approval (ADR-024). Read by the server
+ * from its own settings store; there is no agent-callable way to change it.
+ */
+export interface TrustPolicy {
+  autoApproveUpdates(workspaceId: string): Promise<boolean>;
 }
 
 export function actorRef(principal: Principal): ActorRef {
