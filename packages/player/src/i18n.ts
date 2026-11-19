@@ -60,8 +60,34 @@ const en = {
   offlineUnverified:
     "Interactive presentation: online only. An offline copy is the static version.",
   scriptsStopped:
-    "The interactive content stopped responding and was closed. Loading the static version of the slides…",
-  scriptError: "A script of this slide failed",
+    "The interactive part stopped responding. Showing the static version of the slides…",
+  noticeErrorWhat:
+    "Something went wrong in this deck's interactive code. The slides still show, but some interactive parts may not work.",
+  noticeStoppedWhat:
+    "This deck's interactive code stopped responding, so the presentation switched to the static version.",
+  noticeFixDo:
+    "Ask your agent to check the script errors of this presentation and fix them, then reload the presentation.",
+  noticePendingWhat:
+    "This deck's interactive code is not approved yet, so it shows the static version.",
+  noticePendingDo:
+    "Open the presentation's page in PPTaken, review the code and approve it, then reload the presentation.",
+  noticeOffWhat:
+    "Interactive code is turned off on this PPTaken server, so the presentation shows its static version.",
+  noticeOffDo:
+    "To run it, whoever runs this PPTaken server must turn scripts on (PPTAKEN_SCRIPTS=owner).",
+  noticeOpenErrors: "See the script errors",
+  noticeOpenReview: "Review and approve",
+  newTab: "(opens in a new tab)",
+  noticeCopy: "Copy a message for my agent",
+  noticeCopied: "Copied",
+  noticeCopyFailed: "Could not copy: select the message below",
+  agentMessage:
+    'The interactive code of my presentation "{title}" ({id}) shows errors. Please read its script_errors with get_presentation, fix the scripts and tell me when to approve them again.',
+  loadSlow:
+    "This presentation is taking too long to load. Check your connection and reload this page. If you opened it inside an embedded preview, open it in your regular browser.",
+  stoppedFault:
+    "The presentation stopped because its content did something unexpected. Reload this page. If it happens again, open the presentation's page in PPTaken and check its script errors.",
+  openDeckPage: "Open the presentation's page",
   helpUnlock: "Unlock interactive mode (presenter password)",
   unlockTitle: "Unlock interactive mode",
   unlockText:
@@ -84,7 +110,7 @@ const en = {
   interactiveOn: "Interactive mode",
   interactiveOffline: "Interactive mode needs a connection. Unlock before you go offline.",
   linkInvalid: "This presentation link is no longer valid. Ask for a new one.",
-  loadFailed: "Could not load the presentation.",
+  loadFailed: "Could not load the presentation. Check your connection and reload this page.",
 } as const;
 
 export type LabelKey = keyof typeof en;
@@ -147,8 +173,34 @@ const es: Labels = {
   offlineUnverified:
     "Presentación interactiva: solo con conexión. Una copia sin conexión es la versión estática.",
   scriptsStopped:
-    "El contenido interactivo dejó de responder y se cerró. Cargando la versión estática de las diapositivas…",
-  scriptError: "Falló un script de esta diapositiva",
+    "La parte interactiva dejó de responder. Mostrando la versión estática de las diapositivas…",
+  noticeErrorWhat:
+    "Algo falló en el código interactivo de esta presentación. Las diapositivas se siguen viendo, pero algunas partes interactivas pueden no funcionar.",
+  noticeStoppedWhat:
+    "El código interactivo de esta presentación dejó de responder, así que se cambió a la versión estática.",
+  noticeFixDo:
+    "Pide a tu agente que revise los errores de script de esta presentación y los corrija; luego vuelve a cargar la presentación.",
+  noticePendingWhat:
+    "El código interactivo de esta presentación todavía no está aprobado, así que se muestra la versión estática.",
+  noticePendingDo:
+    "Abre la página de la presentación en PPTaken, revisa el código y apruébalo; luego vuelve a cargar la presentación.",
+  noticeOffWhat:
+    "El código interactivo está desactivado en este servidor de PPTaken, así que la presentación muestra su versión estática.",
+  noticeOffDo:
+    "Para ejecutarlo, quien administra este servidor de PPTaken debe activar los scripts (PPTAKEN_SCRIPTS=owner).",
+  noticeOpenErrors: "Ver los errores de script",
+  noticeOpenReview: "Revisar y aprobar",
+  newTab: "(se abre en una pestaña nueva)",
+  noticeCopy: "Copiar un mensaje para mi agente",
+  noticeCopied: "Copiado",
+  noticeCopyFailed: "No se pudo copiar: selecciona el mensaje de abajo",
+  agentMessage:
+    'El código interactivo de mi presentación "{title}" ({id}) tiene errores. Lee sus script_errors con get_presentation, corrige los scripts y avísame cuándo debo aprobarlos de nuevo.',
+  loadSlow:
+    "Esta presentación está tardando demasiado en cargar. Revisa tu conexión y vuelve a cargar esta página. Si la abriste dentro de una vista previa integrada, ábrela en tu navegador habitual.",
+  stoppedFault:
+    "La presentación se detuvo porque su contenido hizo algo inesperado. Vuelve a cargar esta página. Si se repite, abre la página de la presentación en PPTaken y revisa sus errores de script.",
+  openDeckPage: "Abrir la página de la presentación",
   helpUnlock: "Desbloquear el modo interactivo (contraseña de presentador)",
   unlockTitle: "Desbloquear el modo interactivo",
   unlockText:
@@ -172,7 +224,8 @@ const es: Labels = {
   interactiveOffline:
     "El modo interactivo necesita conexión. Desbloquéalo antes de quedarte sin conexión.",
   linkInvalid: "Este enlace de presentación ya no es válido. Pide uno nuevo.",
-  loadFailed: "No se pudo cargar la presentación.",
+  loadFailed:
+    "No se pudo cargar la presentación. Revisa tu conexión y vuelve a cargar esta página.",
 };
 
 export const LABELS: Readonly<Record<Locale, Labels>> = { en, es };

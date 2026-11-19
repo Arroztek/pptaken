@@ -20,7 +20,9 @@ import {
 } from "./offline.js";
 import {
   type ContentMessage,
+  type ErrorKind,
   isHelloMessage,
+  MAX_ERROR_COUNT,
   type Mode,
   overviewColumns,
   PROTOCOL_VERSION,
@@ -133,9 +135,33 @@ export interface PlayerOptions {
    * it the player stops after showing the notice.
    */
   fallbackUrl?: () => Promise<string | null>;
-  /** Script mode: author code of a slide threw (reported by the runtime, no details). */
-  onScriptError?(slide: number): void;
+  /**
+   * Script mode: author code failed (ADR-023). Called for each new distinct error and again when its count grows,
+   * with a fresh, validated, cleaned and bounded record. The text fields come from UNTRUSTED code: show them only
+   * as text. The watchdog adds a `watchdog` record when it removes a frozen frame. Never shown by the shell itself
+   * (the audience screen stays clean): the page sends them to the owner's panel.
+   */
+  onScriptError?(error: ScriptErrorReport): void;
 }
+
+/** One author-script failure as the shell reports it to the page (ADR-023). */
+export interface ScriptErrorReport {
+  kind: ErrorKind | "watchdog";
+  /** A slide id of the deck, or `deck` (the deck-level script, or an error that cannot be attributed). */
+  slideId: string;
+  /** 0-based slide index, or null for `deck`. */
+  slideIndex: number | null;
+  name: string;
+  message: string;
+  stack: string;
+  /** Occurrences so far in this page (monotonic). */
+  count: number;
+}
+
+/** Script mode: error messages accepted from the frame per second, per page load, and distinct errors kept. */
+export const SCRIPT_ERRORS_PER_SECOND = 10;
+export const MAX_SCRIPT_ERROR_MESSAGES = 300;
+export const MAX_DISTINCT_SCRIPT_ERRORS = 50;
 
 export interface Player {
   /** Goes to a 0-based slide and step (clamped). Ignored until the deck is ready. */
@@ -323,6 +349,10 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
   let destroyed = false;
   let watchdog: ReturnType<typeof setInterval> | undefined;
   const frameKeyTimes: number[] = [];
+  /** Script mode (ADR-023): error messages from the frame, rate-limited, capped and deduplicated. */
+  const errorTimes: number[] = [];
+  let errorMessages = 0;
+  const errorCounts = new Map<string, number>();
   let notice: HTMLDivElement | null = null;
   let hudTimer: ReturnType<typeof setTimeout> | undefined;
   let hashTimer: ReturnType<typeof setTimeout> | undefined;
@@ -835,6 +865,19 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
     iframe.remove(); // detach the busy document first
     showNotice(labels.scriptsStopped);
     options.onFault?.("unresponsive");
+    // ADR-023: the owner's panel and the presenter window learn why the deck turned static.
+    const at = slides?.[position.slide]?.id;
+    sync?.send({ v: PROTOCOL_VERSION, type: "script-stopped" });
+    options.onScriptError?.({
+      kind: "watchdog",
+      slideId: at ?? "deck",
+      slideIndex: at === undefined ? null : position.slide,
+      name: "Unresponsive",
+      message:
+        "The interactive code kept the page busy for more than 3 seconds (an endless or very long loop?), so the player closed it and showed the static version.",
+      stack: "",
+      count: 1,
+    });
     const fallback = options.fallbackUrl;
     if (!fallback) {
       faulted = true;
@@ -955,13 +998,38 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
       case "beat":
         if (scriptMode) lastBeat = Date.now();
         return;
-      case "error":
-        if (scriptMode && slides && message.slide < slides.length) {
-          // A discreet notice in the presenter window only; nothing on the audience screen.
-          sync?.send({ v: PROTOCOL_VERSION, type: "script-error", slide: message.slide });
-          options.onScriptError?.(message.slide);
+      case "error": {
+        if (!scriptMode || !slides || message.slide >= slides.length) return;
+        // Rate limit (per second), cap (per page load) and dedupe: the frame can throw as often as it likes.
+        const now = Date.now();
+        while (errorTimes.length > 0 && now - (errorTimes[0] ?? 0) >= 1000) errorTimes.shift();
+        if (errorTimes.length >= SCRIPT_ERRORS_PER_SECOND) return;
+        if (errorMessages >= MAX_SCRIPT_ERROR_MESSAGES) return;
+        errorTimes.push(now);
+        errorMessages++;
+        const slideIndex = message.slide >= 0 ? message.slide : null;
+        const slideId = slideIndex === null ? "deck" : (slides[slideIndex]?.id ?? "deck");
+        const key = JSON.stringify([message.kind, slideId, message.name, message.message]);
+        const before = errorCounts.get(key);
+        if (before === undefined && errorCounts.size >= MAX_DISTINCT_SCRIPT_ERRORS) return;
+        // Counts only grow (a repeat with a lower or equal count is old news).
+        if (before !== undefined && message.count <= before) return;
+        errorCounts.set(key, Math.min(message.count, MAX_ERROR_COUNT));
+        if (before === undefined) {
+          // A discreet, actionable notice in the presenter window only; nothing on the audience screen.
+          sync?.send({ v: PROTOCOL_VERSION, type: "script-error", slide: slideIndex ?? -1 });
         }
+        options.onScriptError?.({
+          kind: message.kind,
+          slideId,
+          slideIndex,
+          name: message.name,
+          message: message.message,
+          stack: message.stack,
+          count: Math.min(message.count, MAX_ERROR_COUNT),
+        });
         return;
+      }
     }
   };
 

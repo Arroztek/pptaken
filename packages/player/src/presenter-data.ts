@@ -28,6 +28,11 @@ export interface PresenterData {
    * that interactive mode needs a connection.
    */
   interactive?: boolean;
+  /**
+   * ADR-023: the deck has scripts that do not run, and why: `pending` (the owner has not approved the current
+   * code) or `off` (the operator turned scripts off). The presenter view says so and what to do.
+   */
+  scripts?: "pending" | "off";
 }
 
 /** Generous bounds over the schema limits (title 200, section 100, notes 16 KB rendered with escaping). */
@@ -46,10 +51,24 @@ function only(o: Record<string, unknown>, keys: readonly string[]): boolean {
 /** Validates presenter data. Returns a fresh copy, or `null` when anything is off. */
 export function parsePresenterData(data: unknown): PresenterData | null {
   if (!isObject(data)) return null;
-  if (!only(data, ["title", "revision", "aspectRatio", "targetMinutes", "slides", "interactive"]))
+  if (
+    !only(data, [
+      "title",
+      "revision",
+      "aspectRatio",
+      "targetMinutes",
+      "slides",
+      "interactive",
+      "scripts",
+    ])
+  )
     return null;
   if (!isText(data.title, MAX_TEXT)) return null;
   const out: PresenterData = { title: data.title, slides: [] };
+  if (data.scripts !== undefined) {
+    if (data.scripts !== "pending" && data.scripts !== "off") return null;
+    out.scripts = data.scripts;
+  }
   if (data.interactive !== undefined) {
     if (typeof data.interactive !== "boolean") return null;
     if (data.interactive) out.interactive = true;

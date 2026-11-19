@@ -134,13 +134,73 @@ export interface BeatMessage {
 }
 
 /**
- * Script mode only: author code of `slide` threw (setup, a callback, or an uncaught error while it was the
- * current slide). No error text crosses the boundary.
+ * Where an author-script failure happened (ADR-023): `setup` (the slide's `function (slide) {…}` threw),
+ * `handler` (an event handler, a timer, onEnter/onLeave/onStep, or a script/worker the content security policy
+ * blocked), `rejection` (an unhandled promise rejection) and `script-load` (a script that did not parse or threw at
+ * its top level, the deck-level script included). The shell adds `watchdog` itself.
+ */
+export const ERROR_KINDS = ["setup", "handler", "rejection", "script-load"] as const;
+export type ErrorKind = (typeof ERROR_KINDS)[number];
+
+/** Bounds of the text of an `error` message (UTF-16 code units) and of its counter. */
+export const MAX_ERROR_NAME = 60;
+export const MAX_ERROR_MESSAGE = 300;
+export const MAX_ERROR_STACK = 400;
+export const MAX_ERROR_COUNT = 1_000_000;
+
+/**
+ * Script mode only: author code failed (ADR-023). `slide` is the 0-based slide index, or `-1` for the deck-level
+ * script and failures that cannot be attributed. `name`, `message` and `stack` (first lines) are bounded, cleaned
+ * text produced by UNTRUSTED code: the shell validates and cleans them again and only ever shows them as text.
+ * `count` is the number of occurrences of this same error (kind, slide, name, message) so far in this page.
  */
 export interface ErrorMessage {
   v: 1;
   type: "error";
   slide: number;
+  kind: ErrorKind;
+  name: string;
+  message: string;
+  stack: string;
+  count: number;
+}
+
+/** Bidi controls, zero-width and other invisible format characters. */
+const INVISIBLE = /[\u00ad\u061c\u180e\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff\ufff9-\ufffb]/g;
+const CONTROL = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f]/g;
+const LONE_SURROGATE = /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g;
+/** URLs in stacks carry the signed content token: each becomes `<deck>`, keeping `:line:column`. */
+const URLS =
+  /\b(?:(?:blob:)?(?:https?|blob|file):\/\/|(?:data|about):(?=\S))[^\s)'"<>]*?((?::\d+){1,2})?(?=[\s)'"<>]|$)/g;
+
+/**
+ * Makes untrusted error text safe to carry and show: strings only; URLs redacted; control, bidi and invisible
+ * characters removed (line breaks too unless `keepLines`, which keeps at most 4 lines); truncated to `max`.
+ * Used by the runtime (best effort: author code shares its realm) and again by the shell (the real check).
+ */
+export function cleanErrorText(value: unknown, max: number, keepLines = false): string {
+  if (typeof value !== "string") return "";
+  let text = value.length > max * 4 ? value.slice(0, max * 4) : value;
+  text = text
+    .replace(LONE_SURROGATE, "")
+    .replace(INVISIBLE, "")
+    .replace(URLS, (_m, pos: string | undefined) => `<deck>${pos ?? ""}`);
+  if (keepLines) {
+    text = text
+      .split(/\r\n?|\n/)
+      .map((line) => line.replace(/\t/g, " ").replace(CONTROL, "").replace(/ {2,}/g, " ").trim())
+      .filter((line) => line !== "")
+      .slice(0, 4)
+      .join("\n");
+  } else {
+    text = text
+      .replace(/[\t\r\n]/g, " ")
+      .replace(CONTROL, "")
+      .replace(/ {2,}/g, " ")
+      .trim();
+  }
+  if (text.length > max) text = `${text.slice(0, max - 1).replace(/[\ud800-\udbff]$/, "")}…`;
+  return text;
 }
 
 export type ContentMessage =

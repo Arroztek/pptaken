@@ -513,7 +513,7 @@ const player = createPlayer(document.getElementById("stage"), {
   onReady: (s) => { log.ready = s.length; },
   onChange: (s) => { log.positions.push([Math.round(performance.now()), s.slide, s.step, s.mode]); },
   onFault: (f) => { log.faults.push([Math.round(performance.now()), f]); },
-  onScriptError: (n) => { log.errors.push(n); },
+  onScriptError: (n) => { log.errors.push(n.slideIndex ?? -1); (log.records ||= []).push(n); },
   onOffline: (o) => { log.offline.push(o.state); },
 });
 window.__player = player;
@@ -783,6 +783,31 @@ for (const name of ENGINES) {
     await sleep(500);
     const log3 = await page.evaluate(() => window.__log);
     check("api.callback-errors-reported", log3.errors.includes(1), { errors: log3.errors });
+    // ADR-023: the records carry bounded, cleaned text and the right kind; no URL (signed token) survives.
+    const records = log3.records ?? [];
+    const load = records.find((e) => e.slideId === "broken");
+    const handler = records.find((e) => e.slideIndex === 1 && e.kind === "handler");
+    check(
+      "api.error-records-structured",
+      load?.kind === "script-load" &&
+        handler?.message === "x" &&
+        records.every(
+          (e) =>
+            typeof e.name === "string" &&
+            e.message.length <= 300 &&
+            e.stack.length <= 400 &&
+            !/ct=|https?:\/\//.test(e.stack) &&
+            Number.isInteger(e.count) &&
+            e.count >= 1,
+        ),
+      { records },
+    );
+    check(
+      "api.error-records-name-author-lines",
+      handler !== undefined &&
+        (handler.stack === "" || /slide [a-z0-9-]+, line \d+/.test(handler.stack)),
+      { stack: handler?.stack },
+    );
     check("api.no-listener-hits", hitsFor(tag).length === 0, { hits: hitsFor(tag) });
     await context.close();
   }
@@ -1083,6 +1108,14 @@ for (const name of ENGINES) {
         check(`abuse.${kind}.page-recovers`, responsiveMs < 3000, m);
       }
       if (noticeAt !== null) check(`abuse.${kind}.fallback-after-watchdog`, fallbackAt !== null, m);
+      // ADR-023: the watchdog tells the page why the deck turned static.
+      if (m.faults.includes("unresponsive")) {
+        check(
+          `abuse.${kind}.watchdog-error-record`,
+          (log.records ?? []).some((e) => e.kind === "watchdog" && e.count === 1),
+          { records: log.records },
+        );
+      }
       await context.close();
     }
   }

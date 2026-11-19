@@ -311,22 +311,27 @@ export function buildDeckDocument(deck: Deck, options: BuildOptions): DeckDocume
       hashes.push(scriptHash(js));
     });
     // The deck-level script (ADR-022): once, in the global scope, after the libraries and before the slides.
+    // Author scripts carry `data-pptaken-for` (the slide id, or `deck`) and, filled in below, `data-pptaken-line`
+    // (the document line their text starts on): the runtime uses them to attribute load errors and to turn document
+    // line numbers into the author's own (ADR-023). Attributes are not part of the CSP hash.
     if (deck.script !== undefined) {
       const problem = scriptProblem(deck.script);
       if (problem !== null) throw new TypeError(`script: ${problem}`);
       const text = deck.script.replace(/\r\n?/g, "\n");
-      tail.push(`<script>${text}</script>`);
+      tail.push(`<script data-pptaken-for="deck" data-pptaken-line="@">${text}</script>`);
       hashes.push(scriptHash(text));
     }
     deck.slides.forEach((slide, index) => {
       if (slide.script === undefined) return;
       const text = wrapAuthorScript(slide.id, slide.script, `slides[${index}].script`);
-      tail.push(`<script>${text}</script>`);
+      tail.push(
+        `<script data-pptaken-for="${escapeHtml(slide.id)}" data-pptaken-line="@">${text}</script>`,
+      );
       hashes.push(scriptHash(text));
     });
   }
 
-  const html = [
+  const head = [
     "<!doctype html>",
     `<html${lang === undefined ? "" : ` lang="${escapeHtml(lang)}"`}${scripted ? " data-pptaken-scripts" : ""}>`,
     "<head>",
@@ -345,11 +350,16 @@ export function buildDeckDocument(deck: Deck, options: BuildOptions): DeckDocume
     `<div id="pptaken-stage" data-width="${width}" data-height="${height}">`,
     ...sections,
     "</div>",
-    ...tail,
-    "</body>",
-    "</html>",
-    "",
   ].join("\n");
+  // Line numbers as the HTML parser counts them (CRLF, CR and LF are one break each).
+  const breaks = (text: string) => text.match(/\r\n?|\n/g)?.length ?? 0;
+  let line = breaks(head) + 2;
+  const placed = tail.map((element) => {
+    const out = element.replace('data-pptaken-line="@"', `data-pptaken-line="${line}"`);
+    line += breaks(element) + 1;
+    return out;
+  });
+  const html = [head, ...placed, "</body>", "</html>", ""].join("\n");
 
   const csp: CspOptions = scripted
     ? { scriptHashes: hashes, assetBaseUrl: base, fontBaseUrl: fontBase }

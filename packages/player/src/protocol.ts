@@ -13,9 +13,16 @@
 import type { KeyCode } from "./keys.js";
 import {
   type ContentMessage,
+  cleanErrorText,
+  ERROR_KINDS,
+  type ErrorKind,
   envelope,
   exactObject,
   isBoundedInt,
+  MAX_ERROR_COUNT,
+  MAX_ERROR_MESSAGE,
+  MAX_ERROR_NAME,
+  MAX_ERROR_STACK,
   MAX_PRELOAD_COUNT,
   MAX_PRELOAD_FAILED,
   MAX_SLIDES,
@@ -29,11 +36,18 @@ import {
 export {
   type BeatMessage,
   type ContentMessage,
+  cleanErrorText,
+  ERROR_KINDS,
+  type ErrorKind,
   type ErrorMessage,
   type GotoMessage,
   type HelloMessage,
   isBoundedInt,
   type KeyMessage,
+  MAX_ERROR_COUNT,
+  MAX_ERROR_MESSAGE,
+  MAX_ERROR_NAME,
+  MAX_ERROR_STACK,
   MAX_PRELOAD_COUNT,
   MAX_PRELOAD_FAILED,
   MAX_SLIDES,
@@ -137,9 +151,32 @@ export function parseContentMessage(data: unknown): ContentMessage | null {
     case "beat":
       return envelope(data, "beat", []) ? { v: 1, type: "beat" } : null;
     case "error": {
-      const m = envelope(data, "error", ["slide"]);
-      if (!m || !isBoundedInt(m.slide, MAX_SLIDES - 1)) return null;
-      return { v: 1, type: "error", slide: m.slide };
+      // ADR-023: every field is checked for its exact type and bound, then the text is cleaned again here (the
+      // runtime's own cleaning ran in a realm author code can tamper with).
+      const m = envelope(data, "error", ["slide", "kind", "name", "message", "stack", "count"]);
+      if (!m) return null;
+      if (m.slide !== -1 && !isBoundedInt(m.slide, MAX_SLIDES - 1)) return null;
+      if (!(ERROR_KINDS as readonly unknown[]).includes(m.kind)) return null;
+      if (!isBoundedInt(m.count, MAX_ERROR_COUNT) || m.count < 1) return null;
+      if (
+        typeof m.name !== "string" ||
+        typeof m.message !== "string" ||
+        typeof m.stack !== "string" ||
+        m.name.length > MAX_ERROR_NAME * 2 ||
+        m.message.length > MAX_ERROR_MESSAGE * 2 ||
+        m.stack.length > MAX_ERROR_STACK * 2
+      )
+        return null;
+      return {
+        v: 1,
+        type: "error",
+        slide: m.slide as number,
+        kind: m.kind as ErrorKind,
+        name: cleanErrorText(m.name, MAX_ERROR_NAME),
+        message: cleanErrorText(m.message, MAX_ERROR_MESSAGE),
+        stack: cleanErrorText(m.stack, MAX_ERROR_STACK, true),
+        count: m.count,
+      };
     }
     case "preload": {
       const m = envelope(data, "preload", ["ok", "images", "fonts", "failed"]);

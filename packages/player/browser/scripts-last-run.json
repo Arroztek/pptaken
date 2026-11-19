@@ -1,11 +1,11 @@
 {
-  "date": "2026-11-18T19:15:19.276Z",
+  "date": "2026-11-18T22:59:13.799Z",
   "origins": {
-    "app": "http://localhost:59953",
-    "content": "http://127.0.0.1:59954",
-    "listener": "http://[::1]:59951",
-    "stun": 54261,
-    "turn": 59952
+    "app": "http://localhost:4101",
+    "content": "http://127.0.0.1:4102",
+    "listener": "http://[::1]:4099",
+    "stun": 52453,
+    "turn": 4100
   },
   "engines": {
     "chromium": {
@@ -42,7 +42,7 @@
           "ok": true,
           "slider": "11",
           "afterSlider": [
-            153,
+            149,
             0,
             0,
             "present"
@@ -58,7 +58,7 @@
           "id": "api.onStep-and-setSteps",
           "ok": true,
           "last": [
-            1537,
+            1553,
             0,
             1,
             "present"
@@ -72,6 +72,35 @@
             2,
             1
           ]
+        },
+        {
+          "id": "api.error-records-structured",
+          "ok": true,
+          "records": [
+            {
+              "kind": "script-load",
+              "slideId": "broken",
+              "slideIndex": 2,
+              "name": "SyntaxError",
+              "message": "Unexpected identifier 'is'",
+              "stack": "SyntaxError: Unexpected identifier 'is'",
+              "count": 1
+            },
+            {
+              "kind": "handler",
+              "slideId": "boom",
+              "slideIndex": 1,
+              "name": "Error",
+              "message": "x",
+              "stack": "at slide boom, line 1:33\nat <deck>:656:22\nat guarded (<deck>:605:1)",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "id": "api.error-records-name-author-lines",
+          "ok": true,
+          "stack": "at slide boom, line 1:33\nat <deck>:656:22\nat guarded (<deck>:605:1)"
         },
         {
           "id": "api.no-listener-hits",
@@ -561,6 +590,7 @@
           "ok": true,
           "r": null,
           "errors": [
+            -1,
             1
           ]
         },
@@ -685,7 +715,7 @@
           "ok": true,
           "positions": [
             [
-              56,
+              49,
               0,
               0,
               "present"
@@ -720,7 +750,7 @@
           "ok": true,
           "opens": 0,
           "last": [
-            1284,
+            1269,
             1,
             0,
             "present"
@@ -730,7 +760,7 @@
           "id": "proto.flood-rate-limited",
           "ok": true,
           "pressed": 60,
-          "elapsedMs": 54,
+          "elapsedMs": 48,
           "moves": 10,
           "worstPerSecond": 10
         },
@@ -738,8 +768,8 @@
           "id": "abuse.busy.documented-freeze",
           "ok": true,
           "gapMs": 8000,
-          "watchdogAtMs": 9029,
-          "fallbackAtMs": 8793,
+          "watchdogAtMs": 9039,
+          "fallbackAtMs": 8794,
           "responsiveMs": 3,
           "faults": [
             "unresponsive"
@@ -749,17 +779,32 @@
           "id": "abuse.busy.fallback-after-watchdog",
           "ok": true,
           "gapMs": 8000,
-          "watchdogAtMs": 9029,
-          "fallbackAtMs": 8793,
+          "watchdogAtMs": 9039,
+          "fallbackAtMs": 8794,
           "responsiveMs": 3,
           "faults": [
             "unresponsive"
           ]
         },
         {
+          "id": "abuse.busy.watchdog-error-record",
+          "ok": true,
+          "records": [
+            {
+              "kind": "watchdog",
+              "slideId": "a",
+              "slideIndex": 0,
+              "name": "Unresponsive",
+              "message": "The interactive code kept the page busy for more than 3 seconds (an endless or very long loop?), so the player closed it and showed the static version.",
+              "stack": "",
+              "count": 1
+            }
+          ]
+        },
+        {
           "id": "abuse.alloc.page-recovers",
           "ok": true,
-          "gapMs": 388,
+          "gapMs": 438,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
           "responsiveMs": 3,
@@ -777,10 +822,10 @@
         {
           "id": "abuse.dom.page-recovers",
           "ok": true,
-          "gapMs": 3661,
-          "watchdogAtMs": 4725,
-          "fallbackAtMs": 4732,
-          "responsiveMs": 3,
+          "gapMs": 3697,
+          "watchdogAtMs": 4776,
+          "fallbackAtMs": 4783,
+          "responsiveMs": 4,
           "faults": [
             "unresponsive"
           ]
@@ -788,12 +833,27 @@
         {
           "id": "abuse.dom.fallback-after-watchdog",
           "ok": true,
-          "gapMs": 3661,
-          "watchdogAtMs": 4725,
-          "fallbackAtMs": 4732,
-          "responsiveMs": 3,
+          "gapMs": 3697,
+          "watchdogAtMs": 4776,
+          "fallbackAtMs": 4783,
+          "responsiveMs": 4,
           "faults": [
             "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.dom.watchdog-error-record",
+          "ok": true,
+          "records": [
+            {
+              "kind": "watchdog",
+              "slideId": "a",
+              "slideIndex": 0,
+              "name": "Unresponsive",
+              "message": "The interactive code kept the page busy for more than 3 seconds (an endless or very long loop?), so the player closed it and showed the static version.",
+              "stack": "",
+              "count": 1
+            }
           ]
         }
       ],
@@ -821,7 +881,9 @@
           "hits": [],
           "udp": 0,
           "tcp": 0,
-          "errors": [],
+          "errors": [
+            0
+          ],
           "faults": []
         },
         "net.same": {
@@ -847,7 +909,9 @@
           "hits": [],
           "udp": 0,
           "tcp": 0,
-          "errors": [],
+          "errors": [
+            0
+          ],
           "faults": []
         },
         "nonce.cross": {
@@ -1002,6 +1066,7 @@
           "udp": 0,
           "tcp": 0,
           "errors": [
+            -1,
             1
           ],
           "faults": []
@@ -1050,21 +1115,21 @@
         },
         "flood": {
           "pressed": 60,
-          "elapsedMs": 54,
+          "elapsedMs": 48,
           "moves": 10,
           "worstPerSecond": 10
         },
         "abuse.busy": {
           "gapMs": 8000,
-          "watchdogAtMs": 9029,
-          "fallbackAtMs": 8793,
+          "watchdogAtMs": 9039,
+          "fallbackAtMs": 8794,
           "responsiveMs": 3,
           "faults": [
             "unresponsive"
           ]
         },
         "abuse.alloc": {
-          "gapMs": 388,
+          "gapMs": 438,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
           "responsiveMs": 3,
@@ -1078,10 +1143,10 @@
           "faults": []
         },
         "abuse.dom": {
-          "gapMs": 3661,
-          "watchdogAtMs": 4725,
-          "fallbackAtMs": 4732,
-          "responsiveMs": 3,
+          "gapMs": 3697,
+          "watchdogAtMs": 4776,
+          "fallbackAtMs": 4783,
+          "responsiveMs": 4,
           "faults": [
             "unresponsive"
           ]
@@ -1122,7 +1187,7 @@
           "ok": true,
           "slider": "11",
           "afterSlider": [
-            96,
+            207,
             0,
             0,
             "present"
@@ -1138,7 +1203,7 @@
           "id": "api.onStep-and-setSteps",
           "ok": true,
           "last": [
-            1778,
+            1643,
             0,
             1,
             "present"
@@ -1152,6 +1217,35 @@
             2,
             1
           ]
+        },
+        {
+          "id": "api.error-records-structured",
+          "ok": true,
+          "records": [
+            {
+              "kind": "script-load",
+              "slideId": "broken",
+              "slideIndex": 2,
+              "name": "SyntaxError",
+              "message": "Unexpected identifier 'is'",
+              "stack": "SyntaxError: Unexpected identifier 'is'",
+              "count": 1
+            },
+            {
+              "kind": "handler",
+              "slideId": "boom",
+              "slideIndex": 1,
+              "name": "Error",
+              "message": "x",
+              "stack": "at slide boom, line 1:33\nat <deck>:656:22\nat guarded (<deck>:605:1)",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "id": "api.error-records-name-author-lines",
+          "ok": true,
+          "stack": "at slide boom, line 1:33\nat <deck>:656:22\nat guarded (<deck>:605:1)"
         },
         {
           "id": "api.no-listener-hits",
@@ -1641,6 +1735,7 @@
           "ok": true,
           "r": null,
           "errors": [
+            -1,
             1
           ]
         },
@@ -1765,7 +1860,7 @@
           "ok": true,
           "positions": [
             [
-              89,
+              95,
               0,
               0,
               "present"
@@ -1800,7 +1895,7 @@
           "ok": true,
           "opens": 0,
           "last": [
-            1342,
+            1344,
             1,
             0,
             "present"
@@ -1810,7 +1905,7 @@
           "id": "proto.flood-rate-limited",
           "ok": true,
           "pressed": 60,
-          "elapsedMs": 58,
+          "elapsedMs": 62,
           "moves": 10,
           "worstPerSecond": 10
         },
@@ -1818,9 +1913,9 @@
           "id": "abuse.busy.contained",
           "ok": true,
           "gapMs": 22,
-          "watchdogAtMs": 3597,
-          "fallbackAtMs": 8781,
-          "responsiveMs": 3,
+          "watchdogAtMs": 3622,
+          "fallbackAtMs": 8785,
+          "responsiveMs": 4,
           "faults": [
             "unresponsive"
           ]
@@ -1829,11 +1924,26 @@
           "id": "abuse.busy.fallback-after-watchdog",
           "ok": true,
           "gapMs": 22,
-          "watchdogAtMs": 3597,
-          "fallbackAtMs": 8781,
-          "responsiveMs": 3,
+          "watchdogAtMs": 3622,
+          "fallbackAtMs": 8785,
+          "responsiveMs": 4,
           "faults": [
             "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.busy.watchdog-error-record",
+          "ok": true,
+          "records": [
+            {
+              "kind": "watchdog",
+              "slideId": "a",
+              "slideIndex": 0,
+              "name": "Unresponsive",
+              "message": "The interactive code kept the page busy for more than 3 seconds (an endless or very long loop?), so the player closed it and showed the static version.",
+              "stack": "",
+              "count": 1
+            }
           ]
         },
         {
@@ -1842,24 +1952,24 @@
           "gapMs": 22,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
-          "responsiveMs": 4,
+          "responsiveMs": 6,
           "faults": []
         },
         {
           "id": "abuse.raf.page-recovers",
           "ok": true,
-          "gapMs": 22,
+          "gapMs": 34,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
-          "responsiveMs": 3,
+          "responsiveMs": 6,
           "faults": []
         },
         {
           "id": "abuse.dom.page-recovers",
           "ok": true,
-          "gapMs": 22,
-          "watchdogAtMs": 3575,
-          "fallbackAtMs": 4746,
+          "gapMs": 29,
+          "watchdogAtMs": 3662,
+          "fallbackAtMs": 6416,
           "responsiveMs": 4,
           "faults": [
             "unresponsive"
@@ -1868,12 +1978,27 @@
         {
           "id": "abuse.dom.fallback-after-watchdog",
           "ok": true,
-          "gapMs": 22,
-          "watchdogAtMs": 3575,
-          "fallbackAtMs": 4746,
+          "gapMs": 29,
+          "watchdogAtMs": 3662,
+          "fallbackAtMs": 6416,
           "responsiveMs": 4,
           "faults": [
             "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.dom.watchdog-error-record",
+          "ok": true,
+          "records": [
+            {
+              "kind": "watchdog",
+              "slideId": "a",
+              "slideIndex": 0,
+              "name": "Unresponsive",
+              "message": "The interactive code kept the page busy for more than 3 seconds (an endless or very long loop?), so the player closed it and showed the static version.",
+              "stack": "",
+              "count": 1
+            }
           ]
         }
       ],
@@ -1901,7 +2026,9 @@
           "hits": [],
           "udp": 0,
           "tcp": 0,
-          "errors": [],
+          "errors": [
+            0
+          ],
           "faults": []
         },
         "net.same": {
@@ -1927,7 +2054,9 @@
           "hits": [],
           "udp": 0,
           "tcp": 0,
-          "errors": [],
+          "errors": [
+            0
+          ],
           "faults": []
         },
         "nonce.cross": {
@@ -2082,6 +2211,7 @@
           "udp": 0,
           "tcp": 0,
           "errors": [
+            -1,
             1
           ],
           "faults": []
@@ -2130,15 +2260,15 @@
         },
         "flood": {
           "pressed": 60,
-          "elapsedMs": 58,
+          "elapsedMs": 62,
           "moves": 10,
           "worstPerSecond": 10
         },
         "abuse.busy": {
           "gapMs": 22,
-          "watchdogAtMs": 3597,
-          "fallbackAtMs": 8781,
-          "responsiveMs": 3,
+          "watchdogAtMs": 3622,
+          "fallbackAtMs": 8785,
+          "responsiveMs": 4,
           "faults": [
             "unresponsive"
           ]
@@ -2147,20 +2277,20 @@
           "gapMs": 22,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
-          "responsiveMs": 4,
+          "responsiveMs": 6,
           "faults": []
         },
         "abuse.raf": {
-          "gapMs": 22,
+          "gapMs": 34,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
-          "responsiveMs": 3,
+          "responsiveMs": 6,
           "faults": []
         },
         "abuse.dom": {
-          "gapMs": 22,
-          "watchdogAtMs": 3575,
-          "fallbackAtMs": 4746,
+          "gapMs": 29,
+          "watchdogAtMs": 3662,
+          "fallbackAtMs": 6416,
           "responsiveMs": 4,
           "faults": [
             "unresponsive"
@@ -2202,7 +2332,7 @@
           "ok": true,
           "slider": "11",
           "afterSlider": [
-            497,
+            774,
             0,
             0,
             "present"
@@ -2218,7 +2348,7 @@
           "id": "api.onStep-and-setSteps",
           "ok": true,
           "last": [
-            1968,
+            2414,
             0,
             1,
             "present"
@@ -2232,6 +2362,35 @@
             2,
             1
           ]
+        },
+        {
+          "id": "api.error-records-structured",
+          "ok": true,
+          "records": [
+            {
+              "kind": "script-load",
+              "slideId": "broken",
+              "slideIndex": 2,
+              "name": "SyntaxError",
+              "message": "unexpected token: identifier",
+              "stack": "at <deck>:1010:6",
+              "count": 1
+            },
+            {
+              "kind": "handler",
+              "slideId": "boom",
+              "slideIndex": 1,
+              "name": "Error",
+              "message": "x",
+              "stack": "@slide boom, line 1:33\nnotifyAuthor/<@<deck>:656:24\nguarded@<deck>:605:1",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "id": "api.error-records-name-author-lines",
+          "ok": true,
+          "stack": "@slide boom, line 1:33\nnotifyAuthor/<@<deck>:656:24\nguarded@<deck>:605:1"
         },
         {
           "id": "api.no-listener-hits",
@@ -2721,7 +2880,8 @@
           "ok": true,
           "r": null,
           "errors": [
-            1
+            1,
+            0
           ]
         },
         {
@@ -2845,7 +3005,7 @@
           "ok": true,
           "positions": [
             [
-              119,
+              124,
               0,
               0,
               "present"
@@ -2880,7 +3040,7 @@
           "ok": true,
           "opens": 0,
           "last": [
-            1362,
+            1376,
             1,
             0,
             "present"
@@ -2890,17 +3050,17 @@
           "id": "proto.flood-rate-limited",
           "ok": true,
           "pressed": 60,
-          "elapsedMs": 103,
+          "elapsedMs": 98,
           "moves": 10,
           "worstPerSecond": 10
         },
         {
           "id": "abuse.busy.documented-freeze",
           "ok": true,
-          "gapMs": 8012,
-          "watchdogAtMs": 8764,
-          "fallbackAtMs": 8780,
-          "responsiveMs": 5,
+          "gapMs": 8011,
+          "watchdogAtMs": 8760,
+          "fallbackAtMs": 8773,
+          "responsiveMs": 9,
           "faults": [
             "unresponsive"
           ]
@@ -2908,18 +3068,33 @@
         {
           "id": "abuse.busy.fallback-after-watchdog",
           "ok": true,
-          "gapMs": 8012,
-          "watchdogAtMs": 8764,
-          "fallbackAtMs": 8780,
-          "responsiveMs": 5,
+          "gapMs": 8011,
+          "watchdogAtMs": 8760,
+          "fallbackAtMs": 8773,
+          "responsiveMs": 9,
           "faults": [
             "unresponsive"
           ]
         },
         {
+          "id": "abuse.busy.watchdog-error-record",
+          "ok": true,
+          "records": [
+            {
+              "kind": "watchdog",
+              "slideId": "a",
+              "slideIndex": 0,
+              "name": "Unresponsive",
+              "message": "The interactive code kept the page busy for more than 3 seconds (an endless or very long loop?), so the player closed it and showed the static version.",
+              "stack": "",
+              "count": 1
+            }
+          ]
+        },
+        {
           "id": "abuse.alloc.page-recovers",
           "ok": true,
-          "gapMs": 266,
+          "gapMs": 207,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
           "responsiveMs": 5,
@@ -2928,7 +3103,7 @@
         {
           "id": "abuse.raf.page-recovers",
           "ok": true,
-          "gapMs": 99,
+          "gapMs": 100,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
           "responsiveMs": 6,
@@ -2937,10 +3112,10 @@
         {
           "id": "abuse.dom.page-recovers",
           "ok": true,
-          "gapMs": 3860,
-          "watchdogAtMs": 4885,
-          "fallbackAtMs": 4899,
-          "responsiveMs": 5,
+          "gapMs": 3380,
+          "watchdogAtMs": 4440,
+          "fallbackAtMs": 4459,
+          "responsiveMs": 6,
           "faults": [
             "unresponsive"
           ]
@@ -2948,12 +3123,27 @@
         {
           "id": "abuse.dom.fallback-after-watchdog",
           "ok": true,
-          "gapMs": 3860,
-          "watchdogAtMs": 4885,
-          "fallbackAtMs": 4899,
-          "responsiveMs": 5,
+          "gapMs": 3380,
+          "watchdogAtMs": 4440,
+          "fallbackAtMs": 4459,
+          "responsiveMs": 6,
           "faults": [
             "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.dom.watchdog-error-record",
+          "ok": true,
+          "records": [
+            {
+              "kind": "watchdog",
+              "slideId": "a",
+              "slideIndex": 0,
+              "name": "Unresponsive",
+              "message": "The interactive code kept the page busy for more than 3 seconds (an endless or very long loop?), so the player closed it and showed the static version.",
+              "stack": "",
+              "count": 1
+            }
           ]
         }
       ],
@@ -2981,7 +3171,9 @@
           "hits": [],
           "udp": 0,
           "tcp": 0,
-          "errors": [],
+          "errors": [
+            0
+          ],
           "faults": []
         },
         "net.same": {
@@ -3007,7 +3199,9 @@
           "hits": [],
           "udp": 0,
           "tcp": 0,
-          "errors": [],
+          "errors": [
+            0
+          ],
           "faults": []
         },
         "nonce.cross": {
@@ -3162,7 +3356,8 @@
           "udp": 0,
           "tcp": 0,
           "errors": [
-            1
+            1,
+            0
           ],
           "faults": []
         },
@@ -3210,38 +3405,38 @@
         },
         "flood": {
           "pressed": 60,
-          "elapsedMs": 103,
+          "elapsedMs": 98,
           "moves": 10,
           "worstPerSecond": 10
         },
         "abuse.busy": {
-          "gapMs": 8012,
-          "watchdogAtMs": 8764,
-          "fallbackAtMs": 8780,
-          "responsiveMs": 5,
+          "gapMs": 8011,
+          "watchdogAtMs": 8760,
+          "fallbackAtMs": 8773,
+          "responsiveMs": 9,
           "faults": [
             "unresponsive"
           ]
         },
         "abuse.alloc": {
-          "gapMs": 266,
+          "gapMs": 207,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
           "responsiveMs": 5,
           "faults": []
         },
         "abuse.raf": {
-          "gapMs": 99,
+          "gapMs": 100,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
           "responsiveMs": 6,
           "faults": []
         },
         "abuse.dom": {
-          "gapMs": 3860,
-          "watchdogAtMs": 4885,
-          "fallbackAtMs": 4899,
-          "responsiveMs": 5,
+          "gapMs": 3380,
+          "watchdogAtMs": 4440,
+          "fallbackAtMs": 4459,
+          "responsiveMs": 6,
           "faults": [
             "unresponsive"
           ]
@@ -3282,7 +3477,7 @@
           "ok": true,
           "slider": "11",
           "afterSlider": [
-            546,
+            536,
             0,
             0,
             "present"
@@ -3298,7 +3493,7 @@
           "id": "api.onStep-and-setSteps",
           "ok": true,
           "last": [
-            2060,
+            2118,
             0,
             1,
             "present"
@@ -3312,6 +3507,35 @@
             2,
             1
           ]
+        },
+        {
+          "id": "api.error-records-structured",
+          "ok": true,
+          "records": [
+            {
+              "kind": "script-load",
+              "slideId": "broken",
+              "slideIndex": 2,
+              "name": "SyntaxError",
+              "message": "unexpected token: identifier",
+              "stack": "at <deck>:1010:6",
+              "count": 1
+            },
+            {
+              "kind": "handler",
+              "slideId": "boom",
+              "slideIndex": 1,
+              "name": "Error",
+              "message": "x",
+              "stack": "@slide boom, line 1:33\nnotifyAuthor/<@<deck>:656:24\nguarded@<deck>:605:1",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "id": "api.error-records-name-author-lines",
+          "ok": true,
+          "stack": "@slide boom, line 1:33\nnotifyAuthor/<@<deck>:656:24\nguarded@<deck>:605:1"
         },
         {
           "id": "api.no-listener-hits",
@@ -3801,7 +4025,8 @@
           "ok": true,
           "r": null,
           "errors": [
-            1
+            1,
+            0
           ]
         },
         {
@@ -3925,7 +4150,7 @@
           "ok": true,
           "positions": [
             [
-              155,
+              138,
               0,
               0,
               "present"
@@ -3960,7 +4185,7 @@
           "ok": true,
           "opens": 0,
           "last": [
-            1411,
+            1387,
             1,
             0,
             "present"
@@ -3977,10 +4202,10 @@
         {
           "id": "abuse.busy.documented-freeze",
           "ok": true,
-          "gapMs": 8007,
-          "watchdogAtMs": 8760,
-          "fallbackAtMs": 8773,
-          "responsiveMs": 4,
+          "gapMs": 8017,
+          "watchdogAtMs": 8752,
+          "fallbackAtMs": 8765,
+          "responsiveMs": 5,
           "faults": [
             "unresponsive"
           ]
@@ -3988,39 +4213,54 @@
         {
           "id": "abuse.busy.fallback-after-watchdog",
           "ok": true,
-          "gapMs": 8007,
-          "watchdogAtMs": 8760,
-          "fallbackAtMs": 8773,
-          "responsiveMs": 4,
+          "gapMs": 8017,
+          "watchdogAtMs": 8752,
+          "fallbackAtMs": 8765,
+          "responsiveMs": 5,
           "faults": [
             "unresponsive"
           ]
         },
         {
+          "id": "abuse.busy.watchdog-error-record",
+          "ok": true,
+          "records": [
+            {
+              "kind": "watchdog",
+              "slideId": "a",
+              "slideIndex": 0,
+              "name": "Unresponsive",
+              "message": "The interactive code kept the page busy for more than 3 seconds (an endless or very long loop?), so the player closed it and showed the static version.",
+              "stack": "",
+              "count": 1
+            }
+          ]
+        },
+        {
           "id": "abuse.alloc.page-recovers",
           "ok": true,
-          "gapMs": 243,
+          "gapMs": 214,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
-          "responsiveMs": 4,
+          "responsiveMs": 6,
           "faults": []
         },
         {
           "id": "abuse.raf.page-recovers",
           "ok": true,
-          "gapMs": 100,
+          "gapMs": 104,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
-          "responsiveMs": 4,
+          "responsiveMs": 5,
           "faults": []
         },
         {
           "id": "abuse.dom.page-recovers",
           "ok": true,
-          "gapMs": 3157,
-          "watchdogAtMs": 4113,
-          "fallbackAtMs": 4123,
-          "responsiveMs": 5,
+          "gapMs": 3914,
+          "watchdogAtMs": 5000,
+          "fallbackAtMs": 5017,
+          "responsiveMs": 6,
           "faults": [
             "unresponsive"
           ]
@@ -4028,12 +4268,27 @@
         {
           "id": "abuse.dom.fallback-after-watchdog",
           "ok": true,
-          "gapMs": 3157,
-          "watchdogAtMs": 4113,
-          "fallbackAtMs": 4123,
-          "responsiveMs": 5,
+          "gapMs": 3914,
+          "watchdogAtMs": 5000,
+          "fallbackAtMs": 5017,
+          "responsiveMs": 6,
           "faults": [
             "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.dom.watchdog-error-record",
+          "ok": true,
+          "records": [
+            {
+              "kind": "watchdog",
+              "slideId": "a",
+              "slideIndex": 0,
+              "name": "Unresponsive",
+              "message": "The interactive code kept the page busy for more than 3 seconds (an endless or very long loop?), so the player closed it and showed the static version.",
+              "stack": "",
+              "count": 1
+            }
           ]
         }
       ],
@@ -4061,7 +4316,9 @@
           "hits": [],
           "udp": 0,
           "tcp": 0,
-          "errors": [],
+          "errors": [
+            0
+          ],
           "faults": []
         },
         "net.same": {
@@ -4087,7 +4344,9 @@
           "hits": [],
           "udp": 0,
           "tcp": 0,
-          "errors": [],
+          "errors": [
+            0
+          ],
           "faults": []
         },
         "nonce.cross": {
@@ -4242,7 +4501,8 @@
           "udp": 0,
           "tcp": 0,
           "errors": [
-            1
+            1,
+            0
           ],
           "faults": []
         },
@@ -4295,33 +4555,33 @@
           "worstPerSecond": 10
         },
         "abuse.busy": {
-          "gapMs": 8007,
-          "watchdogAtMs": 8760,
-          "fallbackAtMs": 8773,
-          "responsiveMs": 4,
+          "gapMs": 8017,
+          "watchdogAtMs": 8752,
+          "fallbackAtMs": 8765,
+          "responsiveMs": 5,
           "faults": [
             "unresponsive"
           ]
         },
         "abuse.alloc": {
-          "gapMs": 243,
+          "gapMs": 214,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
-          "responsiveMs": 4,
+          "responsiveMs": 6,
           "faults": []
         },
         "abuse.raf": {
-          "gapMs": 100,
+          "gapMs": 104,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
-          "responsiveMs": 4,
+          "responsiveMs": 5,
           "faults": []
         },
         "abuse.dom": {
-          "gapMs": 3157,
-          "watchdogAtMs": 4113,
-          "fallbackAtMs": 4123,
-          "responsiveMs": 5,
+          "gapMs": 3914,
+          "watchdogAtMs": 5000,
+          "fallbackAtMs": 5017,
+          "responsiveMs": 6,
           "faults": [
             "unresponsive"
           ]
@@ -4362,7 +4622,7 @@
           "ok": true,
           "slider": "11",
           "afterSlider": [
-            173,
+            178,
             0,
             0,
             "present"
@@ -4378,7 +4638,7 @@
           "id": "api.onStep-and-setSteps",
           "ok": true,
           "last": [
-            1598,
+            1600,
             0,
             1,
             "present"
@@ -4392,6 +4652,35 @@
             2,
             1
           ]
+        },
+        {
+          "id": "api.error-records-structured",
+          "ok": true,
+          "records": [
+            {
+              "kind": "script-load",
+              "slideId": "broken",
+              "slideIndex": 2,
+              "name": "",
+              "message": "Script error.",
+              "stack": "",
+              "count": 1
+            },
+            {
+              "kind": "handler",
+              "slideId": "boom",
+              "slideIndex": 1,
+              "name": "Error",
+              "message": "x",
+              "stack": "@slide boom, line 1:42\nguarded@<deck>:605:4\nnotifyAuthor@<deck>:656:8",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "id": "api.error-records-name-author-lines",
+          "ok": true,
+          "stack": "@slide boom, line 1:42\nguarded@<deck>:605:4\nnotifyAuthor@<deck>:656:8"
         },
         {
           "id": "api.no-listener-hits",
@@ -4881,7 +5170,8 @@
           "ok": true,
           "r": null,
           "errors": [
-            1
+            1,
+            0
           ]
         },
         {
@@ -5005,7 +5295,7 @@
           "ok": true,
           "positions": [
             [
-              120,
+              115,
               0,
               0,
               "present"
@@ -5040,7 +5330,7 @@
           "ok": true,
           "opens": 0,
           "last": [
-            1365,
+            1357,
             1,
             0,
             "present"
@@ -5050,17 +5340,17 @@
           "id": "proto.flood-rate-limited",
           "ok": true,
           "pressed": 60,
-          "elapsedMs": 174,
+          "elapsedMs": 127,
           "moves": 10,
           "worstPerSecond": 10
         },
         {
           "id": "abuse.busy.documented-freeze",
           "ok": true,
-          "gapMs": 8042,
-          "watchdogAtMs": 9034,
-          "fallbackAtMs": 8815,
-          "responsiveMs": 6,
+          "gapMs": 8048,
+          "watchdogAtMs": 9040,
+          "fallbackAtMs": 8834,
+          "responsiveMs": 4,
           "faults": [
             "unresponsive"
           ]
@@ -5068,27 +5358,42 @@
         {
           "id": "abuse.busy.fallback-after-watchdog",
           "ok": true,
-          "gapMs": 8042,
-          "watchdogAtMs": 9034,
-          "fallbackAtMs": 8815,
-          "responsiveMs": 6,
+          "gapMs": 8048,
+          "watchdogAtMs": 9040,
+          "fallbackAtMs": 8834,
+          "responsiveMs": 4,
           "faults": [
             "unresponsive"
           ]
         },
         {
+          "id": "abuse.busy.watchdog-error-record",
+          "ok": true,
+          "records": [
+            {
+              "kind": "watchdog",
+              "slideId": "a",
+              "slideIndex": 0,
+              "name": "Unresponsive",
+              "message": "The interactive code kept the page busy for more than 3 seconds (an endless or very long loop?), so the player closed it and showed the static version.",
+              "stack": "",
+              "count": 1
+            }
+          ]
+        },
+        {
           "id": "abuse.alloc.page-recovers",
           "ok": true,
-          "gapMs": 271,
+          "gapMs": 189,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
-          "responsiveMs": 6,
+          "responsiveMs": 5,
           "faults": []
         },
         {
           "id": "abuse.raf.page-recovers",
           "ok": true,
-          "gapMs": 49,
+          "gapMs": 62,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
           "responsiveMs": 5,
@@ -5097,10 +5402,10 @@
         {
           "id": "abuse.dom.page-recovers",
           "ok": true,
-          "gapMs": 2955,
-          "watchdogAtMs": 4782,
-          "fallbackAtMs": 4794,
-          "responsiveMs": 3,
+          "gapMs": 3404,
+          "watchdogAtMs": 5369,
+          "fallbackAtMs": 5431,
+          "responsiveMs": 6,
           "faults": [
             "unresponsive"
           ]
@@ -5108,12 +5413,27 @@
         {
           "id": "abuse.dom.fallback-after-watchdog",
           "ok": true,
-          "gapMs": 2955,
-          "watchdogAtMs": 4782,
-          "fallbackAtMs": 4794,
-          "responsiveMs": 3,
+          "gapMs": 3404,
+          "watchdogAtMs": 5369,
+          "fallbackAtMs": 5431,
+          "responsiveMs": 6,
           "faults": [
             "unresponsive"
+          ]
+        },
+        {
+          "id": "abuse.dom.watchdog-error-record",
+          "ok": true,
+          "records": [
+            {
+              "kind": "watchdog",
+              "slideId": "a",
+              "slideIndex": 0,
+              "name": "Unresponsive",
+              "message": "The interactive code kept the page busy for more than 3 seconds (an endless or very long loop?), so the player closed it and showed the static version.",
+              "stack": "",
+              "count": 1
+            }
           ]
         }
       ],
@@ -5141,7 +5461,9 @@
           "hits": [],
           "udp": 0,
           "tcp": 0,
-          "errors": [],
+          "errors": [
+            0
+          ],
           "faults": []
         },
         "net.same": {
@@ -5167,7 +5489,9 @@
           "hits": [],
           "udp": 0,
           "tcp": 0,
-          "errors": [],
+          "errors": [
+            0
+          ],
           "faults": []
         },
         "nonce.cross": {
@@ -5322,7 +5646,8 @@
           "udp": 0,
           "tcp": 0,
           "errors": [
-            1
+            1,
+            0
           ],
           "faults": []
         },
@@ -5370,38 +5695,38 @@
         },
         "flood": {
           "pressed": 60,
-          "elapsedMs": 174,
+          "elapsedMs": 127,
           "moves": 10,
           "worstPerSecond": 10
         },
         "abuse.busy": {
-          "gapMs": 8042,
-          "watchdogAtMs": 9034,
-          "fallbackAtMs": 8815,
-          "responsiveMs": 6,
+          "gapMs": 8048,
+          "watchdogAtMs": 9040,
+          "fallbackAtMs": 8834,
+          "responsiveMs": 4,
           "faults": [
             "unresponsive"
           ]
         },
         "abuse.alloc": {
-          "gapMs": 271,
+          "gapMs": 189,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
-          "responsiveMs": 6,
+          "responsiveMs": 5,
           "faults": []
         },
         "abuse.raf": {
-          "gapMs": 49,
+          "gapMs": 62,
           "watchdogAtMs": null,
           "fallbackAtMs": null,
           "responsiveMs": 5,
           "faults": []
         },
         "abuse.dom": {
-          "gapMs": 2955,
-          "watchdogAtMs": 4782,
-          "fallbackAtMs": 4794,
-          "responsiveMs": 3,
+          "gapMs": 3404,
+          "watchdogAtMs": 5369,
+          "fallbackAtMs": 5431,
+          "responsiveMs": 6,
           "faults": [
             "unresponsive"
           ]

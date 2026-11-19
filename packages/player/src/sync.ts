@@ -6,8 +6,10 @@
 //   hello {}             a window joined; the others answer with their position (nav) and black screen (black)
 //   nav {slide, step}    this window moved (by its own input); the others follow without echoing it back
 //   black {on}           black screen on/off
-//   script-error {slide} the main window's author script of this slide failed (interactive mode, ADR-020): the
-//                        presenter view shows a discreet notice; the audience screen shows nothing
+//   script-error {slide} the main window's author script of this slide failed (interactive mode, ADR-020; -1:
+//                        the deck script or unknown): the presenter view shows an actionable notice (ADR-023);
+//                        the audience screen shows nothing. No error text travels here.
+//   script-stopped {}    the main window's watchdog closed a frozen scripted frame and showed the static version
 //
 // The channel never carries notes or anything else from the presenter data: only positions.
 
@@ -19,7 +21,8 @@ export type SyncMessage =
   | { v: 1; type: "hello" }
   | { v: 1; type: "nav"; slide: number; step: number }
   | { v: 1; type: "black"; on: boolean }
-  | { v: 1; type: "script-error"; slide: number };
+  | { v: 1; type: "script-error"; slide: number }
+  | { v: 1; type: "script-stopped" };
 
 /** Channel names: `pptaken:` plus a deck key (ULIDs and test keys fit). */
 export const SYNC_CHANNEL_PATTERN = /^pptaken:[A-Za-z0-9_-]{1,64}$/;
@@ -47,9 +50,11 @@ export function parseSyncMessage(data: unknown): SyncMessage | null {
     }
     case "script-error": {
       const m = envelope(data, "script-error", ["slide"]);
-      if (!m || !isBoundedInt(m.slide, MAX_SLIDES - 1)) return null;
-      return { v: 1, type: "script-error", slide: m.slide };
+      if (!m || (m.slide !== -1 && !isBoundedInt(m.slide, MAX_SLIDES - 1))) return null;
+      return { v: 1, type: "script-error", slide: m.slide as number };
     }
+    case "script-stopped":
+      return envelope(data, "script-stopped", []) ? { v: 1, type: "script-stopped" } : null;
     default:
       return null;
   }

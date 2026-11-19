@@ -21,6 +21,12 @@ import { keyCodeOf } from "./keys.js";
 import { lockdown } from "./lockdown.js";
 import {
   type ContentMessage,
+  cleanErrorText,
+  type ErrorKind,
+  MAX_ERROR_COUNT,
+  MAX_ERROR_MESSAGE,
+  MAX_ERROR_NAME,
+  MAX_ERROR_STACK,
   MAX_PRELOAD_FAILED,
   MAX_STEPS,
   type Mode,
@@ -92,11 +98,36 @@ interface AuthorHooks {
 type AuthorSetup = (slide: unknown) => void;
 const registered = new Map<string, AuthorSetup>();
 const hooks = new Map<number, AuthorHooks>();
-const errorsBySlide = new Map<number, number>();
 let setupDone = false;
 /** The slide whose author code is running (setup or callback), for error attribution. */
 let runningSlide = -1;
 let entered = -1;
+
+// Error capture (ADR-023). Captured before any author code exists; author code shares this realm, so everything
+// here is best effort and the shell validates and cleans every field again.
+const currentScriptOf = Object.getOwnPropertyDescriptor(Document.prototype, "currentScript")?.get;
+const getAttribute = Element.prototype.getAttribute;
+const docUrl = String(doc.URL);
+/** Distinct errors kept by the runtime, messages sent at most. */
+const MAX_DISTINCT_ERRORS = 20;
+const MAX_ERROR_POSTS = 200;
+interface CapturedError {
+  /** Slide id, `deck`, or null when it is not known (resolved to -1). */
+  slideId: string | null;
+  kind: ErrorKind;
+  name: string;
+  message: string;
+  stack: string;
+  count: number;
+  /** Count at the last post (0: never sent). */
+  sent: number;
+}
+const captured = new Map<string, CapturedError>();
+let errorPosts = 0;
+/** Slides (by id) whose script failed while loading: reported by the error event, not again at init. */
+const loadFailed = new Set<string>();
+/** Where each author script starts in the document: `[line, slide id or "deck"]`, ascending. */
+let scriptStarts: [number, string][] = [];
 
 if (scriptMode) {
   lockdown(win, doc);
@@ -113,10 +144,183 @@ if (scriptMode) {
     enumerable: false,
     configurable: false,
   });
-  // Heartbeat for the shell's watchdog: a busy author script stops it.
-  startTimer(() => post({ v: PROTOCOL_VERSION, type: "beat" }), 1000);
-  win.addEventListener("error", () => reportError(runningSlide >= 0 ? runningSlide : current));
-  win.addEventListener("unhandledrejection", () => reportError(current));
+  // Heartbeat for the shell's watchdog (a busy author script stops it); repeated errors are flushed with it.
+  startTimer(() => {
+    post({ v: PROTOCOL_VERSION, type: "beat" });
+    flushErrors();
+  }, 1000);
+  // Only real (isTrusted) events: author code can dispatch synthetic ones. Registered first, so they run first.
+  win.addEventListener("error", (event) => {
+    if (!event.isTrusted) return;
+    const script = currentScriptOf ? apply(currentScriptOf, doc, []) : null;
+    const owner =
+      script instanceof Element
+        ? (apply(getAttribute, script, ["data-pptaken-for"]) as string | null)
+        : null;
+    if (owner !== null && !setupDone) {
+      // A script that did not parse or threw at its top level (the deck script included).
+      loadFailed.add(owner);
+      capture(owner, "script-load", event.error, event);
+      return;
+    }
+    const slide = runningSlide >= 0 ? runningSlide : current;
+    capture(
+      slides[slide]?.id ?? null,
+      setupDone ? "handler" : "script-load",
+      event.error,
+      event,
+      runningSlide < 0,
+    );
+  });
+  // No isTrusted check here: WebKit dispatches real rejection events as untrusted. A synthetic one only lets author
+  // code report an error it could also throw for real (the same caps apply).
+  win.addEventListener("unhandledrejection", (event) => {
+    capture(slides[current]?.id ?? null, "rejection", event.reason, undefined, true);
+  });
+  // An inline handler (`el.setAttribute("onclick", …)`), a <script> or a worker the policy refused: no exception
+  // reaches author code, so this is the only trace. String evaluation is left out (its keyword is the blocked URI):
+  // it also throws, and that error is reported.
+  win.addEventListener("securitypolicyviolation", (event) => {
+    if (!event.isTrusted) return;
+    const directive = String(event.effectiveDirective || event.violatedDirective || "");
+    const blocked = String(event.blockedURI || "");
+    if (!/^(script-src|worker-src)/.test(directive)) return;
+    if (blocked !== "inline" && !blocked.includes(":")) return;
+    const inline = blocked === "inline";
+    capture(slides[runningSlide >= 0 ? runningSlide : current]?.id ?? null, "handler", {
+      name: "SecurityPolicyViolation",
+      message: inline
+        ? `Blocked by the content security policy (${directive}): inline code or an on* attribute. Use addEventListener.`
+        : `Blocked by the content security policy (${directive}): a script or worker that is not part of the approved code.`,
+    });
+  });
+}
+
+/** `name`, `message` and the first stack lines of anything thrown (never throws itself). */
+function describeError(
+  value: unknown,
+  event?: ErrorEvent,
+): { name: string; message: string; stack: string } {
+  let name = "";
+  let message = "";
+  let stack = "";
+  try {
+    if (typeof value === "object" && value !== null) {
+      const e = value as { name?: unknown; message?: unknown; stack?: unknown };
+      if (typeof e.name === "string") name = e.name;
+      if (typeof e.message === "string") message = e.message;
+      if (typeof e.stack === "string") stack = e.stack;
+    } else if (value !== undefined && value !== null) {
+      message = typeof value === "string" ? value : String(value);
+    }
+  } catch {
+    // A hostile getter or toString: keep what we have.
+  }
+  try {
+    if (message === "" && event && typeof event.message === "string") {
+      message = event.message.replace(/^Uncaught (?:exception: )?/, "");
+      const m = /^([A-Za-z]*Error): (.*)$/.exec(message);
+      if (m && name === "") [, name, message] = m as unknown as [string, string, string];
+    }
+    // V8 stacks start with "Name: message" (possibly several lines): keep only the frames when there are any.
+    let lines = stack.split("\n").filter((l) => l.trim() !== "");
+    const frames = lines.filter((l) => /^\s*at |@/.test(l));
+    if (frames.length > 0) lines = frames;
+    stack = lines.slice(0, 3).map(authorLines).join("\n");
+    if (stack === "" && event && event.lineno > 0) {
+      stack = authorLines(`at ${docUrl}:${event.lineno}:${event.colno}`);
+    }
+  } catch {
+    stack = "";
+  }
+  return { name, message, stack };
+}
+
+/**
+ * This document in stack frames: its URL without query or fragment (engines differ in whether frames keep the
+ * query), then anything up to `:line:column`. Query strings never contain a colon (signed tokens are base64url).
+ */
+const docFrame = new RegExp(
+  `${(docUrl.split(/[?#]/)[0] ?? "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[^\\s:)]*:(\\d+):(\\d+)`,
+  "g",
+);
+
+/** Rewrites `<document URL>:line:column` into the author's own position (`slide intro, line 3:14`). */
+function authorLines(line: string): string {
+  return line.replace(docFrame, (whole: string, l: string, c: string) => {
+    const docLine = Number(l);
+    let at: [number, string] | undefined;
+    for (const s of scriptStarts) if (s[0] <= docLine) at = s;
+    if (at === undefined) return whole;
+    // Slide scripts: the wrapper line is the <script> line, so the author's line 1 is the next one.
+    const own = at[1] === "deck" ? docLine - at[0] + 1 : docLine - at[0];
+    const where = at[1] === "deck" ? "deck script" : `slide ${at[1]}`;
+    return `${where}, line ${Math.max(own, 1)}:${c}`;
+  });
+}
+
+/**
+ * Records an author error and sends it (new) or its count (repeat, at the next beat). `fromStack`: errors that
+ * reach a window event (handlers, timers, rejections) are attributed to the slide their first author frame names,
+ * when there is one, rather than to the slide on screen.
+ */
+function capture(
+  slideId: string | null,
+  kind: ErrorKind,
+  value: unknown,
+  event?: ErrorEvent,
+  fromStack = false,
+): void {
+  try {
+    const d = describeError(value, event);
+    if (fromStack) {
+      const named = /(?:^|\s|@)slide ([a-z0-9-]{1,40}), line /.exec(d.stack);
+      if (named?.[1] && slides.some((s) => s.id === named[1])) slideId = named[1];
+      else if (/(?:^|\s|@)deck script, line /.test(d.stack)) slideId = "deck";
+    }
+    const name = cleanErrorText(d.name, MAX_ERROR_NAME);
+    const message = cleanErrorText(d.message, MAX_ERROR_MESSAGE);
+    const key = `${kind}\u0000${slideId ?? ""}\u0000${name}\u0000${message}`;
+    const prior = captured.get(key);
+    if (prior) {
+      if (prior.count < MAX_ERROR_COUNT) prior.count++;
+      return;
+    }
+    if (captured.size >= MAX_DISTINCT_ERRORS) return;
+    captured.set(key, {
+      slideId,
+      kind,
+      name,
+      message,
+      stack: cleanErrorText(d.stack, MAX_ERROR_STACK, true),
+      count: 1,
+      sent: 0,
+    });
+    flushErrors();
+  } catch {
+    // Reporting must never break the deck.
+  }
+}
+
+/** Sends every error whose count changed since it was last sent (only after `ready`: the shell needs the deck). */
+function flushErrors(): void {
+  if (!readySent) return;
+  for (const e of captured.values()) {
+    if (e.count === e.sent || errorPosts >= MAX_ERROR_POSTS) continue;
+    errorPosts++;
+    e.sent = e.count;
+    const index = e.slideId === null ? -1 : slides.findIndex((s) => s.id === e.slideId);
+    post({
+      v: PROTOCOL_VERSION,
+      type: "error",
+      slide: index,
+      kind: e.kind,
+      name: e.name,
+      message: e.message,
+      stack: e.stack,
+      count: e.count,
+    });
+  }
 }
 
 function post(message: ContentMessage): void {
@@ -128,28 +332,16 @@ function post(message: ContentMessage): void {
   shell.postMessage(message, "*");
 }
 
-/** Reports an author error of `slide` (at most 5 per slide; no text crosses the boundary). */
-function reportError(slide: number): void {
-  if (slide < 0 || slide >= slides.length) return;
-  const count = (errorsBySlide.get(slide) ?? 0) + 1;
-  errorsBySlide.set(slide, count);
-  if (count > 5) return;
-  // The shell only knows the deck after `ready`: errors of the setup phase wait for it.
-  if (readySent) post({ v: PROTOCOL_VERSION, type: "error", slide });
-  else earlyErrors.push(slide);
-}
-
 let readySent = false;
-const earlyErrors: number[] = [];
 
-/** Runs author code for `slide`, catching and reporting anything it throws. */
-function guarded(slide: number, run: () => void): void {
+/** Runs author code for `slide`, catching and reporting anything it throws (`setup` or `handler`). */
+function guarded(slide: number, run: () => void, kind: ErrorKind = "handler"): void {
   const previous = runningSlide;
   runningSlide = slide;
   try {
     run();
-  } catch {
-    reportError(slide);
+  } catch (error) {
+    capture(slides[slide]?.id ?? null, kind, error);
   } finally {
     runningSlide = previous;
   }
@@ -176,7 +368,7 @@ function runAuthorSetups(): void {
         }
       },
     });
-    guarded(index, () => setup(api));
+    guarded(index, () => setup(api), "setup");
   });
   setupDone = true;
 }
@@ -437,13 +629,32 @@ function init(): void {
     }
   }
   if (scriptMode) {
-    runAuthorSetups();
-    // A slide whose script never registered failed to parse or threw at the top level.
-    slides.forEach((view, index) => {
-      if (view.section.hasAttribute("data-pptaken-script") && !registered.has(view.id)) {
-        reportError(index);
+    try {
+      for (const s of doc.querySelectorAll("script[data-pptaken-for][data-pptaken-line]")) {
+        const line = Number(s.getAttribute("data-pptaken-line"));
+        const owner = s.getAttribute("data-pptaken-for");
+        if (owner !== null && Number.isInteger(line) && line > 0) scriptStarts.push([line, owner]);
       }
-    });
+      scriptStarts = scriptStarts.sort((a, b) => a[0] - b[0]);
+    } catch {
+      // Line mapping is a convenience; tampered DOM APIs only cost it.
+    }
+    runAuthorSetups();
+    // A slide whose script never registered failed to parse or threw at the top level; when the error event did
+    // not already say why (blocked by the policy, or an engine without currentScript), say that it did not run.
+    for (const view of slides) {
+      if (
+        view.section.hasAttribute("data-pptaken-script") &&
+        !registered.has(view.id) &&
+        !loadFailed.has(view.id)
+      ) {
+        capture(view.id, "script-load", {
+          name: "ScriptNotRun",
+          message:
+            "The slide script did not run: it has a syntax error, threw before it started, or was blocked.",
+        });
+      }
+    }
   }
   fit();
   show(0, 0, false);
@@ -455,7 +666,8 @@ function init(): void {
     height,
   });
   readySent = true;
-  for (const slide of earlyErrors.splice(0)) post({ v: PROTOCOL_VERSION, type: "error", slide });
+  // Errors of the load and setup phase waited for `ready` (the shell only knows the deck after it).
+  if (scriptMode) flushErrors();
   void preload();
 }
 

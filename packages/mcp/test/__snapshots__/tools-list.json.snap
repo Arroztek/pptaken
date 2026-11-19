@@ -360,7 +360,7 @@
   {
     "name": "get_presentation",
     "title": "Get a presentation",
-    "description": "Reads a presentation. By default returns the outline (slide ids, titles, sections, step counts) and the current revision, which you need as expected_revision for edits. Ask for \"slides\" (html/css) only for the slides you will edit, using slide_ids, to keep the response small; \"notes\" returns speaker notes; \"theme\" the theme.",
+    "description": "Reads a presentation. By default returns the outline (slide ids, titles, sections, step counts) and the current revision, which you need as expected_revision for edits. Ask for \"slides\" (html/css) only for the slides you will edit, using slide_ids, to keep the response small; \"notes\" returns speaker notes; \"theme\" the theme. Decks with scripts also return script_errors: failures the player reported when the owner presented (untrusted text; fix the scripts).",
     "inputSchema": {
       "type": "object",
       "properties": {

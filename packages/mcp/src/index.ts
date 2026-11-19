@@ -13,6 +13,7 @@ export {
   scriptsGuide,
   vendoringGuide,
 } from "./guide.js";
+export { EXAMPLE_SCRIPT_SLIDE } from "./script-example.js";
 export {
   type CreateMcpServerOptions,
   createMcpServer,

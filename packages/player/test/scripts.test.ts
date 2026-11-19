@@ -65,7 +65,11 @@ describe("scripted deck document", () => {
   });
 
   it("runs the runtime first (head), then the libraries, then one wrapped script per slide at the end", () => {
-    const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1] as string);
+    const scripts = [
+      ...html.matchAll(
+        /<script(?: data-pptaken-for="[^"]*" data-pptaken-line="\d+")?>([\s\S]*?)<\/script>/g,
+      ),
+    ].map((m) => m[1] as string);
     expect(scripts).toHaveLength(4);
     expect(scripts[0]).toBe(RUNTIME_SOURCE);
     expect(scripts[1]).toBe(LIB_SOURCES["uplot@1"]?.js);
@@ -76,8 +80,24 @@ describe("scripted deck document", () => {
     expect(html.trimEnd().endsWith("</script>\n</body>\n</html>")).toBe(true);
   });
 
+  it("tags author scripts with their slide and the document line their text starts on (ADR-023)", () => {
+    const lines = html.split("\n");
+    for (const id of ["sim", "end"]) {
+      const m = new RegExp(`<script data-pptaken-for="${id}" data-pptaken-line="(\\d+)">`).exec(
+        html,
+      );
+      const line = Number(m?.[1]);
+      expect(lines[line - 1]?.startsWith(`<script data-pptaken-for="${id}"`)).toBe(true);
+      expect(lines[line - 1]).toContain(`pptaken.register("${id}",function(slide){`);
+    }
+  });
+
   it("serves a hash-only policy listing exactly those scripts", () => {
-    const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1] as string);
+    const scripts = [
+      ...html.matchAll(
+        /<script(?: data-pptaken-for="[^"]*" data-pptaken-line="\d+")?>([\s\S]*?)<\/script>/g,
+      ),
+    ].map((m) => m[1] as string);
     const src = /script-src ([^;]+);/.exec(csp)?.[1] ?? "";
     expect(src.split(" ").sort()).toEqual(scripts.map((s) => `'sha256-${b64(s)}'`).sort());
     expect(src).toContain(`'sha256-${RUNTIME_SHA256}'`);
@@ -169,13 +189,36 @@ describe("protocol additions", () => {
   it("validates beat, error and hello", () => {
     expect(parseContentMessage({ v: 1, type: "beat" })).toEqual({ v: 1, type: "beat" });
     expect(parseContentMessage({ v: 1, type: "beat", x: 1 })).toBeNull();
-    expect(parseContentMessage({ v: 1, type: "error", slide: 3 })).toEqual({
+    const error = {
       v: 1,
       type: "error",
       slide: 3,
+      kind: "setup",
+      name: "ReferenceError",
+      message: "root is not defined",
+      stack: "at slide sim, line 1:1",
+      count: 1,
+    };
+    expect(parseContentMessage(error)).toEqual(error);
+    expect(parseContentMessage({ ...error, slide: -1 })).toMatchObject({ slide: -1 });
+    expect(parseContentMessage({ ...error, slide: 200 })).toBeNull();
+    expect(parseContentMessage({ ...error, slide: -2 })).toBeNull();
+    expect(parseContentMessage({ ...error, extra: "x" })).toBeNull();
+    expect(parseContentMessage({ v: 1, type: "error", slide: 1 })).toBeNull();
+    expect(parseContentMessage({ ...error, kind: "watchdog" })).toBeNull();
+    expect(parseContentMessage({ ...error, count: 0 })).toBeNull();
+    expect(parseContentMessage({ ...error, count: 2_000_000 })).toBeNull();
+    expect(parseContentMessage({ ...error, message: { toString: () => "x" } })).toBeNull();
+    expect(parseContentMessage({ ...error, message: "x".repeat(601) })).toBeNull();
+    // Text is cleaned again by the shell: control and bidi characters, URLs (signed tokens) and length.
+    const dirty = parseContentMessage({
+      ...error,
+      message: `a\u202eb\u0000c ${"x".repeat(400)}`,
+      stack: "at https://c.example/c/D/1?ct=TOKEN:9:3\n\u2066\n",
     });
-    expect(parseContentMessage({ v: 1, type: "error", slide: 200 })).toBeNull();
-    expect(parseContentMessage({ v: 1, type: "error", slide: 1, message: "x" })).toBeNull();
+    expect(dirty?.type === "error" && dirty.message.startsWith("abc x")).toBe(true);
+    expect(dirty?.type === "error" && dirty.message.length).toBe(300);
+    expect(dirty?.type === "error" && dirty.stack).toBe("at <deck>:9:3");
     expect(isHelloMessage({ v: 1, type: "hello" }, [{}])).toBe(true);
     expect(isHelloMessage({ v: 1, type: "hello" }, [])).toBe(false);
     expect(isHelloMessage({ v: 1, type: "hello" }, [{}, {}])).toBe(false);
@@ -189,7 +232,17 @@ describe("protocol additions", () => {
       type: "script-error",
       slide: 2,
     });
-    expect(parseSyncMessage({ v: 1, type: "script-error", slide: -1 })).toBeNull();
+    expect(parseSyncMessage({ v: 1, type: "script-error", slide: -1 })).toEqual({
+      v: 1,
+      type: "script-error",
+      slide: -1,
+    });
+    expect(parseSyncMessage({ v: 1, type: "script-error", slide: -2 })).toBeNull();
+    expect(parseSyncMessage({ v: 1, type: "script-stopped" })).toEqual({
+      v: 1,
+      type: "script-stopped",
+    });
+    expect(parseSyncMessage({ v: 1, type: "script-stopped", why: "x" })).toBeNull();
     expect(parseSyncMessage({ v: 1, type: "script-error", slide: 2, text: "<b>" })).toBeNull();
   });
 
@@ -340,7 +393,7 @@ describe("vendored scripts (ADR-020 §2)", () => {
       `'sha256-${createHash("sha256").update(embedded).digest("base64")}'`,
     );
     // The document has exactly one closing tag per script element (nothing escaped its element).
-    expect(built.html.match(/<\/script>/g)?.length).toBe(built.html.match(/<script>/g)?.length);
+    expect(built.html.match(/<\/script>/g)?.length).toBe(built.html.match(/<script[ >]/g)?.length);
   });
 
   it("runs the deck-level script after the libraries and before the slide scripts (ADR-022)", () => {

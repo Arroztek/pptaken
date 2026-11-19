@@ -56,6 +56,10 @@
     "./offline-client": {
       "types": "./dist/offline-client.d.ts",
       "default": "./dist/offline-client.js"
+    },
+    "./error-report": {
+      "types": "./dist/error-report.d.ts",
+      "default": "./dist/error-report.js"
     }
   },
   "files": [

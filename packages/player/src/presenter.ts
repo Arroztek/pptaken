@@ -32,7 +32,7 @@ import {
   slideTimes,
 } from "./pace.js";
 import type { PresenterData } from "./presenter-data.js";
-import { PROTOCOL_VERSION, type SlideInfo } from "./protocol.js";
+import { cleanErrorText, PROTOCOL_VERSION, type SlideInfo } from "./protocol.js";
 import { createPlayer, type Player } from "./shell.js";
 import { openSync, type Sync } from "./sync.js";
 
@@ -67,6 +67,16 @@ export interface PresenterOptions {
    * runs from the offline copy. Shown here only, never on the audience screen.
    */
   interactiveNotice?: string | undefined;
+  /**
+   * The deck's id (ADR-023): with `deckPageUrl`, the script notices offer "Copy a message for my agent" with the
+   * deck's title and id. Pass both only when the viewer is the signed-in owner.
+   */
+  deckId?: string | undefined;
+  /**
+   * Same-origin URL of the deck's page in the owner panel (for example `/decks/<id>`). The actionable script
+   * notices link to its Script errors block (`#script-errors`) or its approval section (`#scripts`) in a new tab.
+   */
+  deckPageUrl?: string | undefined;
   /**
    * Called by `finish()` after the black screen is sent, before the window tries to close itself. Default: none.
    */
@@ -201,7 +211,16 @@ export const PRESENTER_CSS = `
 .pp-sections tr[data-state=upcoming]{color:#A3A9B8}
 .pp-black{position:fixed;left:24px;bottom:24px;margin:0;padding:8px 12px;border-radius:6px;background:#000;color:#F2EFE9;border:1px solid #8B8FA0}
 .pp-offline{display:flex;align-items:center;gap:8px;color:#A3A9B8;font-size:.875rem}
-.pp-script-error{color:#FF9F43;font-size:.875rem}
+.pp-notice{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin:0;padding:10px 14px;border-radius:6px;border:1px solid rgba(255,178,36,.5);background:rgba(255,178,36,.08);color:#F2EFE9;font-size:.875rem;line-height:1.45}
+.pp-notice[data-kind=error],.pp-notice[data-kind=stopped]{border-color:rgba(255,159,67,.6);background:rgba(255,159,67,.10)}
+.pp-notice__text{flex:1 1 42ch;margin:0}
+.pp-notice__what{display:block;color:#FFB224;font-weight:600}
+.pp-notice__do{display:block;color:#F2EFE9}
+.pp-notice__actions{display:flex;flex-wrap:wrap;gap:8px}
+.pp-notice__actions a,.pp-notice__actions button{display:inline-flex;align-items:center;min-height:36px;padding:0 12px;border-radius:6px;border:1px solid #3A3F4B;background:#20242D;color:#F2EFE9;font:500 .8125rem/1 Inter,system-ui,sans-serif;text-decoration:none;cursor:pointer}
+.pp-notice__actions a:hover,.pp-notice__actions button:hover{border-color:#8B8FA0}
+.pp-notice__manual{flex-basis:100%;margin:0;padding:8px;border-radius:4px;background:#0F1115;font:.8125rem/1.4 "JetBrains Mono",ui-monospace,monospace;white-space:pre-wrap;user-select:all}
+.pp-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .pp-interactive{color:#FFB224;font-size:.875rem;max-width:36ch}
 .pp-offline i{flex:none;width:8px;height:8px;border-radius:50%}
 .pp-endcue{margin:0;color:#A3A9B8;font:500 .875rem/1.3 "JetBrains Mono",ui-monospace,monospace}
@@ -222,6 +241,16 @@ function el<K extends keyof HTMLElementTagNameMap>(
   if (className) e.className = className;
   if (text) e.textContent = text;
   return e;
+}
+
+/**
+ * The ready-to-paste sentence for the owner's agent (ADR-023): the deck's title (owner data, cleaned of control and
+ * bidi characters, at most 120 characters) and id, and what to do. Never any error text.
+ */
+export function agentMessage(t: Labels, title: string, deckId: string): string {
+  const clean = cleanErrorText(title, 120) || "?";
+  const id = /^[0-9A-Za-z_-]{1,64}$/.test(deckId) ? deckId : "?";
+  return t.agentMessage.replace("{title}", clean).replace("{id}", id);
 }
 
 function deltaText(pace: Pace, t: Labels): string {
@@ -263,10 +292,90 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
   const offlineDot = el(doc, "i");
   const offlineText = el(doc, "span");
   offlineEl.append(offlineDot, offlineText);
-  // Interactive mode: author script errors on the audience screen are reported here only (never on the canvas).
-  const scriptNotice = el(doc, "div", "pp-script-error");
+  // Interactive mode (ADR-023): why the audience screen is static or partly broken, what to do, and where, reported
+  // here only (never on the canvas). One pattern for every case: what happened, what to do next, a link to the
+  // deck's page and, for errors, a ready-to-paste message for the owner's agent. No error text ever appears here.
+  const scriptNotice = el(doc, "div", "pp-notice");
   scriptNotice.setAttribute("role", "status");
+  scriptNotice.setAttribute("data-pptaken-script-notice", "");
   scriptNotice.hidden = true;
+  let deckPage: URL | null = null;
+  if (options.deckPageUrl !== undefined) {
+    deckPage = new URL(options.deckPageUrl, doc.baseURI);
+    if (deckPage.origin !== win.location.origin)
+      throw new TypeError("deckPageUrl must be same-origin");
+  }
+  type NoticeKind = "stopped" | "error" | "pending" | "off";
+  const NOTICE_RANK: Record<NoticeKind, number> = { stopped: 4, error: 3, pending: 2, off: 1 };
+  let noticeKind: NoticeKind | null = null;
+  const showScriptNotice = (kind: NoticeKind, slide: number | null): void => {
+    if (noticeKind !== null && NOTICE_RANK[noticeKind] > NOTICE_RANK[kind]) return;
+    if (noticeKind === kind && kind !== "error") return;
+    noticeKind = kind;
+    scriptNotice.dataset.kind = kind;
+    if (slide !== null) scriptNotice.dataset.slide = String(slide);
+    const what =
+      kind === "stopped"
+        ? t.noticeStoppedWhat
+        : kind === "error"
+          ? slide !== null && slide >= 0
+            ? `${t.noticeErrorWhat} (${t.slide} ${slide + 1})`
+            : t.noticeErrorWhat
+          : kind === "pending"
+            ? t.noticePendingWhat
+            : t.noticeOffWhat;
+    const todo =
+      kind === "pending" ? t.noticePendingDo : kind === "off" ? t.noticeOffDo : t.noticeFixDo;
+    const text = el(doc, "p", "pp-notice__text");
+    text.append(el(doc, "span", "pp-notice__what", what), el(doc, "span", "pp-notice__do", todo));
+    const row = el(doc, "div", "pp-notice__actions");
+    if (deckPage !== null && kind !== "off") {
+      const link = el(doc, "a");
+      const target = new URL(deckPage.href);
+      target.hash = kind === "pending" ? "scripts" : "script-errors";
+      link.href = target.href;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.setAttribute("data-pptaken-notice-link", "");
+      link.append(
+        doc.createTextNode(kind === "pending" ? t.noticeOpenReview : t.noticeOpenErrors),
+        el(doc, "span", "pp-sr", ` ${t.newTab}`),
+      );
+      row.append(link);
+    }
+    const children: Node[] = [text, row];
+    if (
+      deckPage !== null &&
+      options.deckId !== undefined &&
+      (kind === "error" || kind === "stopped")
+    ) {
+      const message = agentMessage(t, data.title, options.deckId);
+      const copy = el(doc, "button", "", t.noticeCopy);
+      copy.type = "button";
+      copy.setAttribute("data-pptaken-notice-copy", "");
+      copy.addEventListener("click", () => {
+        const done = () => {
+          copy.textContent = t.noticeCopied;
+          setTimeout(() => {
+            copy.textContent = t.noticeCopy;
+          }, 2000);
+        };
+        const failed = () => {
+          copy.textContent = t.noticeCopyFailed;
+          if (!scriptNotice.querySelector(".pp-notice__manual")) {
+            scriptNotice.append(el(doc, "p", "pp-notice__manual", message));
+          }
+        };
+        const clip = win.navigator.clipboard;
+        if (clip && typeof clip.writeText === "function")
+          clip.writeText(message).then(done, failed);
+        else failed();
+      });
+      row.append(copy);
+    }
+    scriptNotice.replaceChildren(...children);
+    scriptNotice.hidden = false;
+  };
   const interactiveEl = el(doc, "div", "pp-interactive");
   interactiveEl.setAttribute("role", "status");
   interactiveEl.setAttribute("data-pptaken-interactive-notice", "");
@@ -327,8 +436,10 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
     notesEl,
   );
   main.append(left, right);
-  bar.append(pos, endCue, clockBox, offlineEl, interactiveEl, scriptNotice, actions);
+  bar.append(pos, endCue, clockBox, offlineEl, interactiveEl, actions);
   if (panelLink) bar.append(panelLink);
+  bar.append(scriptNotice); // a full-width row of its own
+  if (data.scripts === "pending" || data.scripts === "off") showScriptNotice(data.scripts, null);
   shell.append(bar, main, blackEl, finishedEl);
   root.replaceChildren(shell);
   const showPace = hasPace(plan) || plan.sections.some((s) => s.name !== null);
@@ -579,9 +690,11 @@ export function createPresenter(root: HTMLElement, options: PresenterOptions): P
         return;
       }
       if (message.type === "script-error") {
-        scriptNotice.hidden = false;
-        scriptNotice.textContent = `${t.scriptError} (${t.slide} ${message.slide + 1})`;
-        scriptNotice.dataset.slide = String(message.slide);
+        showScriptNotice("error", message.slide);
+        return;
+      }
+      if (message.type === "script-stopped") {
+        showScriptNotice("stopped", null);
         return;
       }
       remote = true;

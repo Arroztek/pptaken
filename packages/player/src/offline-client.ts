@@ -40,6 +40,11 @@ export interface ContentSource {
   scripts?: ScriptsMode;
   /** With `scripts: "running"`: the slide ids and canvas the shell must find in `ready`. */
   expect?: { slides: string[]; width: number; height: number };
+  /**
+   * With `scripts: "running"` on an owner page: the scripts digest the document was signed for (ADR-023). Script
+   * errors are reported against it.
+   */
+  digest?: string;
   /** Guest pages (ADR-021): the unlock token sent was refused (expired, deck edited, password changed). */
   unlockRejected?: boolean;
 }
@@ -98,6 +103,7 @@ export async function loadContent(
       url?: unknown;
       scripts?: unknown;
       expect?: unknown;
+      digest?: unknown;
       unlockRejected?: unknown;
     };
     if (typeof body.url !== "string") throw new Error("content-url: no url");
@@ -111,6 +117,9 @@ export async function loadContent(
       // Script mode without the server's expectations would trust the frame's `ready`: refuse it.
       if (expected === undefined) throw new Error("content-url: script mode without expect");
       source.expect = expected;
+      if (typeof body.digest === "string" && /^[0-9a-f]{64}$/.test(body.digest)) {
+        source.digest = body.digest;
+      }
     }
     return source;
   } catch (error) {

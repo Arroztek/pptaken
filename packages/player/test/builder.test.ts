@@ -231,8 +231,9 @@ describe("runtime source", () => {
     // It never parses HTML itself: "innerHTML" appears only as a property name the script-mode lockdown wraps.
     expect(RUNTIME_SOURCE).not.toMatch(/\beval\b|\.innerHTML\b|new Function/);
     // F1 was about 5 KB; F3 (overview layout, select, mode ack, offline preload) about 10 KB; the script-mode
-    // lockdown, port handshake and author API (ADR-020) must keep it under 22 KB.
-    expect(Buffer.byteLength(RUNTIME_SOURCE)).toBeLessThan(22 * 1024);
+    // lockdown, port handshake and author API (ADR-020) about 21 KB; error capture with author line numbers
+    // (ADR-023) must keep it under 26 KB.
+    expect(Buffer.byteLength(RUNTIME_SOURCE)).toBeLessThan(26 * 1024);
     // It parses as a script.
     expect(() => new Function(RUNTIME_SOURCE)).not.toThrow();
   });
