@@ -4,19 +4,32 @@
 import { type Locale, readTheme, type ThemeChoice } from "@pptaken/ui";
 import { api, type CreatedToken, type SetupStatus } from "./api";
 import { isAppPath, normalizePath } from "./router";
-import { initialLocale, LANG_KEY, readStored, SIDEBAR_KEY, writeStored } from "./storage";
+import { DEV_KEY, initialLocale, LANG_KEY, readStored, SIDEBAR_KEY, writeStored } from "./storage";
 import { createWebTranslator, type Key, type Vars } from "./translate";
 
 // ------------------------------------------------------------ preferences
 
-export const prefs = $state<{ locale: Locale; theme: ThemeChoice; refocusLang: boolean }>({
+export const prefs = $state<{
+  locale: Locale;
+  theme: ThemeChoice;
+  refocusLang: boolean;
+  /** Developer details (Settings): technical detail everywhere. Per browser, default off. */
+  dev: boolean;
+}>({
   locale: initialLocale(
     readStored(LANG_KEY),
     typeof navigator === "undefined" ? [] : navigator.languages,
   ),
   theme: readTheme("system"),
   refocusLang: false,
+  dev: readStored(DEV_KEY) === "on",
 });
+
+/** Turns Developer details on or off for this browser (remembered when storage allows it). */
+export function setDeveloperMode(on: boolean): void {
+  prefs.dev = on;
+  writeStored(DEV_KEY, on ? "on" : "off");
+}
 
 let translator = createWebTranslator(prefs.locale);
 

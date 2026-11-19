@@ -32,7 +32,7 @@ export {
 } from "./components/ThemeToggle.svelte";
 export { default as Toast } from "./components/Toast.svelte";
 export { default as ToastRegion } from "./components/ToastRegion.svelte";
-export { type ToastItem, toast } from "./components/toast-queue.svelte";
+export { type ToastAction, type ToastItem, toast } from "./components/toast-queue.svelte";
 export {
   createTranslator,
   type Dictionary,

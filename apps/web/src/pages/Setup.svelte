@@ -18,7 +18,7 @@
 
   const codeError = $derived(submitted && !installCode.trim() ? t("setup.codeRequired") : "");
   const passwordError = $derived.by(() => {
-    if (serverError?.code === "VALIDATION_ERROR") return serverError.hint ?? t("setup.weakPassword");
+    if (serverError?.code === "VALIDATION_ERROR") return t("setup.weakPassword");
     return submitted && password.length < MIN ? t("setup.tooShort") : "";
   });
   const confirmError = $derived(submitted && confirm !== password ? t("setup.mismatch") : "");

@@ -1,7 +1,14 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!--
+  /decks: the presentations. Each card: a thumbnail, the title, one quiet line (slides · edited), at most ONE chip
+  and only when something needs the owner (needs your OK, had a problem), Present, and a "More" menu (Details,
+  Download, Move to trash). Deleting asks once, then a toast offers Undo. The empty state says what to do next.
+  Server error text is never shown as-is (Developer details adds it under the plain sentence).
+-->
 <script lang="ts">
-  import { Button, DeckCard, Dialog, EmptyState, Icon, Notice } from "@pptaken/ui";
+  import { Button, Dialog, EmptyState, Icon, Notice, toast } from "@pptaken/ui";
   import { onDestroy, onMount } from "svelte";
+  import ActionMenu from "../components/ActionMenu.svelte";
   import CopyButton from "../components/CopyButton.svelte";
   import PageLayout from "../components/PageLayout.svelte";
   import {
@@ -18,11 +25,11 @@
   import { errorMessage } from "../lib/errors";
   import { debounce, describeWhen } from "../lib/format";
   import { countOfflineCopies, forgetOfflineCopies } from "../lib/offline";
-  import { handleAuthError, prefs, t } from "../lib/state.svelte";
+  import { handleAuthError, navigate, prefs, t } from "../lib/state.svelte";
   import { checkImportFile, groupWarnings, IMPORT_ACCEPT, importKindOf } from "../lib/transfer";
   import type { Key } from "../lib/translate";
 
-  // Export: one dialog for the deck whose menu was opened.
+  // Download: one dialog for the deck whose menu was used.
   let exportDeck = $state<DeckSummary | null>(null);
   let exportOpen = $state(false);
   let htmlNotes = $state(false);
@@ -32,6 +39,47 @@
     exportOpen = true;
   }
 
+  // Delete: a short friendly confirmation, then Undo in a toast.
+  let deleteDeck = $state<DeckSummary | null>(null);
+  let deleteOpen = $state(false);
+  let deleting = $state(false);
+  let actionError = $state("");
+  function askDelete(deck: DeckSummary) {
+    deleteDeck = deck;
+    deleteOpen = true;
+  }
+
+  async function confirmDelete() {
+    const deck = deleteDeck;
+    if (!deck) return;
+    deleting = true;
+    actionError = "";
+    try {
+      await api.trashDeck(deck.id);
+      deleteOpen = false;
+      decks = decks.filter((d) => d.id !== deck.id);
+      toast.show(t("decks.deletedToast", { title: deck.title }), {
+        icon: "trash",
+        action: { label: t("decks.undo"), run: () => undoDelete(deck) },
+      });
+    } catch (e) {
+      deleteOpen = false;
+      if (!handleAuthError(e)) actionError = errorMessage(e, t);
+    } finally {
+      deleting = false;
+    }
+  }
+
+  async function undoDelete(deck: DeckSummary) {
+    try {
+      await api.restoreDeck(deck.id);
+      toast.show(t("decks.restoredToast", { title: deck.title }));
+      await load(shownQuery);
+    } catch (e) {
+      if (!handleAuthError(e)) actionError = t("decks.actionError");
+    }
+  }
+
   // Import: a dialog explains what can be imported, then a hidden file input; one upload at a time.
   let fileInput: HTMLInputElement | undefined = $state();
   let importOpen = $state(false);
@@ -39,7 +87,7 @@
   let importingKind = $state<ImportKind>("archive");
   let progress = $state<ImportProgress | null>(null);
   let imported = $state<ImportResult | null>(null);
-  let importError = $state<{ title: string; text: string } | null>(null);
+  let importError = $state<{ title: string; text: string; detail: string | null } | null>(null);
   const warningGroups = $derived(imported ? groupWarnings(imported.warnings) : []);
 
   function chooseFile() {
@@ -60,6 +108,7 @@
             : problem === "legacyPpt"
               ? t("transfer.legacyPpt")
               : t("transfer.wrongType"),
+        detail: null,
       };
       return;
     }
@@ -75,14 +124,15 @@
       await load("");
     } catch (e) {
       if (handleAuthError(e)) return;
-      // The server explains what is wrong with the archive (English); other codes get the usual message.
+      // Plain words always; the server's own (English, technical) explanation only with Developer details.
+      const validation = e instanceof ApiError && e.code === "VALIDATION_ERROR";
       const detail =
-        e instanceof ApiError && e.code === "VALIDATION_ERROR" && e.message
-          ? e.hint
-            ? `${e.message}. ${e.hint}`
-            : e.message
-          : errorMessage(e, t);
-      importError = { title: t("transfer.importFailed", { name: file.name }), text: detail };
+        validation && e.message ? (e.hint ? `${e.message}. ${e.hint}` : e.message) : null;
+      importError = {
+        title: t("transfer.importFailed", { name: file.name }),
+        text: validation ? t("transfer.importFailedText") : errorMessage(e, t),
+        detail,
+      };
     } finally {
       importing = null;
       progress = null;
@@ -169,7 +219,14 @@
     const when = describeWhen(deck.updatedAt, prefs.locale, now);
     const edited =
       when.kind === "relative" ? t("decks.edited", { ago: when.text }) : t("decks.editedOn", { date: when.text });
-    return `${slides} · ${t("decks.revision", { n: deck.revision })} · ${edited}`;
+    return `${slides} · ${edited}`;
+  }
+
+  /** The one chip a card may show, only when something needs the owner. */
+  function attention(deck: DeckSummary): "needsOk" | "problems" | null {
+    if (deck.scripts === "pending") return "needsOk";
+    if (deck.scripts === "approved" && (deck.scriptErrors ?? 0) > 0) return "problems";
+    return null;
   }
 
   const empty = $derived(!loading && !error && decks.length === 0 && shownQuery === "" && query.trim() === "");
@@ -182,7 +239,7 @@
   );
 </script>
 
-<PageLayout title={t("decks.title")} subtitle={t("decks.subtitle")} actions={!empty && !loading ? headActions : undefined}>
+<PageLayout title={t("decks.title")} subtitle={t("decks.lead")} actions={!empty && !loading ? headActions : undefined}>
   <input
     bind:this={fileInput}
     class="ppt-sr-only"
@@ -212,11 +269,18 @@
     </div>
   {/if}
   {#if importError}
-    <Notice tone="danger" title={importError.title} text={importError.text} ondismiss={() => (importError = null)} />
+    <Notice tone="danger" title={importError.title} text={importError.text} ondismiss={() => (importError = null)}>
+      {#if prefs.dev && importError.detail}
+        <p class="dev-line">{t("dev.importDetail", { text: importError.detail })}</p>
+      {/if}
+    </Notice>
+  {/if}
+  {#if actionError}
+    <Notice tone="danger" title={actionError} ondismiss={() => (actionError = "")} />
   {/if}
   {#if imported}
     <Notice
-      tone={imported.warnings.length === 0 ? "success" : "warning"}
+      tone="success"
       title={t("transfer.importedTitle", { title: imported.deck.title })}
       text={imported.warnings.length === 0
         ? t("transfer.importedClean")
@@ -240,7 +304,7 @@
         </div>
       {/if}
       <p class="import-open">
-        <a class="ppt-btn ppt-btn--secondary ppt-btn--sm" href="/p/{encodeURIComponent(imported.deck.id)}" target="_blank" rel="noopener"
+        <a class="ppt-btn ppt-btn--secondary ppt-btn--sm" href="/decks/{encodeURIComponent(imported.deck.id)}"
           >{t("transfer.openDeck")}</a
         >
       </p>
@@ -254,7 +318,7 @@
   {/if}
 
   {#if empty}
-    <EmptyState title={t("decks.emptyTitle")} text={t("decks.emptyText")}>
+    <EmptyState title={t("decks.noneTitle")} text={t("decks.noneText")}>
       {#snippet art()}
         <svg class="ppt-empty__art" viewBox="0 0 240 160" fill="none" aria-hidden="true"
           ><path d="M111 15H129L178 131H62Z" fill="#FFB224" fill-opacity=".22" /><ellipse
@@ -283,9 +347,17 @@
         >
       {/snippet}
       {#snippet actions()}
-        <CopyButton variant="primary" label={t("welcome.copyExample")} text={t("decks.examplePrompt")} />
-        <Button variant="ghost" href="/welcome">{t("decks.connectAnother")}</Button>
-        {@render importButton("ghost")}
+        <div class="example-prompt">
+          <p class="example-prompt__text" data-testid="example-prompt">{t("decks.examplePrompt")}</p>
+          <div class="row">
+            <CopyButton variant="primary" label={t("decks.copyExample")} text={t("decks.examplePrompt")} />
+            <Button variant="ghost" href="/welcome">{t("decks.connectClaude")}</Button>
+          </div>
+          <div class="row empty-more">
+            {@render importButton("ghost")}
+            <a class="ppt-link ppt-small" href="/trash">{t("decks.trashLink")}</a>
+          </div>
+        </div>
       {/snippet}
     </EmptyState>
   {:else}
@@ -317,55 +389,49 @@
         {/snippet}
       </EmptyState>
     {:else}
-      <div class="deck-grid" aria-busy={loading}>
+      <!-- A list that reads like a well-set index: title, one quiet line, at most one chip, Present and More. -->
+      <ul class="deck-list" aria-busy={loading} data-testid="deck-list">
         {#each decks as deck (deck.id)}
-          <DeckCard
-            title={deck.title}
-            href="/decks/{encodeURIComponent(deck.id)}"
-            presentHref="/p/{encodeURIComponent(deck.id)}"
-            newTab
-            titleNewTab={false}
-            meta={meta(deck)}
-            onmore={() => openExport(deck)}
-          >
-            {#snippet thumbnail()}
-              <div class="thumb" lang={deck.lang ?? undefined} aria-hidden="true">
-                <span class="thumb__rule"></span>
-                <span class="thumb__title">{deck.title}</span>
-              </div>
-              <span class="ppt-badge ppt-deck__badge" class:badge-agent={deck.createdBy === "agent"}>
-                <span class="ppt-badge__dot" aria-hidden="true"></span>
-                {deck.createdBy === "agent" ? t("decks.byAgent") : t("decks.byOwner")}
-              </span>
-              {#if deck.scripts === "pending" || deck.scripts === "approved"}
-                {@const failing = deck.scripts === "approved" && (deck.scriptErrors ?? 0) > 0}
-                <span
-                  class="ppt-badge deck-interactive"
-                  class:badge-ok={deck.scripts === "approved" && !failing}
-                  class:badge-pending={deck.scripts === "pending" || failing}
-                  data-scripts={deck.scripts}
-                  data-script-errors={failing ? deck.scriptErrors : undefined}
-                >
-                  <span class="ppt-badge__dot" aria-hidden="true"></span>
-                  {failing
-                    ? deck.scriptErrors === 1
-                      ? t("decks.interactiveErrorsOne")
-                      : t("decks.interactiveErrors", { n: deck.scriptErrors ?? 0 })
-                    : deck.scripts === "approved"
-                      ? t("decks.interactiveApproved")
-                      : t("decks.interactivePending")}
-                </span>
-              {/if}
-            {/snippet}
-          </DeckCard>
+          {@const chip = attention(deck)}
+          <li class="deck-row" data-id={deck.id}>
+            <div class="deck-row__text">
+              <h2 class="deck-row__title" lang={deck.lang ?? undefined}>
+                <a href="/decks/{encodeURIComponent(deck.id)}">{deck.title}</a>
+              </h2>
+              <p class="deck-row__meta">
+                <span>{meta(deck)}</span>
+                {#if chip}
+                  <a class="deck-chip" data-chip={chip} data-scripts={deck.scripts}
+                    href={chip === "needsOk" ? `/decks/${encodeURIComponent(deck.id)}/approve` : `/decks/${encodeURIComponent(deck.id)}`}>
+                    <span class="ppt-dot ppt-dot--warning" aria-hidden="true"></span>{chip === "needsOk" ? t("decks.chipNeedsOk") : t("decks.chipProblems")}</a>
+                {/if}
+              </p>
+            </div>
+            <div class="deck-row__actions">
+              <Button size="sm" variant="secondary" icon="play" href="/p/{encodeURIComponent(deck.id)}" target="_blank"
+                >{t("decks.present")}<span class="ppt-sr-only"> {deck.title} {t("deck.newTab")}</span></Button
+              >
+              <ActionMenu
+                label={t("decks.moreFor", { title: deck.title })}
+                items={[
+                  { id: "open", label: t("decks.menuOpen"), icon: "info", run: () => navigate(`/decks/${encodeURIComponent(deck.id)}`) },
+                  { id: "download", label: t("decks.menuDownload"), icon: "download", run: () => openExport(deck) },
+                  { id: "delete", label: t("decks.menuDelete"), icon: "trash", danger: true, run: () => askDelete(deck) },
+                ]}
+              />
+            </div>
+          </li>
         {/each}
-      </div>
+      </ul>
       {#if nextCursor}
         <div class="load-more">
           <Button variant="secondary" loading={loadingMore} onclick={loadMore}>{t("decks.loadMore")}</Button>
         </div>
       {/if}
     {/if}
+    <p class="list-foot">
+      <a class="ppt-link ppt-small" href="/trash"><Icon name="trash" size={16} />{t("decks.trashLink")}</a>
+    </p>
   {/if}
   {#if offlineCopies > 0}
     <p class="offline-copies ppt-muted">
@@ -376,13 +442,20 @@
 </PageLayout>
 
 {#snippet headActions()}
-  <CopyButton label={t("welcome.copyExample")} text={t("decks.examplePrompt")} />
   {@render importButton("secondary")}
 {/snippet}
 
 {#snippet importButton(variant: "secondary" | "ghost")}
   <Button {variant} loading={importing !== null} onclick={() => (importOpen = true)}>{t("transfer.import")}</Button>
 {/snippet}
+
+<Dialog bind:open={deleteOpen} title={deleteDeck ? t("decks.deleteTitle", { title: deleteDeck.title }) : ""}>
+  <p>{t("decks.deleteText")}</p>
+  {#snippet actions()}
+    <Button variant="secondary" onclick={() => (deleteOpen = false)}>{t("common.cancel")}</Button>
+    <Button variant="danger" icon="trash" loading={deleting} onclick={confirmDelete}>{t("decks.deleteConfirm")}</Button>
+  {/snippet}
+</Dialog>
 
 <Dialog bind:open={importOpen} title={t("transfer.importTitle")}>
   <div class="export-options">
@@ -429,6 +502,9 @@
           >
         </div>
       </section>
+      {#if exportDeck.scripts && exportDeck.scripts !== "none"}
+        <p class="ppt-muted ppt-small">{t("transfer.simpleNote")}</p>
+      {/if}
     </div>
   {/if}
 </Dialog>

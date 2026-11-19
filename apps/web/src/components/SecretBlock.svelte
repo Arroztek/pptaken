@@ -28,10 +28,10 @@
     variant="ghost"
     size="sm"
     aria-controls="{uid}-value"
-    aria-label={revealed ? t("connect.hide") : t("connect.showLabel", { name: label })}
+    aria-label={revealed ? t("devConnect.hide") : t("devConnect.showLabel", { name: label })}
     onclick={() => (revealed = !revealed)}
   >
-    {revealed ? t("connect.hide") : t("connect.show")}
+    {revealed ? t("devConnect.hide") : t("devConnect.show")}
   </Button>
   <CopyButton text={secret} label={t("common.copy")} size="sm" describedby="{uid}-value" />
 {/snippet}

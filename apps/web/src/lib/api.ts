@@ -149,6 +149,18 @@ const deckSummary = object({
   scriptErrors: optionalNull(count),
 });
 const deckPage = object({ decks: arrayOf(deckSummary), nextCursor: nullable(str) });
+/** A presentation in the trash: when it went and until when it can come back. */
+const trashedDeck = object({
+  id: str,
+  title: str,
+  lang: nullable(str),
+  slideCount: count,
+  deletedAt: nullable(isoDate),
+  restorableUntil: isoDate,
+});
+const trashPage = object({ decks: arrayOf(trashedDeck), nextCursor: nullable(str) });
+const trashResult = object({ id: str, trashed: bool, restorableUntil: isoDate });
+const settings = object({ autoApproveUpdates: bool, scripts: optionalNull(str) });
 export const VENDOR_KINDS = ["script", "stylesheet", "font", "image"] as const;
 /** Provenance of one vendored external resource (ADR-022). URLs are shown as text, never followed. */
 const vendoredResource = object({
@@ -230,6 +242,12 @@ const statusShape = {
   deckScript: optionalNull(bool),
   libs: arrayOf(vendoredScript),
   chars: count,
+  /** ADR-024 trust lineage; absent from older servers. */
+  approvalMode: optionalNull(oneOf(["owner", "auto"] as const)),
+  ownerApproved: optionalNull(bool),
+  /** Libraries of the current code never allowed for this deck: they always need the owner's click. */
+  newLibs: optionalNull(arrayOf(vendoredScript)),
+  previousRevision: optionalNull(count),
   capability: object({
     contentOrigin: oneOf(["same-origin", "same-site", "separate-site"] as const),
     separateSiteContent: bool,
@@ -245,6 +263,16 @@ const scriptsReview = object({
   /** Static check of the scripts (ADR-023): syntax errors, a bare `root`, blocked APIs. Absent from older servers. */
   checks: optionalNull(arrayOf(scriptCheck)),
   presenterPassword: object({ set: bool }),
+  /** ADR-024: the code an automatic approval replaced ("Review changes"). */
+  previous: optionalNull(
+    object({
+      revision: count,
+      sources: arrayOf(scriptSource),
+      deckSource: optionalNull(object({ source: str, sha256: digest, bytes: count })),
+      libs: arrayOf(vendoredScript),
+    }),
+  ),
+  autoApproveUpdates: optionalNull(bool),
 });
 // Script error visibility (ADR-023). Every text field was produced by code running in the sandboxed frame:
 // untrusted, shown ONLY as text (Svelte text interpolation, never {@html}).
@@ -346,6 +374,8 @@ export type ConnectStatus = Infer<typeof connectStatus>;
 export type DeckSummary = Infer<typeof deckSummary>;
 export type DeckPage = Infer<typeof deckPage>;
 export type DeckDetail = Infer<typeof deckDetail>;
+export type TrashedDeck = Infer<typeof trashedDeck>;
+export type Settings = Infer<typeof settings>;
 export type ScriptsStatus = Infer<typeof scriptsStatus>;
 export type ScriptsReview = Infer<typeof scriptsReview>;
 export type ScriptSource = Infer<typeof scriptSource>;
@@ -457,7 +487,7 @@ export type Session = "signed-in" | "signed-out" | "setup-required";
 
 // ------------------------------------------------------------------ client
 
-type Method = "GET" | "POST" | "DELETE";
+type Method = "GET" | "POST" | "PUT" | "DELETE";
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
 export interface ApiClient {
@@ -503,6 +533,18 @@ export interface ApiClient {
   /** Script errors the owner's player reported (ADR-023). */
   scriptErrors(id: string): Promise<ScriptErrors>;
   clearScriptErrors(id: string): Promise<void>;
+  /** Moves a presentation to the trash (restorable for the retention period). */
+  trashDeck(id: string): Promise<{ restorableUntil: string }>;
+  /** The trash, newest first. */
+  listTrash(params?: {
+    cursor?: string | null;
+  }): Promise<{ decks: TrashedDeck[]; nextCursor: string | null }>;
+  restoreDeck(id: string): Promise<void>;
+  /** Deletes a presentation in the trash for good. */
+  purgeDeck(id: string): Promise<void>;
+  /** Owner settings (ADR-024). */
+  settings(): Promise<Settings>;
+  saveSettings(input: { autoApproveUpdates: boolean }): Promise<Settings>;
   presenterPassword(): Promise<{ set: boolean }>;
   setPresenterPassword(password: string): Promise<{ set: boolean; change: "set" | "changed" }>;
   removePresenterPassword(): Promise<void>;
@@ -628,6 +670,23 @@ export function createApi(
     async clearScriptErrors(id) {
       await request("DELETE", `/decks/${encodeURIComponent(id)}/script-errors`, null);
     },
+    async trashDeck(id) {
+      const r = await request("DELETE", `/decks/${encodeURIComponent(id)}`, trashResult);
+      return { restorableUntil: r.restorableUntil };
+    },
+    listTrash(params = {}) {
+      const query = new URLSearchParams({ trash: "1" });
+      if (params.cursor) query.set("cursor", params.cursor);
+      return request("GET", `/decks?${query.toString()}`, trashPage);
+    },
+    async restoreDeck(id) {
+      await request("POST", `/decks/${encodeURIComponent(id)}/restore`, null);
+    },
+    async purgeDeck(id) {
+      await request("DELETE", `/trash/${encodeURIComponent(id)}`, null);
+    },
+    settings: () => request("GET", "/settings", settings),
+    saveSettings: (input) => request("PUT", "/settings", settings, input),
     presenterPassword: () => request("GET", "/presenter/password", presenterPasswordStatus),
     setPresenterPassword: (password) =>
       request("POST", "/presenter/password", presenterPasswordSet, { password }),

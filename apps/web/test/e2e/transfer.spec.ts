@@ -20,14 +20,15 @@ test.describe("export", () => {
   }) => {
     await signIn(page, mock);
     await page.goto(`${mock.url}/decks`);
-    const card = page.locator("article.ppt-deck").first();
+    const card = page.locator(".deck-row").first();
     await card
       .getByRole("button", { name: "More actions for Q3 results for the sales team" })
       .click();
-    const dialog = page.getByRole("dialog", { name: "Export “Q3 results for the sales team”" });
+    await page.getByRole("menuitem", { name: "Download" }).click();
+    const dialog = page.getByRole("dialog", { name: "Download “Q3 results for the sales team”" });
     await expect(dialog).toBeVisible();
 
-    const html = dialog.getByRole("link", { name: "Download HTML" });
+    const html = dialog.getByRole("link", { name: "Download file" });
     await expect(html).toHaveAttribute("href", "/api/v1/decks/deck_001/export?format=html&notes=0");
     await expect(html).toHaveAttribute("download", "");
     const notes = dialog.getByRole("checkbox", { name: "Include speaker notes" });
@@ -39,7 +40,7 @@ test.describe("export", () => {
     let download = page.waitForEvent("download");
     await html.click();
     expect((await download).suggestedFilename()).toBe("deck_001.html");
-    const archive = dialog.getByRole("link", { name: "Download .pkn" });
+    const archive = dialog.getByRole("link", { name: "Download backup (.pkn)" });
     await expect(archive).toHaveAttribute(
       "href",
       "/api/v1/decks/deck_001/export?format=pptaken&notes=1",
@@ -56,6 +57,7 @@ test.describe("export", () => {
     await page.keyboard.press("Escape");
     await expect(dialog).toBeHidden();
     await card.getByRole("button", { name: /More actions/ }).click();
+    await page.getByRole("menuitem", { name: "Download" }).click();
     await expect(page.getByRole("checkbox", { name: "Include speaker notes" })).not.toBeChecked();
   });
 });
@@ -69,7 +71,7 @@ test.describe("import", () => {
   }) => {
     await signIn(page, mock);
     await page.goto(`${mock.url}/decks`);
-    await expect(page.locator("article.ppt-deck")).toHaveCount(2);
+    await expect(page.locator(".deck-row")).toHaveCount(2);
     const chooser = page.waitForEvent("filechooser");
     await openImport(page);
     await (await chooser).setFiles({
@@ -80,8 +82,8 @@ test.describe("import", () => {
     await expect(page.getByText("Imported “Imported deck 1”.")).toBeVisible();
     await expect(page.getByText("1 thing was adjusted on the way in:")).toBeVisible();
     await expect(page.getByText(/is not used by any slide/)).toBeVisible();
-    await expect(page.locator("article.ppt-deck")).toHaveCount(3);
-    await expect(page.locator("article.ppt-deck").first()).toContainText("Imported deck 1");
+    await expect(page.locator(".deck-row")).toHaveCount(3);
+    await expect(page.locator(".deck-row").first()).toContainText("Imported deck 1");
     const post = mock.state.log.find((r) => r.method === "POST" && r.path === "/decks/import");
     expect(post?.csrf).toBe("1");
     expect(post?.origin).toBe(mock.url);
@@ -102,7 +104,9 @@ test.describe("import", () => {
     });
     const alert = page.getByRole("alert");
     await expect(alert).toContainText("Could not import bad.pkn.");
-    await expect(alert).toContainText("manifest.json is missing");
+    // Plain words, never the server's technical message (that is under Developer details).
+    await expect(alert).toContainText("The file may be damaged or from a newer version.");
+    await expect(alert).not.toContainText("manifest.json");
 
     chooser = page.waitForEvent("filechooser");
     await openImport(page);
@@ -112,7 +116,7 @@ test.describe("import", () => {
       buffer: Buffer.from("x"),
     });
     await expect(page.getByRole("alert")).toContainText(
-      "Choose a .pkn file exported from PPTaken or a PowerPoint .pptx file.",
+      "Choose a PowerPoint .pptx file or a .pkn backup from PPTaken.",
     );
     expect(mock.state.imports).toHaveLength(1); // the HTML file never left the browser
   });
@@ -135,7 +139,7 @@ test.describe("import", () => {
       mimeType: "",
       buffer: Buffer.from("PK"),
     });
-    await expect(page.getByText("“Imported deck 1” importada.")).toBeVisible();
+    await expect(page.getByText("«Imported deck 1» importada.")).toBeVisible();
     await expect(page.getByText("Todo llegó tal como estaba.")).toBeVisible();
   });
 });
@@ -173,9 +177,9 @@ test.describe("PowerPoint import", () => {
     await expect(fonts.getByText(/Calibri/)).toBeVisible();
     await expect(page.getByRole("link", { name: "Open the presentation" })).toHaveAttribute(
       "href",
-      "/p/deck_pptx_1",
+      "/decks/deck_pptx_1",
     );
-    await expect(page.locator("article.ppt-deck").first()).toContainText("Quarterly review");
+    await expect(page.locator(".deck-row").first()).toContainText("Quarterly review");
     const post = mock.state.log.find((r) => r.method === "POST" && r.path === "/decks/import-pptx");
     expect(post?.csrf).toBe("1");
   });
@@ -199,6 +203,7 @@ test.describe("PowerPoint import", () => {
       mimeType: "",
       buffer: Buffer.from("LEGACY"),
     });
-    await expect(page.getByRole("alert")).toContainText("PowerPoint 97-2003");
+    await expect(page.getByRole("alert")).toContainText("Could not import renamed.pptx.");
+    await expect(page.getByRole("alert")).not.toContainText("97-2003");
   });
 });

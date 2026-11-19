@@ -4,7 +4,7 @@
 import type { Page } from "@playwright/test";
 import { expect, noHorizontalOverflow, signIn, test } from "./fixtures";
 
-const NAV = ["Presentations", "Connect your agent", "Access & connections", "Security"];
+const NAV = ["Presentations", "Connect Claude", "Connected apps", "Security", "Settings"];
 
 /** WCAG contrast ratio of two computed CSS colors (opaque rgb/rgba). */
 async function contrast(page: Page, selector: string, fg: string, bgSelector: string, bg: string) {
@@ -43,21 +43,40 @@ test.describe("desktop sidebar", () => {
     await expect(nav).toHaveCount(1);
     await expect(nav.getByRole("list", { name: "Workspace" }).getByRole("link")).toHaveText([
       "Presentations",
-      "Connect your agent",
+      "Connect Claude",
     ]);
     await expect(nav.getByRole("list", { name: "Account" }).getByRole("link")).toHaveText([
-      "Access & connections",
+      "Connected apps",
       "Security",
+      "Settings",
     ]);
-    await expect(nav.locator("a[aria-current=page]")).toHaveText("Access & connections");
-    await expect(nav.locator("a svg")).toHaveCount(4);
-    // Instance, health and preferences live at the bottom of the sidebar.
-    await expect(page.locator(".instance")).toContainText(new URL(mock.url).host);
-    await expect(page.locator(".instance")).toContainText("Online");
+    // The old /tokens address lands on Connected apps.
+    await expect(nav.locator("a[aria-current=page]")).toHaveText("Connected apps");
+    await expect(nav.locator("a svg")).toHaveCount(5);
+    // Status, theme and language live in the app bar (a banner), far from Sign out.
+    const bar = page.getByRole("banner");
+    await expect(bar).toHaveCount(1);
+    const tools = bar.getByRole("group", { name: "Display and status" });
+    await expect(tools.getByTestId("instance-status")).toContainText(new URL(mock.url).host);
+    await expect(tools.getByRole("radiogroup", { name: "Theme" })).toHaveCount(1);
+    await expect(tools.getByRole("radiogroup", { name: "Language" })).toHaveCount(1);
     await expect(page.getByRole("radiogroup", { name: "Theme" })).toHaveCount(1);
-    await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
+    // Sign out is alone at the bottom of the sidebar, never next to a toggle.
+    const signOut = page.getByRole("button", { name: "Sign out" });
+    await expect(signOut).toBeVisible();
+    await expect(page.locator(".sidebar__foot").getByRole("button")).toHaveCount(1);
+    await expect(page.locator(".sidebar__foot [role=radiogroup]")).toHaveCount(0);
+    const gap = await page.evaluate(() => {
+      const out = document.querySelector("[data-testid=sign-out]")?.getBoundingClientRect();
+      const toggle = document.querySelector(".appbar [role=radiogroup]")?.getBoundingClientRect();
+      if (!out || !toggle) return 0;
+      return Math.hypot(out.x - toggle.x, out.y - toggle.y);
+    });
+    expect(gap, "Sign out is far from the display toggles").toBeGreaterThan(300);
     // No top bar on desktop.
     await expect(page.locator(".topbar")).toBeHidden();
+    // Version only with Developer details.
+    await expect(tools).not.toContainText("Version");
 
     await nav.getByRole("link", { name: "Security" }).click();
     await expect(page).toHaveURL(/\/security$/);
@@ -76,7 +95,7 @@ test.describe("desktop sidebar", () => {
     await page.goto(`${mock.url}/decks`);
     await expect(page.getByRole("heading", { level: 1, name: "Presentations" })).toBeVisible();
     const names: string[] = [];
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 8; i++) {
       await page.keyboard.press("Tab");
       names.push(
         await page.evaluate(
@@ -188,6 +207,15 @@ test.describe("mobile drawer", () => {
     await expect(page.locator(".shell__content")).toHaveAttribute("inert", "");
     const first = drawer.getByRole("link", { name: "PPTaken home" });
     const last = drawer.getByRole("button", { name: "Sign out" });
+    // Display controls sit at the top of the drawer; Sign out alone at its bottom.
+    await expect(drawer.getByRole("group", { name: "Display and status" })).toBeVisible();
+    const order = await page.evaluate(() => {
+      const prefs = document.querySelector(".drawer-prefs")?.getBoundingClientRect().bottom ?? 0;
+      const out =
+        document.querySelector("[data-testid=sign-out]")?.getBoundingClientRect().top ?? 0;
+      return out - prefs;
+    });
+    expect(order).toBeGreaterThan(200);
     await expect(first).toBeFocused();
     await page.keyboard.press("Shift+Tab");
     await expect(last).toBeFocused();
@@ -237,7 +265,7 @@ test.describe("focused pages", () => {
     await page.goto(`${mock.url}/connect/req00000000000000000000000000000`);
     await expect(page.getByRole("heading", { level: 1 })).toContainText("claude.ai");
     await expect(page.locator("#sidebar")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Allow access" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Allow", exact: true })).toBeVisible();
   });
 
   test("setup has no sidebar", async ({ page, mock }) => {
@@ -266,7 +294,7 @@ test.describe("security", () => {
     await expect(page.getByText("That password is not right. Try again.")).toBeVisible();
 
     const checkbox = page.getByRole("checkbox", {
-      name: "Also disconnect every connected application",
+      name: "Also disconnect every connected app",
     });
     await expect(checkbox).toHaveAccessibleDescription(
       "Do this if someone else may have known your password.",
@@ -275,7 +303,7 @@ test.describe("security", () => {
     await checkbox.check();
     await page.getByRole("button", { name: "Change password" }).click();
     await expect(
-      page.getByRole("status").filter({ hasText: "2 applications were disconnected" }),
+      page.getByRole("status").filter({ hasText: "2 apps were disconnected" }),
     ).toBeVisible();
     expect(mock.state.apps).toHaveLength(0);
     await expect(checkbox).not.toBeChecked();
@@ -291,6 +319,11 @@ test.describe("no sideways scrolling", () => {
       "/decks",
       "/welcome",
       "/tokens",
+      "/apps",
+      "/trash",
+      "/settings",
+      "/decks/deck_001",
+      "/decks/deck_001/approve",
       "/security",
       "/nowhere",
       "/connect/req00000000000000000000000000000",

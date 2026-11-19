@@ -60,7 +60,7 @@
 
   <form class="form-card ppt-card" novalidate onsubmit={submit}>
     {#if session.notice === "sessionEnded"}
-      <Notice tone="warning" title={t("errors.sessionEnded")} />
+      <Notice title={t("errors.sessionEnded")} />
     {/if}
     {#if error}
       <Notice tone="danger" title={error} />

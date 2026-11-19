@@ -1,15 +1,16 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <!--
-  /decks/:id: one presentation (urls.manage, and the agents' approve_url with #scripts). The header says what it is
-  and presents it; the Interactive section is the owner's approval screen (ADR-021): instance switch, approval
-  state, fingerprint, every script and library, what the static version loses, the content-origin capability, and
-  Approve (binds the fingerprint shown) / Revoke. Decks without scripts get a calm "Static deck" note.
-  ADR-023: the Script errors block (#script-errors): what the owner's player reported, the static check of the code,
-  a plain-language hint per error, Clear, and "Copy for my agent". Error text is untrusted: text interpolation only.
+  /decks/:id: one presentation, calm. Title, Present, and ONE status line with at most one primary action:
+  Ready · Needs your OK for its interactive parts (Allow) · Some interactive parts had problems (Copy a message for
+  Claude). Everything else appears only when relevant, in plain words: "What will run" (behind a quiet link: reading
+  the code is the heart of consent), "Changes since your last OK" (ADR-024 automatic updates), "Files saved from
+  the web". Fingerprints, raw errors, library provenance and instance mechanics are under Developer details.
+  Error text is untrusted: text interpolation only, never {@html}.
 -->
 <script lang="ts">
-  import { Button, Dialog, EmptyState, Icon, Notice, toast } from "@pptaken/ui";
+  import { Button, Dialog, EmptyState, Notice, toast } from "@pptaken/ui";
   import { tick } from "svelte";
+  import ActionMenu from "../components/ActionMenu.svelte";
   import CopyButton from "../components/CopyButton.svelte";
   import PageLayout from "../components/PageLayout.svelte";
   import PageSection from "../components/PageSection.svelte";
@@ -18,15 +19,17 @@
     ApiError,
     api,
     type DeckDetail,
+    exportUrl,
     type ScriptErrors,
     type ScriptsReview,
     type VendoredResource,
   } from "../lib/api";
+  import { codeChanges, deckStatus } from "../lib/deck-status";
   import { errorMessage } from "../lib/errors";
   import { describeWhen, formatBytes, shortDigest } from "../lib/format";
   import { deckIdOf } from "../lib/router";
   import { agentSummary, hintText, slideLabel } from "../lib/script-errors";
-  import { handleAuthError, prefs, route, t } from "../lib/state.svelte";
+  import { handleAuthError, navigate, prefs, route, t } from "../lib/state.svelte";
 
   const DOCS_CONTENT_ORIGIN =
     "https://github.com/arroztek/pptaken/blob/main/docs/guides/interactive-decks.md#a-separate-site-for-content";
@@ -34,24 +37,24 @@
   const id = $derived(deckIdOf(route.path) ?? "");
   let deck = $state<DeckDetail | null>(null);
   let review = $state<ScriptsReview | null>(null);
+  let errors = $state<ScriptErrors | null>(null);
   let loading = $state(true);
   let missing = $state(false);
   let loadError = $state("");
   let actionError = $state("");
   let changed = $state(false);
 
-  let approveOpen = $state(false);
-  let confirmed = $state(false);
+  let showCode = $state(false);
+  let showChanges = $state(false);
   let approving = $state(false);
-  /** The fingerprint shown when the dialog opened: exactly what the owner approves. */
-  let reviewedDigest = $state<string | null>(null);
+  let syntaxOk = $state(false);
   let revokeOpen = $state(false);
   let revoking = $state(false);
-  let errors = $state<ScriptErrors | null>(null);
-  let errorsLoadFailed = $state(false);
   let clearing = $state(false);
-  /** ADR-023: approving code with a syntax error needs a second, explicit confirmation. */
-  let syntaxConfirmed = $state(false);
+  let deleteOpen = $state(false);
+  let deleting = $state(false);
+  let exportOpen = $state(false);
+  let htmlNotes = $state(false);
 
   async function load(deckId: string, quiet = false) {
     if (!quiet) loading = true;
@@ -72,35 +75,18 @@
     }
   }
 
-  /** The Script errors block never blocks the page: a failure here only shows a line in the block. */
+  /** Problems never block the page: if they cannot load, the status line simply does not mention them. */
   async function loadErrors(deckId: string) {
-    if (review?.digest === null && review?.state === "none") {
+    if (review?.digest === null) {
       errors = null;
       return;
     }
     try {
       const e = await api.scriptErrors(deckId);
-      if (deckId !== id) return;
-      errors = e;
-      errorsLoadFailed = false;
+      if (deckId === id) errors = e;
     } catch (e) {
-      if (handleAuthError(e)) return;
-      errorsLoadFailed = true;
-    }
-  }
-
-  async function clearErrors() {
-    clearing = true;
-    actionError = "";
-    try {
-      await api.clearScriptErrors(id);
-      toast.show(t("scriptErrors.clearedToast"));
-      await loadErrors(id);
-    } catch (e) {
-      if (handleAuthError(e)) return;
-      actionError = errorMessage(e, t);
-    } finally {
-      clearing = false;
+      handleAuthError(e);
+      errors = null;
     }
   }
 
@@ -110,93 +96,77 @@
     review = null;
     errors = null;
     changed = false;
+    showCode = false;
+    showChanges = false;
     actionError = "";
     void load(deckId).then(async () => {
-      // Arriving from an agent's approve_url (#scripts) or a script notice (#script-errors): bring it into view.
+      // Old links (#scripts, #script-errors): open what they pointed at.
+      if (location.hash === "#scripts") showCode = true;
       if (location.hash === "#scripts" || location.hash === "#script-errors") {
         await tick();
-        document.getElementById(location.hash.slice(1))?.scrollIntoView({ block: "start" });
+        document.getElementById("status")?.scrollIntoView({ block: "start" });
       }
     });
   });
 
-  type ApprovalState = "none" | "pending" | "approved" | "stale";
-  const approval = $derived<ApprovalState>(
-    !review || review.digest === null
-      ? "none"
-      : review.state === "approved"
-        ? "approved"
-        : review.approvedDigest !== null
-          ? "stale"
-          : "pending",
-  );
+  const status = $derived(deckStatus(review, errors));
   const interactive = $derived(review !== null && review.digest !== null);
   const vendored = $derived<VendoredResource[]>(deck?.vendored ?? []);
+  const saved = $derived(vendored.filter((v) => v.status === "vendored").length);
   const failedCount = $derived(vendored.filter((v) => v.status === "failed").length);
-
-  function kindLabel(kind: VendoredResource["kind"]): string {
-    return t(`vendor.kind_${kind}`);
-  }
-
-  /** The redirect chain recorded for a vendored library (ADR-022), by its hash. */
-  function redirectsOf(sha256: string): string[] {
-    return vendored.find((v) => v.kind === "script" && v.sha256 === sha256)?.redirects ?? [];
-  }
-  const freeze = $derived(review !== null && review.enabled && review.capability.freezeWarning);
   const checks = $derived(review?.checks ?? []);
   const syntaxError = $derived(checks.some((c) => c.code === "SCRIPT_SYNTAX_ERROR"));
   const errorList = $derived(errors?.current ?? []);
   const previousList = $derived(errors?.previous ?? []);
-  const copyList = $derived(errorList.length > 0 ? errorList : previousList);
+  const changes = $derived(
+    review?.previous ? codeChanges(review.previous, { sources: review.sources, deckSource: review.deckSource }) : [],
+  );
+  const newLibKeys = $derived(new Set((review?.newLibs ?? []).map((l) => `${l.sha256} ${l.source ?? ""}`)));
 
   function meta(d: DeckDetail): string {
     const slides = d.slideCount === 1 ? t("decks.slidesOne") : t("decks.slides", { n: d.slideCount });
     const when = describeWhen(d.updatedAt, prefs.locale);
     const edited = when.kind === "relative" ? t("decks.edited", { ago: when.text }) : t("decks.editedOn", { date: when.text });
-    const by = d.createdBy === "agent" ? t("decks.byAgent") : t("decks.byOwner");
-    return `${slides} · ${t("deck.revision", { n: d.revision })} · ${edited} · ${by}`;
+    return prefs.dev ? `${slides} · ${edited} · ${t("dev.revision", { n: d.revision })}` : `${slides} · ${edited}`;
   }
 
-  const badge = $derived.by(() => {
-    if (!review || review.digest === null) return { label: t("deck.statusStatic"), tone: "static" };
-    if (!review.enabled) return { label: t("deck.statusOff"), tone: "off" };
-    if (review.state === "approved") return { label: t("deck.statusApproved"), tone: "approved" };
-    return { label: t("deck.statusPending"), tone: "pending" };
-  });
+  function statusLabel(): string {
+    switch (status.kind) {
+      case "needsOk":
+        return t("deck.statusNeedsOk");
+      case "problems":
+        return t("deck.statusProblems");
+      case "off":
+        return t("deck.statusOff");
+      default:
+        return t("deck.statusReady");
+    }
+  }
 
-  function stateText(s: ApprovalState): string {
-    return s === "approved" ? t("scripts.stateApproved") : s === "stale" ? t("scripts.stateStale") : t("scripts.statePending");
+  function needsOkText(): string {
+    if (status.reason === "newLib") return t("deck.needsOkNewLib");
+    if (status.reason === "changed") return t("deck.needsOkChanged");
+    return t("deck.needsOkText");
   }
 
   function originText(r: ScriptsReview): string {
     const o = r.capability.contentOrigin;
-    return o === "separate-site" ? t("scripts.originSeparate") : o === "same-site" ? t("scripts.originSameSite") : t("scripts.originSame");
+    return o === "separate-site" ? t("dev.originSeparate") : o === "same-site" ? t("dev.originSameSite") : t("dev.originSame");
   }
 
-  function openApprove() {
-    if (!review?.digest) return;
-    reviewedDigest = review.digest;
-    confirmed = false;
-    syntaxConfirmed = false;
-    actionError = "";
-    approveOpen = true;
-  }
-
-  async function approve() {
-    if (!reviewedDigest || !confirmed || (syntaxError && !syntaxConfirmed)) return;
+  async function allow() {
+    if (!review?.digest || (syntaxError && !syntaxOk)) return;
     approving = true;
     actionError = "";
+    changed = false;
     try {
-      await api.approveScripts(id, reviewedDigest);
-      approveOpen = false;
-      changed = false;
-      toast.show(t("scripts.approvedToast"));
+      // The digest of the code this page shows: if Claude changed it meanwhile, nothing is approved (409).
+      await api.approveScripts(id, review.digest);
+      toast.show(t("deck.allowedToast"));
       await load(id, true);
     } catch (e) {
       if (handleAuthError(e)) return;
-      approveOpen = false;
       if (e instanceof ApiError && e.status === 409) {
-        // The deck changed after this page loaded: nothing was approved. Show the new code.
         changed = true;
         await load(id, true);
       } else {
@@ -213,14 +183,58 @@
     try {
       await api.revokeScripts(id);
       revokeOpen = false;
-      toast.show(t("scripts.revokedToast"));
+      toast.show(t("deck.turnedOffToast"));
       await load(id, true);
     } catch (e) {
-      if (handleAuthError(e)) return;
       revokeOpen = false;
-      actionError = errorMessage(e, t);
+      if (!handleAuthError(e)) actionError = errorMessage(e, t);
     } finally {
       revoking = false;
+    }
+  }
+
+  async function clearProblems() {
+    clearing = true;
+    actionError = "";
+    try {
+      await api.clearScriptErrors(id);
+      toast.show(t("deck.clearedToast"));
+      await loadErrors(id);
+    } catch (e) {
+      if (!handleAuthError(e)) actionError = errorMessage(e, t);
+    } finally {
+      clearing = false;
+    }
+  }
+
+  async function moveToTrash() {
+    if (!deck) return;
+    const current = deck;
+    deleting = true;
+    try {
+      await api.trashDeck(current.id);
+      deleteOpen = false;
+      toast.show(t("decks.deletedToast", { title: current.title }), {
+        icon: "trash",
+        action: {
+          label: t("decks.undo"),
+          run: async () => {
+            try {
+              await api.restoreDeck(current.id);
+              toast.show(t("decks.restoredToast", { title: current.title }));
+              navigate(`/decks/${encodeURIComponent(current.id)}`);
+            } catch {
+              toast.show(t("decks.actionError"), { icon: "warning-circle" });
+            }
+          },
+        },
+      });
+      navigate("/decks");
+    } catch (e) {
+      deleteOpen = false;
+      if (!handleAuthError(e)) actionError = errorMessage(e, t);
+    } finally {
+      deleting = false;
     }
   }
 </script>
@@ -234,6 +248,7 @@
     <EmptyState title={t("deck.notFoundTitle")} text={t("deck.notFoundText")} headingLevel={2}>
       {#snippet actions()}
         <Button variant="secondary" href="/decks">{t("deck.back")}</Button>
+        <Button variant="ghost" href="/trash">{t("deck.openTrash")}</Button>
       {/snippet}
     </EmptyState>
   </PageLayout>
@@ -251,111 +266,237 @@
       <Notice tone="danger" title={actionError} ondismiss={() => (actionError = "")} />
     {/if}
 
-    <PageSection id="scripts" title={t("scripts.title")} description={interactive ? t("scripts.sectionText") : undefined}>
-      {#if !interactive}
-        <div class="static-note" data-testid="static-deck">
-          <Notice title={t("scripts.staticTitle")} text={t("scripts.staticText")} />
+    <!-- The one status line. Calm surface; colour only on the dot, and warning only when the owner must act. -->
+    <section class="status-card ppt-card" id="status" aria-labelledby="status-title" data-testid="deck-status" data-kind={status.kind}
+      data-reason={status.reason ?? undefined}>
+      <h2 class="ppt-sr-only" id="status-title">{t("deck.statusLabel")}</h2>
+      <p class="status-card__label">
+        <span
+          class="ppt-dot"
+          class:ppt-dot--success={status.kind === "ready" || status.kind === "interactive" || status.kind === "off"}
+          class:ppt-dot--warning={status.kind === "needsOk" || status.kind === "problems"}
+          aria-hidden="true"></span>
+        <span>{statusLabel()}</span>
+      </p>
+
+      {#if changed}
+        <p class="status-card__text" role="status">{t("deck.changedWhileOpen")}</p>
+      {/if}
+
+      {#if status.kind === "needsOk"}
+        <p class="status-card__text">{needsOkText()}</p>
+        {#if syntaxError}
+          <p class="status-card__text" data-testid="syntax-note">{t("deck.syntaxNote")}</p>
+          <label class="check">
+            <input type="checkbox" bind:checked={syntaxOk} name="allow-anyway" />
+            <span>{t("deck.syntaxCheck")}</span>
+          </label>
+        {/if}
+        <div class="status-card__actions">
+          <Button variant="primary" icon="check" loading={approving} disabled={syntaxError && !syntaxOk} onclick={allow}
+            >{t("deck.allow")}</Button>
+          <button type="button" class="link-btn" aria-expanded={showCode} aria-controls="code" onclick={() => (showCode = !showCode)}
+            >{showCode ? t("deck.hideWhatRuns") : t("deck.seeWhatRuns")}</button>
         </div>
-      {:else}
-        {#if changed}
-          <Notice tone="warning" title={t("scripts.changed")} ondismiss={() => (changed = false)} />
-        {/if}
+      {:else if status.kind === "problems"}
+        <p class="status-card__text">{t("deck.problemsText")}</p>
+        <div class="status-card__actions">
+          <CopyButton variant="primary" label={t("deck.copyForClaude")} text={agentSummary(t, { id: d.id, title: d.title }, errorList)} />
+          <Button variant="ghost" loading={clearing} onclick={clearProblems}>{t("deck.clearProblems")}</Button>
+        </div>
+      {:else if status.kind === "off"}
+        <p class="status-card__text">{t("deck.offText")}</p>
+        {#if prefs.dev}<p class="dev-line">{t("dev.offHow")}</p>{/if}
+      {:else if status.kind === "interactive"}
+        <p class="status-card__text">{t("deck.readyInteractive")}</p>
+      {/if}
 
-        <dl class="facts ppt-card" data-testid="scripts-facts">
-          <div class="facts__row">
-            <dt>{t("scripts.instanceLabel")}</dt>
-            <dd>
-              <span class="ppt-badge" class:badge-ok={r.enabled} class:badge-off={!r.enabled}>
-                <span class="ppt-badge__dot" aria-hidden="true"></span>
-                {r.enabled ? t("scripts.instanceOn") : t("scripts.instanceOff")}
-              </span>
-            </dd>
-          </div>
-          <div class="facts__row">
-            <dt>{t("scripts.stateLabel")}</dt>
-            <dd>
-              <span
-                class="ppt-badge"
-                class:badge-ok={approval === "approved"}
-                class:badge-pending={approval !== "approved"}
-                data-state={approval}
-              >
-                <span class="ppt-badge__dot" aria-hidden="true"></span>
-                {stateText(approval)}
-              </span>
-              {#if approval === "approved" && r.approvedAt}
-                {@const when = describeWhen(r.approvedAt, prefs.locale)}
-                <span class="facts__note">{t("scripts.approvedAt", { when: when.text })}</span>
-              {/if}
-            </dd>
-          </div>
-          <div class="facts__row">
-            <dt>{t("scripts.capabilityLabel")}</dt>
-            <dd><span class="facts__value">{originText(r)}</span></dd>
-          </div>
-          <div class="facts__row facts__row--digest">
-            <dt>{t("scripts.digestLabel")}</dt>
-            <dd>
-              <div class="digest">
-                <code class="digest__short" data-testid="digest-short">{shortDigest(r.digest ?? "")}</code>
-                <CopyButton size="sm" variant="secondary" label={t("scripts.copyDigest")} text={r.digest ?? ""} />
-              </div>
-              <code class="digest__full" data-testid="digest-full">{r.digest}</code>
-              <span class="facts__note">{t("scripts.digestHint")}</span>
-            </dd>
-          </div>
-        </dl>
+      {#if (status.kind === "interactive" || status.kind === "problems") && status.auto && r.approvedAt}
+        <p class="status-card__text" data-testid="auto-line">
+          {t("deck.autoLine", { when: describeWhen(r.approvedAt, prefs.locale).text })}
+        </p>
+      {/if}
 
-        {#if !r.enabled}
-          <Notice tone="warning" title={t("scripts.instanceOff")} text={t("scripts.offHow")} />
-        {/if}
-        {#if approval === "stale"}
-          <Notice tone="warning" title={t("scripts.stateStale")} text={t("scripts.staleText")} />
-        {/if}
-        {#if freeze}
-          <div class="freeze" data-testid="freeze-warning">
-            <Notice tone="warning" title={t("scripts.freezeWarning")}>
-              <a class="ppt-link ppt-small" href={DOCS_CONTENT_ORIGIN} target="_blank" rel="noopener noreferrer">{t("scripts.docsLink")}</a>
-            </Notice>
-          </div>
-        {:else if r.enabled && r.capability.separateSiteContent}
-          <Notice tone="success" title={t("scripts.capabilitySeparate")} />
-        {/if}
+      {#if status.kind === "interactive" || status.kind === "problems"}
+        <div class="status-card__quiet">
+          {#if status.auto && changes.length > 0}
+            <button type="button" class="link-btn" aria-expanded={showChanges} aria-controls="changes"
+              onclick={() => (showChanges = !showChanges)}>{showChanges ? t("deck.hideChanges") : t("deck.reviewChanges")}</button>
+          {/if}
+          <button type="button" class="link-btn" aria-expanded={showCode} aria-controls="code" onclick={() => (showCode = !showCode)}
+            >{showCode ? t("deck.hideWhatRuns") : t("deck.seeWhatRuns")}</button>
+          <button type="button" class="link-btn" onclick={() => (revokeOpen = true)}>{t("deck.turnOff")}</button>
+        </div>
+      {:else if status.kind === "off" && interactive}
+        <div class="status-card__quiet">
+          <button type="button" class="link-btn" aria-expanded={showCode} aria-controls="code" onclick={() => (showCode = !showCode)}
+            >{showCode ? t("deck.hideWhatRuns") : t("deck.seeWhatRuns")}</button>
+        </div>
+      {/if}
+    </section>
 
-        <section class="meaning" aria-labelledby="meaning-title">
-          <h3 class="ppt-h3 meaning__title" id="meaning-title">
-            <Icon name="shield-check" size={20} />
-            <span>{t("scripts.meaningTitle")}</span>
-          </h3>
-          <p class="meaning__text">{t("scripts.meaningText")}</p>
-          <p class="meaning__scope">{t("scripts.meaningScope")}</p>
-          <div class="meaning__actions">
-            {#if r.enabled}
-              {#if approval !== "approved"}
-                <Button variant="primary" icon="check" onclick={openApprove}>{t("scripts.approve")}</Button>
+    {#if showChanges && changes.length > 0 && r.previous}
+      <PageSection id="changes" title={t("deck.changesTitle")} description={t("deck.changesText")}>
+        {#each changes as pair (pair.key)}
+          {@const label = pair.key === "deck" ? t("scriptErrors.deckScript") : t("scriptErrors.slideUntitled", { n: pair.index + 1 })}
+          <div class="diff">
+            <div class="diff__side">
+              <p class="diff__label">{t("deck.before")}</p>
+              {#if pair.before !== null}
+                <ScriptViewer compact title={label} script={{ slideId: pair.key, index: Math.max(0, pair.index), source: pair.before, sha256: "", bytes: 0 }} />
+              {:else}
+                <p class="ppt-muted ppt-small">{t("deck.noChange")}</p>
               {/if}
-              {#if r.approvedDigest !== null}
-                <Button variant="secondary" onclick={() => (revokeOpen = true)}>{t("scripts.revoke")}</Button>
-              {/if}
-            {:else}
-              <p class="ppt-muted ppt-small">{t("scripts.approveOff")}</p>
-              {#if r.approvedDigest !== null}
-                <Button variant="secondary" onclick={() => (revokeOpen = true)}>{t("scripts.revoke")}</Button>
-              {/if}
-            {/if}
-          </div>
-          <p class="meaning__presenter ppt-small">
-            <span>{r.presenterPassword.set ? t("scripts.presenterSet") : t("scripts.presenterUnset")}</span>
-            <a class="ppt-link" href="/security#presenter">{t("scripts.presenterManage")}</a>
-          </p>
-        </section>
-
-        {#if checks.length > 0}
-          <div class="block" aria-labelledby="checks-title" data-testid="script-checks">
-            <div class="block__head">
-              <h3 class="ppt-h3" id="checks-title">{t("scriptErrors.checksTitle", { n: checks.length })}</h3>
-              <p class="ppt-muted ppt-small">{t("scriptErrors.checksText")}</p>
             </div>
+            <div class="diff__side">
+              <p class="diff__label">{t("deck.now")}</p>
+              {#if pair.now !== null}
+                <ScriptViewer compact title={label} script={{ slideId: pair.key, index: Math.max(0, pair.index), source: pair.now, sha256: "", bytes: 0 }} />
+              {:else}
+                <p class="ppt-muted ppt-small">{t("deck.noChange")}</p>
+              {/if}
+            </div>
+          </div>
+        {/each}
+      </PageSection>
+    {/if}
+
+    {#if interactive && (showCode || prefs.dev)}
+      <PageSection id="code" title={t("deck.codeTitle")} description={t("deck.codeText")}>
+        {#if r.deckSource}
+          <ScriptViewer script={{ slideId: "deck", index: 0, ...r.deckSource }} title={t("scriptErrors.deckScript")} />
+        {/if}
+        {#each r.sources as script, i (script.slideId)}
+          <ScriptViewer {script} open={i < 3} />
+        {/each}
+        {#if r.libs.length > 0}
+          <div class="block" data-testid="libs">
+            <h3 class="ppt-h3">{t("dev.librariesTitle", { n: r.libs.length })}</h3>
+            <ul class="libs">
+              {#each r.libs as lib, i (i)}
+                {@const isNew = newLibKeys.has(`${lib.sha256} ${lib.source ?? ""}`)}
+                <li class="lib ppt-card" data-new={isNew}>
+                  <p class="lib__name">
+                    <strong>{lib.name}</strong>
+                    {#if lib.version}<span class="ppt-muted">{t("dev.libVersion", { v: lib.version })}</span>{/if}
+                    {#if isNew}<span class="ppt-badge badge-pending"><span class="ppt-badge__dot" aria-hidden="true"></span>{t("dev.libNew")}</span>{/if}
+                  </p>
+                  {#if lib.source}<p class="lib__line"><span class="lib__label">{t("dev.libSource")}</span> <code class="lib__mono">{lib.source}</code></p>{/if}
+                  {#if prefs.dev}
+                    <p class="lib__line"><span class="lib__label">SHA-256</span> <code class="lib__mono">{lib.sha256}</code></p>
+                    {#if lib.finalUrl && lib.finalUrl !== lib.source}
+                      <p class="lib__line"><span class="lib__label">{t("dev.libFinalUrl")}</span> <code class="lib__mono">{lib.finalUrl}</code></p>
+                    {/if}
+                    {#if lib.bytes !== null}
+                      <p class="lib__line"><span class="lib__label">{t("dev.libSize")}</span> <span>{formatBytes(lib.bytes, prefs.locale)}</span></p>
+                    {/if}
+                  {/if}
+                </li>
+              {/each}
+            </ul>
+          </div>
+        {/if}
+      </PageSection>
+    {/if}
+
+    {#if vendored.length > 0 || d.vendorFetch === "off"}
+      <PageSection id="files" title={t("deck.filesTitle")}>
+        <div class="quiet-block" data-testid="vendored-summary">
+          {#if saved > 0}
+            <p>{saved === 1 ? t("deck.filesSummaryOne") : t("deck.filesSummary", { n: saved })}</p>
+          {/if}
+          {#if failedCount > 0}
+            <p data-testid="vendor-failed">{failedCount === 1 ? t("deck.filesFailedOne") : t("deck.filesFailed", { n: failedCount })}</p>
+          {/if}
+          {#if d.vendorFetch === "off"}
+            <p>{t("deck.filesOff")}</p>
+          {/if}
+        </div>
+        {#if prefs.dev && vendored.length > 0}
+          <ul class="vendored" aria-label={t("dev.vendorTitle")} data-testid="vendored-list">
+            {#each vendored as res, i (i)}
+              <li class="lib ppt-card" data-status={res.status} data-kind={res.kind}>
+                <p class="lib__name">
+                  <span class="ppt-badge" class:badge-ok={res.status === "vendored"} class:badge-pending={res.status === "failed"}>
+                    <span class="ppt-badge__dot" aria-hidden="true"></span>
+                    {t(`dev.kind_${res.kind}`)}
+                  </span>
+                  {#if res.status === "failed"}
+                    <span class="ppt-muted ppt-small">{t("dev.failed")}</span>
+                  {:else}
+                    <span class="ppt-muted ppt-small">{t("dev.fetched", { when: describeWhen(new Date(res.fetchedAt).toISOString(), prefs.locale).text })}</span>
+                  {/if}
+                </p>
+                <p class="lib__line"><span class="lib__label">{t("dev.original")}</span> <code class="lib__mono">{res.url}</code></p>
+                {#if res.finalUrl && res.finalUrl !== res.url}
+                  <p class="lib__line"><span class="lib__label">{t("dev.final")}</span> <code class="lib__mono">{res.finalUrl}</code></p>
+                {/if}
+                {#if res.redirects && res.redirects.length > 0}
+                  <p class="lib__line"><span class="lib__label">{t("dev.redirects")}</span> <code class="lib__mono">{res.redirects.join(" → ")}</code></p>
+                {/if}
+                {#if res.via}
+                  <p class="lib__line"><span class="lib__label">{t("dev.via")}</span> <code class="lib__mono">{res.via}</code></p>
+                {/if}
+                {#if res.bytes !== null}
+                  <p class="lib__line"><span class="lib__label">{t("dev.size")}</span> <span>{formatBytes(res.bytes, prefs.locale)}</span></p>
+                {/if}
+                {#if res.sha256}
+                  <p class="lib__line"><span class="lib__label">SHA-256</span> <code class="lib__mono">{res.sha256}</code></p>
+                {/if}
+                {#if res.error}
+                  <p class="lib__line"><span class="lib__label">{t("dev.error")}</span> <code class="lib__mono">{res.error}</code></p>
+                {/if}
+              </li>
+            {/each}
+          </ul>
+          {#if d.vendorFetch === "off"}<p class="dev-line">{t("dev.vendorOff")}</p>{/if}
+        {/if}
+      </PageSection>
+    {/if}
+
+    {#if prefs.dev}
+      <PageSection id="dev" title={t("dev.badge")}>
+        <dl class="facts ppt-card" data-testid="dev-facts">
+          <div class="facts__row"><dt>{t("dev.deckId")}</dt><dd><code class="lib__mono">{d.id}</code></dd></div>
+          {#if interactive}
+            <div class="facts__row facts__row--digest">
+              <dt>{t("dev.digestLabel")}</dt>
+              <dd>
+                <div class="digest">
+                  <code class="digest__short" data-testid="digest-short">{shortDigest(r.digest ?? "")}</code>
+                  <CopyButton size="sm" variant="secondary" label={t("dev.copyDigest")} text={r.digest ?? ""} />
+                </div>
+                <code class="digest__full" data-testid="digest-full">{r.digest}</code>
+                <span class="facts__note">{t("dev.digestHint")}</span>
+              </dd>
+            </div>
+            <div class="facts__row">
+              <dt>{t("dev.approvalLabel")}</dt>
+              <dd>
+                {#if r.state === "approved" && r.approvedAt}
+                  {r.approvalMode === "auto"
+                    ? t("dev.approvalAuto", { when: describeWhen(r.approvedAt, prefs.locale).text })
+                    : t("dev.approvalOwner", { when: describeWhen(r.approvedAt, prefs.locale).text })}
+                {:else if r.approvedDigest !== null}
+                  {t("dev.approvalStale")}
+                {:else}
+                  {t("dev.approvalNone")}
+                {/if}
+              </dd>
+            </div>
+          {/if}
+          <div class="facts__row"><dt>{t("dev.instanceLabel")}</dt><dd><code class="lib__mono">{r.enabled ? t("dev.instanceOn") : t("dev.instanceOff")}</code></dd></div>
+          <div class="facts__row"><dt>{t("dev.capabilityLabel")}</dt><dd>{originText(r)}</dd></div>
+        </dl>
+        {#if r.enabled && r.capability.freezeWarning && interactive}
+          <p class="dev-line" data-testid="freeze-warning">
+            {t("dev.freezeWarning")}
+            <a class="ppt-link" href={DOCS_CONTENT_ORIGIN} target="_blank" rel="noopener noreferrer">{t("dev.docsLink")}</a>
+          </p>
+        {/if}
+        {#if checks.length > 0}
+          <div class="block" data-testid="script-checks">
+            <h3 class="ppt-h3">{t("dev.checksTitle", { n: checks.length })}</h3>
             <ul class="warnings">
               {#each checks as c, i (i)}
                 <li data-code={c.code}><code class="lib__mono">{c.path ?? ""}</code> {c.message}</li>
@@ -363,136 +504,9 @@
             </ul>
           </div>
         {/if}
-
-        <section class="serr" id="script-errors" aria-labelledby="serr-title" data-testid="script-errors"
-          data-status={errors?.status ?? "unknown"}>
-          <div class="serr__head">
-            <div>
-              <h3 class="ppt-h3" id="serr-title">{t("scriptErrors.title")}</h3>
-              <p class="ppt-muted ppt-small">{t("scriptErrors.description")}</p>
-            </div>
-            {#if errors && (errorList.length > 0 || previousList.length > 0)}
-              <div class="serr__actions">
-                <CopyButton size="sm" variant="secondary" label={t("scriptErrors.copy")}
-                  text={agentSummary(t, { id: d.id, title: d.title }, copyList)} />
-                <Button size="sm" variant="ghost" loading={clearing} onclick={clearErrors}>{t("scriptErrors.clear")}</Button>
-              </div>
-            {/if}
-          </div>
-          {#if errorsLoadFailed}
-            <p class="ppt-muted ppt-small" role="status">{t("scriptErrors.loadError")}</p>
-          {:else if errors}
-            {#if errorList.length > 0}
-              <div class="serr__panel" data-tone="warning" role="status">
-                <p class="serr__status">
-                  <span class="ppt-badge badge-error"><span class="ppt-badge__dot" aria-hidden="true"></span>
-                    {errorList.length === 1 ? t("scriptErrors.statusOne") : t("scriptErrors.statusMany", { n: errorList.length })}</span>
-                </p>
-                <p>{t("scriptErrors.whatHappened")}</p>
-                <p><strong>{t("scriptErrors.whatToDo")}</strong></p>
-              </div>
-            {:else if previousList.length > 0}
-              <div class="serr__panel" role="status">
-                <p class="serr__status">{t("scriptErrors.statusPrevious")}</p>
-                <p class="ppt-muted ppt-small">{t("scriptErrors.statusPreviousText")}</p>
-              </div>
-            {:else}
-              <div class="serr__panel" role="status">
-                <p class="serr__status">
-                  <span class="ppt-badge badge-ok"><span class="ppt-badge__dot" aria-hidden="true"></span>{t("scriptErrors.statusNone")}</span>
-                </p>
-                <p class="ppt-muted ppt-small">
-                  {errors.state === "approved" ? t("scriptErrors.statusNoneText") : t("scriptErrors.statusNotApproved")}
-                </p>
-              </div>
-            {/if}
-            {#each [{ list: errorList, previous: false }, { list: previousList, previous: true }] as group (group.previous)}
-              {#if group.list.length > 0}
-                {#if group.previous}
-                  <h4 class="ppt-h3">{t("scriptErrors.previousTitle", { n: group.list.length })}</h4>
-                {/if}
-                <ul class="serr__list" data-testid={group.previous ? "script-errors-previous" : "script-errors-list"}>
-                  {#each group.list as e, i (i)}
-                    {@const hint = hintText(t, e.hint)}
-                    {@const seen = describeWhen(e.lastSeen, prefs.locale)}
-                    <li class="serr__item ppt-card" data-kind={e.kind} data-slide={e.slideId}>
-                      <p class="serr__where">
-                        <strong>{slideLabel(t, e)}</strong>
-                        {#if e.slideIndex !== null}<span class="serr__id">{e.slideId}</span>{/if}
-                        <span class="ppt-muted">· {t(`scriptErrors.kind_${e.kind}`)}</span>
-                      </p>
-                      <p class="serr__msg"><span class="serr__name">{e.name}</span>{e.message ? `: ${e.message}` : ""}</p>
-                      <p class="serr__meta">
-                        <span>{e.count === 1 ? t("scriptErrors.countOne") : t("scriptErrors.countMany", { n: e.count })}</span>
-                        <span>{t("scriptErrors.lastSeen", { when: seen.text })}</span>
-                      </p>
-                      {#if hint}
-                        <p class="serr__hint"><span>{t("scriptErrors.hintLabel")}</span><span>{hint}</span></p>
-                      {/if}
-                    </li>
-                  {/each}
-                </ul>
-              {/if}
-            {/each}
-            {#if errorList.length > 0 || previousList.length > 0}
-              <p class="serr__note">{t("scriptErrors.textNote")}</p>
-            {/if}
-          {/if}
-        </section>
-
-        <div class="block" aria-labelledby="scripts-list-title">
-          <h3 class="ppt-h3" id="scripts-list-title">{t("scripts.scriptsTitle", { n: r.sources.length + (r.deckSource ? 1 : 0) })}</h3>
-          {#if r.deckSource}
-            <p class="ppt-muted ppt-small">{t("scripts.deckScriptText")}</p>
-            <ScriptViewer
-              script={{ slideId: "deck", index: 0, ...r.deckSource }}
-              title={t("scripts.deckScriptTitle")}
-              open={true} />
-          {/if}
-          {#each r.sources as script, i (script.slideId)}
-            <ScriptViewer {script} open={i < 3} />
-          {/each}
-        </div>
-
-        {#if r.libs.length > 0}
-          <div class="block" aria-labelledby="libs-title">
-            <div class="block__head">
-              <h3 class="ppt-h3" id="libs-title">{t("scripts.librariesTitle", { n: r.libs.length })}</h3>
-              <p class="ppt-muted ppt-small">{t("scripts.librariesText")}</p>
-            </div>
-            <ul class="libs">
-              {#each r.libs as lib, i (i)}
-                <li class="lib ppt-card">
-                  <p class="lib__name">
-                    <strong>{lib.name}</strong>
-                    {#if lib.version}<span class="ppt-muted">{t("scripts.libVersion", { v: lib.version })}</span>{/if}
-                  </p>
-                  <p class="lib__line"><span class="lib__label">SHA-256</span> <code class="lib__mono">{lib.sha256}</code></p>
-                  <p class="lib__line">
-                    <span class="lib__label">{t("scripts.libSource")}</span>
-                    {#if lib.source}<code class="lib__mono">{lib.source}</code>{:else}<span class="ppt-muted">{t("scripts.libNoSource")}</span>{/if}
-                  </p>
-                  {#if lib.finalUrl && lib.finalUrl !== lib.source}
-                    <p class="lib__line"><span class="lib__label">{t("scripts.libFinalUrl")}</span> <code class="lib__mono">{lib.finalUrl}</code></p>
-                  {/if}
-                  {#if redirectsOf(lib.sha256).length > 0}
-                    <p class="lib__line"><span class="lib__label">{t("scripts.libRedirects")}</span> <code class="lib__mono">{redirectsOf(lib.sha256).join(" → ")}</code></p>
-                  {/if}
-                  {#if lib.bytes !== null}
-                    <p class="lib__line"><span class="lib__label">{t("scripts.libSize")}</span> <span>{formatBytes(lib.bytes, prefs.locale)}</span></p>
-                  {/if}
-                </li>
-              {/each}
-            </ul>
-          </div>
-        {/if}
-
         {#if r.warnings.length > 0}
-          <div class="block" aria-labelledby="warnings-title">
-            <div class="block__head">
-              <h3 class="ppt-h3" id="warnings-title">{t("scripts.warningsTitle", { n: r.warnings.length })}</h3>
-              <p class="ppt-muted ppt-small">{t("scripts.warningsText")}</p>
-            </div>
+          <div class="block">
+            <h3 class="ppt-h3">{t("dev.warningsTitle", { n: r.warnings.length })}</h3>
             <ul class="warnings">
               {#each r.warnings as w, i (i)}
                 <li><code class="lib__mono">{w.path ?? ""}</code> {w.message}</li>
@@ -500,109 +514,90 @@
             </ul>
           </div>
         {/if}
-      {/if}
-    </PageSection>
-
-    {#if vendored.length > 0 || d.vendorFetch === "off"}
-      <PageSection id="vendored" title={t("vendor.title")} description={t("vendor.sectionText")}>
-        {#if d.vendorFetch === "off"}
-          <Notice tone="warning" title={t("vendor.offTitle")} text={t("vendor.offText")} />
-        {/if}
-        {#if failedCount > 0}
-          <div data-testid="vendor-failed">
-            <Notice tone="danger" title={t("vendor.failedTitle", { n: failedCount })} text={t("vendor.failedText")} />
-          </div>
-        {/if}
-        {#if vendored.length > 0}
-          <ul class="vendored" aria-label={t("vendor.listLabel")} data-testid="vendored-list">
-            {#each vendored as res, i (i)}
-              <li class="lib ppt-card" data-status={res.status} data-kind={res.kind}>
-                <p class="lib__name">
-                  <span class="ppt-badge" class:badge-ok={res.status === "vendored"} class:badge-pending={res.status === "failed"}>
-                    <span class="ppt-badge__dot" aria-hidden="true"></span>
-                    {kindLabel(res.kind)}
-                  </span>
-                  {#if res.status === "failed"}
-                    <span class="ppt-muted ppt-small">{t("vendor.failed")}</span>
-                  {:else}
-                    {@const when = describeWhen(new Date(res.fetchedAt).toISOString(), prefs.locale)}
-                    <span class="ppt-muted ppt-small">{t("vendor.fetched", { when: when.text })}</span>
-                  {/if}
-                </p>
-                <p class="lib__line"><span class="lib__label">{t("vendor.original")}</span> <code class="lib__mono">{res.url}</code></p>
-                {#if res.finalUrl && res.finalUrl !== res.url}
-                  <p class="lib__line"><span class="lib__label">{t("vendor.final")}</span> <code class="lib__mono">{res.finalUrl}</code></p>
-                {/if}
-                {#if res.redirects && res.redirects.length > 0}
-                  <p class="lib__line"><span class="lib__label">{t("vendor.redirects")}</span> <code class="lib__mono">{res.redirects.join(" → ")}</code></p>
-                {/if}
-                {#if res.via}
-                  <p class="lib__line"><span class="lib__label">{t("vendor.via")}</span> <code class="lib__mono">{res.via}</code></p>
-                {/if}
-                {#if res.bytes !== null}
-                  <p class="lib__line"><span class="lib__label">{t("vendor.size")}</span> <span>{formatBytes(res.bytes, prefs.locale)}</span></p>
-                {/if}
-                {#if res.sha256}
-                  <p class="lib__line"><span class="lib__label">SHA-256</span> <code class="lib__mono">{res.sha256}</code></p>
-                {/if}
-                {#if res.error}
-                  <p class="lib__line"><span class="lib__label">{t("vendor.error")}</span> <code class="lib__mono">{res.error}</code></p>
-                {/if}
-              </li>
-            {/each}
-          </ul>
+        {#each [{ list: errorList, previous: false }, { list: previousList, previous: true }] as group (group.previous)}
+          {#if group.list.length > 0}
+            <div class="block" id={group.previous ? undefined : "script-errors"}>
+              <h3 class="ppt-h3">{group.previous ? t("scriptErrors.previousTitle", { n: group.list.length }) : t("scriptErrors.title")}</h3>
+              <ul class="serr__list" data-testid={group.previous ? "script-errors-previous" : "script-errors-list"}>
+                {#each group.list as e, i (i)}
+                  {@const hint = hintText(t, e.hint)}
+                  <li class="serr__item ppt-card" data-kind={e.kind} data-slide={e.slideId}>
+                    <p class="serr__where">
+                      <strong>{slideLabel(t, e)}</strong>
+                      {#if e.slideIndex !== null}<span class="serr__id">{e.slideId}</span>{/if}
+                      <span class="ppt-muted">· {t(`scriptErrors.kind_${e.kind}`)}</span>
+                    </p>
+                    <p class="serr__msg"><span class="serr__name">{e.name}</span>{e.message ? `: ${e.message}` : ""}</p>
+                    <p class="serr__meta">
+                      <span>{e.count === 1 ? t("scriptErrors.countOne") : t("scriptErrors.countMany", { n: e.count })}</span>
+                      <span>{t("scriptErrors.lastSeen", { when: describeWhen(e.lastSeen, prefs.locale).text })}</span>
+                    </p>
+                    {#if hint}
+                      <p class="serr__hint"><span>{t("scriptErrors.hintLabel")}</span><span>{hint}</span></p>
+                    {/if}
+                  </li>
+                {/each}
+              </ul>
+              <p class="serr__note">{t("scriptErrors.textNote")}</p>
+            </div>
+          {/if}
+        {/each}
+        {#if interactive && !r.presenterPassword.set}
+          <p class="dev-line">{t("deck.presenterNote")} <a class="ppt-link" href="/security#presenter">{t("deck.presenterLink")}</a></p>
         {/if}
       </PageSection>
     {/if}
   </PageLayout>
 
-  <Dialog bind:open={approveOpen} title={t("scripts.confirmTitle")} dismissible={false}>
-    <div class="confirm">
-      <p>{t("scripts.meaningText")}</p>
-      <p class="ppt-muted ppt-small">{t("scripts.confirmText")}</p>
-      <code class="confirm__digest" data-testid="confirm-digest">{shortDigest(reviewedDigest ?? "")}</code>
-      <label class="check">
-        <input type="checkbox" bind:checked={confirmed} name="confirm-approve" />
-        <span>{t("scripts.confirmCheck")}</span>
-      </label>
-      {#if syntaxError}
-        <div data-testid="confirm-syntax">
-          <Notice tone="warning" title={t("scriptErrors.confirmSyntax")} />
-        </div>
-        <label class="check">
-          <input type="checkbox" bind:checked={syntaxConfirmed} name="confirm-syntax" />
-          <span>{t("scriptErrors.confirmSyntaxCheck")}</span>
-        </label>
-      {/if}
-    </div>
+  <Dialog bind:open={revokeOpen} title={t("deck.turnOffTitle")}>
+    <p>{t("deck.turnOffText")}</p>
     {#snippet actions()}
-      <Button variant="secondary" onclick={() => (approveOpen = false)}>{t("scripts.cancel")}</Button>
-      <Button variant="primary" disabled={!confirmed || (syntaxError && !syntaxConfirmed)} loading={approving} onclick={approve}>{t("scripts.confirmApprove")}</Button>
+      <Button variant="secondary" onclick={() => (revokeOpen = false)}>{t("common.cancel")}</Button>
+      <Button variant="primary" loading={revoking} onclick={revoke}>{t("deck.turnOffConfirm")}</Button>
     {/snippet}
   </Dialog>
 
-  <Dialog bind:open={revokeOpen} title={t("scripts.revokeTitle")} dismissible={false}>
-    <p>{t("scripts.revokeText")}</p>
+  <Dialog bind:open={deleteOpen} title={t("decks.deleteTitle", { title: d.title })}>
+    <p>{t("decks.deleteText")}</p>
     {#snippet actions()}
-      <Button variant="secondary" onclick={() => (revokeOpen = false)}>{t("scripts.cancel")}</Button>
-      <Button variant="danger" loading={revoking} onclick={revoke}>{t("scripts.revoke")}</Button>
+      <Button variant="secondary" onclick={() => (deleteOpen = false)}>{t("common.cancel")}</Button>
+      <Button variant="danger" icon="trash" loading={deleting} onclick={moveToTrash}>{t("decks.deleteConfirm")}</Button>
     {/snippet}
+  </Dialog>
+
+  <Dialog bind:open={exportOpen} title={t("transfer.exportTitle", { title: d.title })}>
+    <div class="export-options">
+      <section class="export-option" aria-labelledby="export-html-title">
+        <h3 class="export-option__title" id="export-html-title">{t("transfer.htmlTitle")}</h3>
+        <p class="ppt-muted">{t("transfer.htmlText")}</p>
+        <label class="check">
+          <input type="checkbox" bind:checked={htmlNotes} />
+          <span>{t("transfer.includeNotes")}</span>
+        </label>
+        {#if htmlNotes}<p class="ppt-field__hint">{t("transfer.includeNotesHint")}</p>{/if}
+        <div><a class="ppt-btn ppt-btn--primary" href={exportUrl(d.id, "html", htmlNotes)} download>{t("transfer.downloadHtml")}</a></div>
+      </section>
+      <section class="export-option" aria-labelledby="export-archive-title">
+        <h3 class="export-option__title" id="export-archive-title">{t("transfer.archiveTitle")}</h3>
+        <p class="ppt-muted">{t("transfer.archiveText")}</p>
+        <div><a class="ppt-btn ppt-btn--secondary" href={exportUrl(d.id, "pptaken", true)} download>{t("transfer.downloadArchive")}</a></div>
+      </section>
+      {#if interactive}<p class="ppt-muted ppt-small">{t("transfer.simpleNote")}</p>{/if}
+    </div>
   </Dialog>
 {/if}
 
 {#snippet headActions()}
-  <span
-    class="ppt-badge deck-status"
-    class:badge-ok={badge.tone === "approved"}
-    class:badge-pending={badge.tone === "pending" || badge.tone === "off"}
-    data-testid="deck-status">
-    <span class="ppt-badge__dot" aria-hidden="true"></span>
-    {badge.label}
-  </span>
   {#if deck}
-    <!-- Secondary here: the approval is this page's main action when it is waiting. -->
-    <Button variant={badge.tone === "pending" ? "secondary" : "primary"} icon="play" href="/p/{encodeURIComponent(deck.id)}" target="_blank"
+    <Button variant={status.kind === "needsOk" ? "secondary" : "primary"} icon="play" href="/p/{encodeURIComponent(deck.id)}" target="_blank"
       >{t("deck.present")}<span class="ppt-sr-only"> {t("deck.newTab")}</span></Button
     >
+    <ActionMenu
+      label={t("deck.moreActions")}
+      items={[
+        { id: "download", label: t("deck.download"), icon: "download", run: () => { htmlNotes = false; exportOpen = true; } },
+        { id: "delete", label: t("deck.delete"), icon: "trash", danger: true, run: () => (deleteOpen = true) },
+      ]}
+    />
   {/if}
 {/snippet}

@@ -24,7 +24,15 @@ describe("decide", () => {
     expect(decide("/decks", "", fresh)).toEqual({ kind: "redirect", to: "/welcome" });
     expect(decide("/decks", "", out)).toEqual({ kind: "redirect", to: "/login" });
     expect(decide("/tokens", "", out)).toEqual({ kind: "redirect", to: "/login?next=%2Ftokens" });
-    expect(decide("/tokens", "", inn)).toEqual({ kind: "render", page: "tokens" });
+    expect(decide("/tokens", "", inn)).toEqual({ kind: "render", page: "apps" });
+    expect(decide("/apps", "", inn)).toEqual({ kind: "render", page: "apps" });
+    expect(decide("/trash", "", inn)).toEqual({ kind: "render", page: "trash" });
+    expect(decide("/settings", "", inn)).toEqual({ kind: "render", page: "settings" });
+    expect(decide("/settings", "", out)).toEqual({
+      kind: "redirect",
+      to: "/login?next=%2Fsettings",
+    });
+    expect(decide("/trash", "", out)).toEqual({ kind: "redirect", to: "/login?next=%2Ftrash" });
     expect(decide("/security", "", out)).toEqual({
       kind: "redirect",
       to: "/login?next=%2Fsecurity",
@@ -97,7 +105,15 @@ describe("helpers", () => {
 
 describe("layoutFor", () => {
   it("frames signed-in dashboard pages with the sidebar", () => {
-    for (const page of ["decks", "connect", "tokens", "security", "notFound"] as const) {
+    for (const page of [
+      "decks",
+      "connect",
+      "apps",
+      "trash",
+      "settings",
+      "security",
+      "notFound",
+    ] as const) {
       expect(layoutFor(page, true)).toBe("shell");
     }
   });
@@ -151,5 +167,44 @@ describe("presentation page (/decks/:id)", () => {
     if (!decks) throw new Error("no decks item");
     expect(isActive(decks, "/decks/deck_001")).toBe(true);
     expect(isActive(decks, "/decksx")).toBe(false);
+    expect(isActive(decks, "/trash")).toBe(true);
+  });
+});
+
+describe("one-click approval screen (/decks/:id/approve)", () => {
+  const path = "/decks/01JD0000000000000000000000/approve";
+  it("renders focused for the owner and returns to it after sign-in", () => {
+    expect(decide(path, "", inn)).toEqual({ kind: "render", page: "approve" });
+    expect(layoutFor("approve", true)).toBe("focused");
+    expect(decide(path, "", out)).toEqual({
+      kind: "redirect",
+      to: `/login?next=${encodeURIComponent(path)}`,
+    });
+    expect(decide("/login", `?next=${encodeURIComponent(path)}`, inn)).toEqual({
+      kind: "redirect",
+      to: path,
+    });
+    expect(decide(path, "", fresh)).toEqual({ kind: "redirect", to: "/welcome" });
+    expect(isAppPath(path)).toBe(true);
+  });
+
+  it("refuses anything that is not exactly an approval path as next", () => {
+    expect(safeNext("/decks/x/approve/more")).toBe("/decks");
+    expect(safeNext("//evil.test/decks/x/approve")).toBe("/decks");
+    expect(safeNext("/decks/x/approve?next=https://evil.test")).toBe("/decks");
+  });
+
+  it("puts Connected apps and Settings in the sidebar, under plain labels", () => {
+    const labels = NAV_GROUPS.flatMap((g) => g.items.map((i) => i.label));
+    expect(labels).toEqual([
+      "nav.decks",
+      "nav.connect",
+      "nav.apps",
+      "nav.security",
+      "nav.settings",
+    ]);
+    const apps = NAV_GROUPS[1]?.items[0];
+    if (!apps) throw new Error("no apps item");
+    expect(isActive(apps, "/tokens")).toBe(true);
   });
 });

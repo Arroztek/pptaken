@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <!--
-  /security: the owner password, and the presenter password for interactive presentations (ADR-021). Tokens and
-  connected applications live in Access & connections (/tokens).
+  /security: your password, and the optional presenter password (ADR-021). Connected apps and access keys live in
+  Connected apps (/apps).
 -->
 <script lang="ts">
   import { onMount, tick } from "svelte";

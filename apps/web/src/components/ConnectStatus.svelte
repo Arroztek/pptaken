@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-<!-- "Waiting for your agent's first call…" → "Claude connected." One persistent live region,
-     so screen readers hear the change. -->
+<!-- "Waiting for Claude…" → "Claude is connected." One persistent live region, so screen readers hear the change.
+     The tool name of the last call only with Developer details. -->
 <script lang="ts">
   import { Notice } from "@pptaken/ui";
   import type { ConnectStatus } from "../lib/api";
@@ -12,26 +12,25 @@
 
   const connected = $derived(status?.agentConnected === true);
   const detail = $derived.by(() => {
-    if (!status?.agentConnected) return "";
-    if (!status.lastCallAt) return "";
-    return t("connect.connectedText", {
+    if (!status?.agentConnected || !status.lastCallAt) return "";
+    const line = t("connect.connectedText", {
       client: status.clientName ?? t("connect.yourAgent"),
-      tool: status.lastTool ?? "whoami",
       ago: describeWhen(status.lastCallAt, prefs.locale, now).text,
     });
+    return prefs.dev && status.lastTool ? `${line} ${t("devConnect.lastCall", { tool: status.lastTool })}` : line;
   });
 </script>
 
 <div class="connect-status" aria-live="polite">
   {#if connected}
-    <Notice tone="success" title={t("welcome.connectedTitle")} text={detail || undefined} class="ppt-curtain-in" />
+    <Notice tone="success" title={t("connect.connectedTitle")} text={detail || undefined} class="ppt-curtain-in" />
   {:else}
     <div class="waiting">
       <div class="waiting__text">
         <span class="waiting__title"
-          ><span class="ppt-dot" aria-hidden="true"></span><span>{t("welcome.waiting")}</span></span
+          ><span class="ppt-dot" aria-hidden="true"></span><span>{t("connect.waiting")}</span></span
         >
-        <span class="waiting__hint">{pollError ? t("connect.pollError") : t("welcome.waitingHint")}</span>
+        <span class="waiting__hint">{pollError ? t("connect.pollError") : t("connect.waitingHint")}</span>
       </div>
     </div>
   {/if}

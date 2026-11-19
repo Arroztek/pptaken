@@ -149,6 +149,15 @@ export function makeReview(deck, options = {}) {
   const version = options.version ?? 1;
   const digest = sha(`${deck.id}:${version}:${sources.map((s) => s.sha256).join(",")}`);
   const approved = deck.scripts === "approved";
+  const lib = {
+    name: "uPlot",
+    version: "1.6.32",
+    sha256: sha("uplot-1.6.32"),
+    source: "https://cdn.jsdelivr.net/npm/uplot@1/dist/uPlot.iife.min.js",
+    finalUrl: "https://cdn.jsdelivr.net/npm/uplot@1.6.32/dist/uPlot.iife.min.js",
+    bytes: 51081,
+  };
+  const auto = approved && options.autoApproved === true;
   return {
     presentationId: deck.id,
     revision: deck.revision,
@@ -156,7 +165,25 @@ export function makeReview(deck, options = {}) {
     state: approved ? "approved" : "pending",
     digest,
     approvedDigest: approved ? digest : (options.staleDigest ?? null),
-    approvedAt: approved ? new Date(Date.now() - 3 * 86_400_000).toISOString() : null,
+    approvedAt: approved
+      ? new Date(Date.now() - (auto ? 0.5 : 72) * 3600 * 1000).toISOString()
+      : null,
+    // ADR-024 trust lineage.
+    approvalMode: approved ? (auto ? "auto" : "owner") : options.staleDigest ? "owner" : null,
+    ownerApproved: approved && !auto,
+    newLibs: approved ? [] : options.newLib ? [lib] : options.staleDigest ? [] : [lib],
+    previousRevision: auto ? Math.max(1, deck.revision - 1) : null,
+    previous: auto
+      ? {
+          revision: Math.max(1, deck.revision - 1),
+          sources: sources.map((s, i) =>
+            i === 0 ? { ...s, source: s.source.replace("'ready'", "'loading'") } : s,
+          ),
+          deckSource: null,
+          libs: [lib],
+        }
+      : null,
+    autoApproveUpdates: options.autoApproveUpdates ?? true,
     slides: sources.map((s) => s.slideId),
     libs: [
       {
@@ -401,6 +428,21 @@ export function createState(options = {}) {
     presenterPassword: options.presenterPassword ?? null,
     /** Script errors (ADR-023) of deck_002 (the approved one): "none", "errors" or "previous". */
     scriptErrors: options.scriptErrors ?? "none",
+    /** Presentations in the trash ({ ...summary, deletedAt }) and the owner's settings (ADR-024). */
+    trash: makeDecks(options.trashed ?? 0).map((d, i) => ({
+      ...d,
+      id: `trash_${String(i + 1).padStart(3, "0")}`,
+      title: `Old draft ${i + 1}: ${d.title}`,
+      scripts: "none",
+      deletedAt: new Date(Date.now() - (i * 9 + 1) * 86_400_000).toISOString(),
+    })),
+    purged: [],
+    approvals: 0,
+    autoApproveUpdates: options.autoApproveUpdates ?? true,
+    /** deck_002 was last updated by the agent and allowed automatically (ADR-024). */
+    autoApproved: options.autoApproved === true,
+    /** deck_001 waits because of a new outside library after an earlier approval. */
+    newLib: options.newLib === true,
     /** Static script checks (ADR-023) on the reviews: true adds the incident's findings. */
     scriptChecks: options.scriptChecks === true,
     clearedErrors: new Set(),
@@ -422,6 +464,10 @@ function reviewOf(state, deck) {
       enabled: state.scriptsEnabled,
       contentOrigin: state.contentOrigin,
       checks: state.scriptChecks,
+      autoApproveUpdates: state.autoApproveUpdates,
+      autoApproved: state.autoApproved && deck.id === "deck_002",
+      newLib: state.newLib && deck.id === "deck_001",
+      staleDigest: state.newLib && deck.id === "deck_001" ? sha("older") : undefined,
     };
     review =
       deck.scripts && deck.scripts !== "none" ? makeReview(deck, opts) : staticReview(deck, opts);
@@ -431,8 +477,71 @@ function reviewOf(state, deck) {
 }
 
 function statusOf(review) {
-  const { sources: _s, warnings: _w, presenterPassword: _p, ...status } = review;
+  const {
+    sources: _s,
+    warnings: _w,
+    presenterPassword: _p,
+    previous: _v,
+    autoApproveUpdates: _a,
+    ...status
+  } = review;
   return status;
+}
+
+/**
+ * Simulates an agent edit of a deck's interactive code (ADR-024, a mirror of the server's trust-lineage rule): an
+ * approved deck stays approved ("auto") when the setting is on and no new library is added; otherwise it waits.
+ */
+export function agentEdit(state, deckId, { newLibrary = false } = {}) {
+  const deck = state.decks.find((d) => d.id === deckId);
+  if (!deck) throw new Error(`no deck ${deckId}`);
+  const review = reviewOf(state, deck);
+  const wasApproved = review.state === "approved" && review.approvedDigest === review.digest;
+  const before = review.sources.map((s) => ({ ...s }));
+  review.sources = review.sources.map((s, i) =>
+    i === 0 ? { ...s, source: `${s.source}\n// edit ${deck.revision + 1}` } : s,
+  );
+  deck.revision += 1;
+  review.revision = deck.revision;
+  review.digest = sha(`${deck.id}:${deck.revision}:${newLibrary}`);
+  deck.updatedAt = new Date().toISOString();
+  const lib = review.libs[0];
+  const extra = newLibrary
+    ? [
+        {
+          name: "Chart.js",
+          version: "4.4.1",
+          sha256: sha("chartjs"),
+          source: "https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js",
+          finalUrl: null,
+          bytes: 205000,
+        },
+      ]
+    : [];
+  review.libs = lib ? [lib, ...extra] : extra;
+  if (wasApproved && state.autoApproveUpdates && !newLibrary && state.scriptsEnabled) {
+    review.state = "approved";
+    review.approvedDigest = review.digest;
+    review.approvedAt = new Date().toISOString();
+    review.approvalMode = "auto";
+    review.ownerApproved = false;
+    review.newLibs = [];
+    review.previousRevision = deck.revision - 1;
+    review.previous = {
+      revision: deck.revision - 1,
+      sources: before,
+      deckSource: null,
+      libs: lib ? [lib] : [],
+    };
+    deck.scripts = "approved";
+  } else {
+    review.state = "pending";
+    review.newLibs = extra;
+    review.previous = null;
+    review.previousRevision = null;
+    deck.scripts = "pending";
+  }
+  return review;
 }
 
 function send(res, status, body, headers = {}) {
@@ -626,6 +735,69 @@ async function handleApi(state, req, res, url) {
         : null,
       lastTool: connected ? "whoami" : null,
       clientName: connected ? "Claude Code" : null,
+    });
+  }
+
+  if (method === "GET" && path === "/decks" && url.searchParams.get("trash") === "1") {
+    const retention = 30 * 86_400_000;
+    return send(res, 200, {
+      decks: state.trash.map((d) => ({
+        id: d.id,
+        title: d.title,
+        lang: d.lang,
+        slideCount: d.slideCount,
+        revision: d.revision,
+        updatedAt: d.updatedAt,
+        deletedAt: d.deletedAt,
+        restorableUntil: new Date(Date.parse(d.deletedAt) + retention).toISOString(),
+      })),
+      nextCursor: null,
+    });
+  }
+
+  const trashOne = path.match(/^\/decks\/([^/]+)$/);
+  if (method === "DELETE" && trashOne) {
+    const id = decodeURIComponent(trashOne[1]);
+    const deck = state.decks.find((d) => d.id === id);
+    if (!deck) return fail(res, 404, "NOT_FOUND", "Presentation not found");
+    state.decks = state.decks.filter((d) => d !== deck);
+    state.trash.unshift({ ...deck, deletedAt: new Date().toISOString() });
+    return send(res, 200, {
+      id,
+      trashed: true,
+      restorableUntil: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+    });
+  }
+  const restoreOne = path.match(/^\/decks\/([^/]+)\/restore$/);
+  if (method === "POST" && restoreOne) {
+    const id = decodeURIComponent(restoreOne[1]);
+    const deck = state.trash.find((d) => d.id === id);
+    if (!deck) return fail(res, 404, "NOT_FOUND", "Presentation not found");
+    state.trash = state.trash.filter((d) => d !== deck);
+    const { deletedAt: _d, ...live } = deck;
+    state.decks.unshift(live);
+    return send(res, 200, live);
+  }
+  const purgeOne = path.match(/^\/trash\/([^/]+)$/);
+  if (method === "DELETE" && purgeOne) {
+    const id = decodeURIComponent(purgeOne[1]);
+    const before = state.trash.length;
+    state.trash = state.trash.filter((d) => d.id !== id);
+    if (state.trash.length === before) return fail(res, 404, "NOT_FOUND", "Presentation not found");
+    state.purged.push(id);
+    return send(res, 204);
+  }
+  if (path === "/settings" && (method === "GET" || method === "PUT")) {
+    if (method === "PUT") {
+      const body = await readJson(req);
+      if (!body || typeof body.autoApproveUpdates !== "boolean")
+        return fail(res, 400, "VALIDATION_ERROR", "autoApproveUpdates: invalid");
+      state.autoApproveUpdates = body.autoApproveUpdates;
+      for (const r of state.reviews.values()) r.autoApproveUpdates = body.autoApproveUpdates;
+    }
+    return send(res, 200, {
+      autoApproveUpdates: state.autoApproveUpdates,
+      scripts: state.scriptsEnabled ? "owner" : "off",
     });
   }
 
@@ -865,12 +1037,21 @@ async function handleApi(state, req, res, url) {
       review.state = "approved";
       review.approvedDigest = review.digest;
       review.approvedAt = new Date().toISOString();
+      review.approvalMode = "owner";
+      review.ownerApproved = true;
+      review.newLibs = [];
+      review.previous = null;
+      review.previousRevision = null;
+      state.approvals += 1;
       deck.scripts = "approved";
       return send(res, 200, statusOf(review));
     }
     if (method === "POST" && scripts[2] === "/revoke") {
       review.approvedDigest = null;
       review.approvedAt = null;
+      review.approvalMode = null;
+      review.ownerApproved = false;
+      review.previous = null;
       if (review.digest !== null) review.state = "pending";
       if (deck.scripts === "approved") deck.scripts = "pending";
       return send(res, 200, statusOf(review));

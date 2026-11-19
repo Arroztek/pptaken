@@ -321,6 +321,15 @@
 .ppt-toast .ppt-icon-btn { width: 32px; height: 32px; color: inherit; }
 .ppt-toast .ppt-icon-btn:hover { background: rgba(127, 127, 127, 0.2); }
 .ppt-toast--static { animation: none; }
+/* One action (Undo): same ink as the toast, underlined and bold so it reads as a button in both themes. */
+.ppt-toast__action {
+  flex: none; min-height: 32px; padding: 0 var(--ppt-space-3);
+  border: 0; border-radius: var(--ppt-radius-pill); background: transparent; color: inherit;
+  font: inherit; font-weight: var(--ppt-weight-bold); text-decoration: underline; text-underline-offset: 3px;
+  cursor: pointer;
+}
+.ppt-toast__action:hover { background: rgba(127, 127, 127, 0.2); }
+.ppt-toast__action:focus-visible { outline: var(--ppt-border-focus) solid currentColor; outline-offset: 1px; }
 
 /* ------------------------------------------------------------------ tabs */
 .ppt-tabs { display: flex; gap: var(--ppt-space-6); border-bottom: var(--ppt-border-width) solid var(--ppt-border); overflow-x: auto; scrollbar-width: none; }

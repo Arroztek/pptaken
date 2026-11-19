@@ -7,19 +7,31 @@ export type Page =
   | "login"
   | "decks"
   | "deck"
-  | "tokens"
+  | "approve"
+  | "trash"
+  | "apps"
   | "security"
+  | "settings"
   | "oauthConsent"
   | "notFound";
 
 /**
  * How a page is framed. "shell": the signed-in dashboard with the sidebar. "focused": a single centered column
- * under a slim bar (setup, sign-in, OAuth consent, and anything shown while signed out). The player, presenter
- * view and phone remote are server pages and never pass through here.
+ * under a slim bar (setup, sign-in, OAuth consent, the one-click approval screen, and anything shown while signed
+ * out). The player, presenter view and phone remote are server pages and never pass through here.
  */
 export type Layout = "shell" | "focused";
 
-const SHELL_PAGES: readonly Page[] = ["decks", "deck", "connect", "tokens", "security", "notFound"];
+const SHELL_PAGES: readonly Page[] = [
+  "decks",
+  "deck",
+  "trash",
+  "connect",
+  "apps",
+  "security",
+  "settings",
+  "notFound",
+];
 
 export function layoutFor(page: Page, signedIn: boolean): Layout {
   return signedIn && SHELL_PAGES.includes(page) ? "shell" : "focused";
@@ -33,16 +45,37 @@ export interface RouteContext {
 export type Decision = { kind: "render"; page: Page } | { kind: "redirect"; to: string };
 
 /** Client-side routes. Everything else (/p/…, /c/…, /api/…) is a real server request. */
-export const APP_PATHS = ["/", "/welcome", "/login", "/decks", "/tokens", "/security"] as const;
+export const APP_PATHS = [
+  "/",
+  "/welcome",
+  "/login",
+  "/decks",
+  "/trash",
+  "/apps",
+  "/tokens",
+  "/security",
+  "/settings",
+] as const;
 
 /** Pages that need a session; `next` may only point at one of these (no open redirects). */
-const PROTECTED: readonly string[] = ["/decks", "/tokens", "/security", "/welcome"];
+const PROTECTED: readonly string[] = [
+  "/decks",
+  "/trash",
+  "/apps",
+  "/tokens",
+  "/security",
+  "/settings",
+  "/welcome",
+];
 
-/** Signed-in pages that render directly (no extra state): path -> page. `/tokens` is "Access & connections". */
+/** Signed-in pages that render directly (no extra state): path -> page. `/tokens` is the old "Access" address. */
 const SIGNED_IN_PAGES: Readonly<Record<string, Page>> = {
   "/decks": "decks",
-  "/tokens": "tokens",
+  "/trash": "trash",
+  "/apps": "apps",
+  "/tokens": "apps",
   "/security": "security",
+  "/settings": "settings",
 };
 
 /**
@@ -52,15 +85,18 @@ const SIGNED_IN_PAGES: Readonly<Record<string, Page>> = {
 export const CONSENT_PATH = /^\/connect\/[A-Za-z0-9_-]{32}$/;
 
 /**
- * A presentation's page (`urls.manage`, the agents' `approve_url`): `/decks/<id>`. A protected page, so signing in
- * returns to it (internal path only). Ids are ULIDs on the server; the pattern stays loose and safe.
+ * A presentation's page (`urls.manage`): `/decks/<id>`. A protected page, so signing in returns to it (internal
+ * path only). Ids are ULIDs on the server; the pattern stays loose and safe.
  */
 export const DECK_PATH = /^\/decks\/[A-Za-z0-9_-]{1,64}$/;
 
-/** The deck id of a deck page path, or null. */
+/** The one-click approval screen (the agents' `approve_url`, ADR-024): `/decks/<id>/approve`. */
+export const APPROVE_PATH = /^\/decks\/[A-Za-z0-9_-]{1,64}\/approve$/;
+
+/** The deck id of a deck page or approval path, or null. */
 export function deckIdOf(path: string): string | null {
   const clean = normalizePath(path);
-  return DECK_PATH.test(clean) ? (clean.split("/")[2] ?? null) : null;
+  return DECK_PATH.test(clean) || APPROVE_PATH.test(clean) ? (clean.split("/")[2] ?? null) : null;
 }
 
 /** The request id of a consent path, or null. */
@@ -80,14 +116,18 @@ export function isAppPath(path: string): boolean {
   return (
     (APP_PATHS as readonly string[]).includes(clean) ||
     CONSENT_PATH.test(clean) ||
-    DECK_PATH.test(clean)
+    DECK_PATH.test(clean) ||
+    APPROVE_PATH.test(clean)
   );
 }
 
 /** Only same-app protected paths are valid `next` targets. Anything else goes to the list. */
 export function safeNext(next: string | null | undefined): string {
   if (!next) return "/decks";
-  return PROTECTED.includes(next) || CONSENT_PATH.test(next) || DECK_PATH.test(next)
+  return PROTECTED.includes(next) ||
+    CONSENT_PATH.test(next) ||
+    DECK_PATH.test(next) ||
+    APPROVE_PATH.test(next)
     ? next
     : "/decks";
 }
@@ -101,6 +141,11 @@ export function decide(rawPath: string, search: string, ctx: RouteContext): Deci
   const path = normalizePath(rawPath);
   const redirect = (to: string): Decision => ({ kind: "redirect", to });
   const render = (page: Page): Decision => ({ kind: "render", page });
+  const guarded = (page: Page): Decision => {
+    if (!ctx.installed) return redirect("/welcome");
+    if (!ctx.signedIn) return redirect(loginUrl(path));
+    return render(page);
+  };
 
   switch (path) {
     case "/":
@@ -114,23 +159,13 @@ export function decide(rawPath: string, search: string, ctx: RouteContext): Deci
       if (ctx.signedIn) return redirect(safeNext(new URLSearchParams(search).get("next")));
       return render("login");
     }
-    case "/decks":
-    case "/tokens":
-    case "/security":
-      if (!ctx.installed) return redirect("/welcome");
-      if (!ctx.signedIn) return redirect(loginUrl(path));
-      return render(SIGNED_IN_PAGES[path] ?? "notFound");
-    default:
-      if (DECK_PATH.test(path)) {
-        if (!ctx.installed) return redirect("/welcome");
-        if (!ctx.signedIn) return redirect(loginUrl(path));
-        return render("deck");
-      }
-      if (CONSENT_PATH.test(path)) {
-        if (!ctx.installed) return redirect("/welcome");
-        if (!ctx.signedIn) return redirect(loginUrl(path));
-        return render("oauthConsent");
-      }
+    default: {
+      const page = SIGNED_IN_PAGES[path];
+      if (page !== undefined) return guarded(page);
+      if (APPROVE_PATH.test(path)) return guarded("approve");
+      if (DECK_PATH.test(path)) return guarded("deck");
+      if (CONSENT_PATH.test(path)) return guarded("oauthConsent");
       return render("notFound");
+    }
   }
 }

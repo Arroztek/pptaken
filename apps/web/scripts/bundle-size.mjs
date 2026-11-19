@@ -45,8 +45,11 @@ const pages = {
   "/login": [entry, page("Login")],
   "/decks": [entry, page("Decks")],
   "/decks/:id": [entry, page("Deck")],
-  "/tokens": [entry, page("Tokens")],
+  "/decks/:id/approve": [entry, page("Approve")],
+  "/trash": [entry, page("Trash")],
+  "/apps": [entry, page("Apps")],
   "/security": [entry, page("Security")],
+  "/settings": [entry, page("Settings")],
 };
 
 const kb = (n) => `${(n / 1024).toFixed(1)} KB`;

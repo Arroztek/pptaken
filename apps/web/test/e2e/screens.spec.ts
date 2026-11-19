@@ -23,6 +23,37 @@ const ONLY = (process.env.PPTAKEN_SCREENS ?? "").split(",").filter(Boolean);
 mkdirSync(OUT, { recursive: true });
 
 const WIDTHS = [360, 768, 1280] as const;
+
+/**
+ * Basic accessibility checks on every capture: one main landmark, one h1 (focused dialogs aside), every button,
+ * link and form control has an accessible name, images have alt text, and nothing is focusable inside aria-hidden.
+ */
+async function basicA11y(page: Page): Promise<void> {
+  const problems = await page.evaluate(() => {
+    const out: string[] = [];
+    if (document.querySelectorAll("main").length !== 1) out.push("main landmarks != 1");
+    if (document.querySelectorAll("h1").length !== 1)
+      out.push(`h1 count ${document.querySelectorAll("h1").length}`);
+    const named = (el: Element) => {
+      const label = el.getAttribute("aria-label") ?? el.getAttribute("title") ?? "";
+      const by = el.getAttribute("aria-labelledby");
+      const text = el.textContent?.trim() ?? "";
+      const labels = (el as HTMLInputElement).labels;
+      return Boolean(label.trim() || by || text || (labels && labels.length > 0));
+    };
+    for (const el of document.querySelectorAll(
+      "button, a[href], input:not([type=hidden]), select, textarea",
+    )) {
+      if (!(el as HTMLElement).checkVisibility({ visibilityProperty: true })) continue;
+      if (el.closest("[aria-hidden=true]")) continue;
+      if (!named(el)) out.push(`unnamed ${el.tagName.toLowerCase()} ${el.className}`);
+    }
+    for (const img of document.querySelectorAll("img"))
+      if (!img.hasAttribute("alt")) out.push("img without alt");
+    return out;
+  });
+  expect(problems, "basic a11y").toEqual([]);
+}
 const THEMES = ["light", "dark"] as const;
 const LANGS = ["en", "es"] as const;
 
@@ -33,6 +64,8 @@ interface Screen {
   widths?: readonly number[];
   /** Capture only this element (a block of a long page) instead of the page. */
   element?: string;
+  /** With Developer details on. */
+  dev?: boolean;
   /** Bring the page to the state to capture. Runs once per variant on a fresh load. */
   prepare: (page: Page, mock: Mock) => Promise<void>;
 }
@@ -47,10 +80,28 @@ const screens: Screen[] = [
     },
   },
   {
-    name: "welcome-connect-code",
+    name: "welcome-connect",
     options: { installed: true, connectDelayMs: 600_000 },
     prepare: async (page, mock) => {
       await page.goto(`${mock.url}/welcome`);
+      await expect(page.getByTestId("connect-steps")).toBeVisible();
+    },
+  },
+  {
+    name: "welcome-connect-public",
+    options: { installed: true, https: true, connectDelayMs: 600_000 },
+    widths: [360, 1280],
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/welcome`);
+      await expect(page.getByTestId("connect-steps")).toBeVisible();
+    },
+  },
+  {
+    name: "welcome-developer",
+    options: { installed: true, connectDelayMs: 600_000 },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/welcome`);
+      await page.locator("[data-testid=developer-fold] summary").click();
       await page.locator(".ppt-copyblock .ppt-btn--primary").click();
       await expect(page.locator(".secret-field")).toBeVisible();
     },
@@ -60,27 +111,9 @@ const screens: Screen[] = [
     options: { installed: true, connectDelayMs: 0 },
     prepare: async (page, mock) => {
       await page.goto(`${mock.url}/welcome`);
+      await page.locator("[data-testid=developer-fold] summary").click();
       await page.locator(".ppt-copyblock .ppt-btn--primary").click();
       await expect(page.locator(".next-card")).toBeVisible({ timeout: 10_000 });
-    },
-  },
-  {
-    name: "welcome-web",
-    options: { installed: true, connectDelayMs: 600_000 },
-    prepare: async (page, mock) => {
-      await page.goto(`${mock.url}/welcome`);
-      await page.getByRole("tab").nth(1).click();
-      await expect(page.locator(".ppt-notice--warning")).toBeVisible();
-    },
-  },
-  {
-    name: "welcome-other",
-    options: { installed: true, connectDelayMs: 600_000 },
-    prepare: async (page, mock) => {
-      await page.goto(`${mock.url}/welcome`);
-      await page.getByRole("tab").nth(2).click();
-      await page.locator(".ppt-tabpanel .ppt-btn--primary").click();
-      await expect(page.locator(".secret-field")).toBeVisible();
     },
   },
   {
@@ -95,10 +128,32 @@ const screens: Screen[] = [
   },
   {
     name: "decks",
-    options: { installed: true, decks: 14 },
+    options: { installed: true, decks: 14, scriptErrors: "errors" },
+    prepare: async (page, mock) => {
+      mock.state.clearedErrors.clear();
+      await page.goto(`${mock.url}/decks`);
+      await expect(page.locator(".deck-row")).toHaveCount(6);
+      await expect(page.locator(".deck-chip")).toHaveCount(2);
+    },
+  },
+  {
+    name: "decks-menu",
+    options: { installed: true, decks: 3 },
+    widths: [360, 1280],
     prepare: async (page, mock) => {
       await page.goto(`${mock.url}/decks`);
-      await expect(page.locator("article.ppt-deck")).toHaveCount(6);
+      await page.locator(".deck-row .menu__trigger").first().click();
+      await expect(page.getByRole("menu")).toBeVisible();
+    },
+  },
+  {
+    name: "decks-delete-dialog",
+    options: { installed: true, decks: 3 },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks`);
+      await page.locator(".deck-row .menu__trigger").first().click();
+      await page.locator(".menu__item--danger").click();
+      await expect(page.locator("dialog[open]")).toBeVisible();
     },
   },
   {
@@ -106,23 +161,190 @@ const screens: Screen[] = [
     options: { installed: true },
     prepare: async (page, mock) => {
       await page.goto(`${mock.url}/decks`);
-      await expect(page.locator(".ppt-empty__art")).toBeVisible();
+      await expect(page.getByTestId("example-prompt")).toBeVisible();
     },
   },
   {
-    name: "tokens",
+    name: "decks-import-dialog",
+    options: { installed: true, decks: 3 },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks`);
+      await expect(page.locator(".deck-row")).toHaveCount(3);
+      await page.locator(".page-head__actions .ppt-btn").last().click();
+      await expect(page.locator("dialog[open]")).toBeVisible();
+    },
+  },
+  {
+    name: "trash",
+    options: { installed: true, decks: 2, trashed: 3 },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/trash`);
+      await expect(page.locator(".trash-item")).toHaveCount(3);
+    },
+  },
+  {
+    name: "trash-forever-dialog",
+    options: { installed: true, decks: 2, trashed: 1 },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/trash`);
+      await page.locator(".trash-item .ppt-btn--ghost").first().click();
+      await expect(page.locator("dialog[open]")).toBeVisible();
+    },
+  },
+  {
+    name: "trash-empty",
     options: { installed: true },
+    widths: [360, 1280],
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/trash`);
+      await expect(page.locator(".ppt-empty")).toBeVisible();
+    },
+  },
+  {
+    name: "deck-pending",
+    options: { installed: true, decks: 3, vendored: true },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_001`);
+      await expect(page.getByTestId("deck-status")).toHaveAttribute("data-kind", "needsOk");
+      await expect(page.getByTestId("vendor-failed")).toBeVisible();
+    },
+  },
+  {
+    name: "deck-see-what-runs",
+    options: { installed: true, decks: 3 },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_001`);
+      await page.locator("#status .link-btn").first().click();
+      await expect(page.locator(".script")).toHaveCount(2);
+    },
+  },
+  {
+    name: "deck-new-library",
+    options: { installed: true, decks: 3, newLib: true },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_001`);
+      await expect(page.getByTestId("deck-status")).toHaveAttribute("data-reason", "newLib");
+    },
+  },
+  {
+    name: "deck-ready",
+    options: { installed: true, decks: 3 },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_002`);
+      await expect(page.getByTestId("deck-status")).toHaveAttribute("data-kind", "interactive");
+    },
+  },
+  {
+    name: "deck-auto-changes",
+    options: { installed: true, decks: 3, autoApproved: true },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_002`);
+      await expect(page.getByTestId("auto-line")).toBeVisible();
+      await page.locator("#status .link-btn").first().click();
+      await expect(page.locator(".diff").first()).toBeVisible();
+    },
+  },
+  {
+    name: "deck-problems",
+    options: { installed: true, decks: 3, scriptErrors: "errors" },
+    prepare: async (page, mock) => {
+      mock.state.clearedErrors.clear();
+      await page.goto(`${mock.url}/decks/deck_002`);
+      await expect(page.getByTestId("deck-status")).toHaveAttribute("data-kind", "problems");
+    },
+  },
+  {
+    name: "deck-static",
+    options: { installed: true, decks: 3 },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_003`);
+      await expect(page.getByTestId("deck-status")).toHaveAttribute("data-kind", "ready");
+    },
+  },
+  {
+    name: "deck-off",
+    options: { installed: true, decks: 3, scriptsEnabled: false },
+    widths: [360, 1280],
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_001`);
+      await expect(page.getByTestId("deck-status")).toHaveAttribute("data-kind", "off");
+    },
+  },
+  {
+    name: "deck-syntax",
+    options: { installed: true, decks: 3, scriptChecks: true },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_001`);
+      await expect(page.getByTestId("syntax-note")).toBeVisible();
+    },
+  },
+  {
+    name: "deck-developer",
+    options: { installed: true, decks: 3, vendored: true, scriptChecks: true },
+    dev: true,
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_001`);
+      await expect(page.getByTestId("dev-facts")).toBeVisible();
+      await expect(page.locator("[data-testid=vendored-list] > li")).toHaveCount(5);
+    },
+  },
+  {
+    name: "deck-developer-errors",
+    options: { installed: true, decks: 3, scriptErrors: "errors" },
+    dev: true,
+    widths: [360, 1280],
+    prepare: async (page, mock) => {
+      mock.state.clearedErrors.clear();
+      await page.goto(`${mock.url}/decks/deck_002`);
+      await expect(page.locator("[data-testid=script-errors-list] > li")).toHaveCount(4);
+    },
+  },
+  {
+    name: "approve",
+    options: { installed: true, decks: 3 },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_001/approve`);
+      await expect(page.getByTestId("approve-screen").locator(".ppt-btn--primary")).toBeVisible();
+    },
+  },
+  {
+    name: "approve-done",
+    options: { installed: true, decks: 3 },
+    prepare: async (page, mock) => {
+      const review = mock.state.reviews.get("deck_001");
+      if (review) mock.state.reviews.delete("deck_001");
+      const deck = mock.state.decks[0];
+      if (deck) deck.scripts = "pending";
+      await page.goto(`${mock.url}/decks/deck_001/approve`);
+      await page.getByTestId("approve-screen").locator(".ppt-btn--primary").click();
+      await expect(page.getByTestId("approve-done")).toBeVisible();
+    },
+  },
+  {
+    name: "apps",
+    options: { installed: true, apps: 3 },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/apps`);
+      await expect(page.locator("table")).toHaveCount(1);
+    },
+  },
+  {
+    name: "apps-keys",
+    options: { installed: true, apps: 1 },
     prepare: async (page, mock) => {
       await page.goto(`${mock.url}/tokens`);
-      await page.locator("input[name=name]").fill("Old laptop");
-      await page.locator("form .ppt-btn--primary").click();
-      await page.getByRole("button", { name: /^(Done|Listo)$/ }).click();
       await page.locator("input[name=name]").fill("Claude Code on my laptop");
       await page.locator("form .ppt-btn--primary").click();
       await expect(page.locator(".secret-field")).toBeVisible();
-      await page.locator("table .ppt-btn").first().click();
-      await page.locator("dialog[open] .ppt-btn--danger").click();
-      await expect(page.locator("dialog[open]")).toHaveCount(0);
+    },
+  },
+  {
+    name: "apps-empty",
+    options: { installed: true },
+    widths: [360, 1280],
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/apps`);
+      await expect(page.locator("[data-testid=connected-apps] .ppt-empty")).toBeVisible();
     },
   },
   {
@@ -134,55 +356,13 @@ const screens: Screen[] = [
     },
   },
   {
-    name: "not-found",
+    name: "security-presenter-form",
     options: { installed: true },
-    prepare: async (page, mock) => {
-      await page.goto(`${mock.url}/nowhere`);
-      await expect(page.locator(".ppt-empty")).toBeVisible();
-    },
-  },
-  {
-    name: "tokens-apps",
-    options: { installed: true, apps: 3 },
-    prepare: async (page, mock) => {
-      await page.goto(`${mock.url}/tokens`);
-      await page.locator("input[name=name]").fill("Laptop");
-      await page.locator("form .ppt-btn--primary").click();
-      await page.getByRole("button", { name: /^(Done|Listo)$/ }).click();
-      await expect(page.locator("table")).toHaveCount(2);
-    },
-  },
-  {
-    name: "tokens-revoke-dialog",
-    options: { installed: true, apps: 1 },
-    prepare: async (page, mock) => {
-      await page.goto(`${mock.url}/tokens`);
-      await page.locator("input[name=name]").fill("Laptop");
-      await page.locator("form .ppt-btn--primary").click();
-      await page.getByRole("button", { name: /^(Done|Listo)$/ }).click();
-      await page.locator("table .ppt-btn").first().click();
-      await expect(page.locator("dialog[open]")).toBeVisible();
-    },
-  },
-  {
-    name: "decks-import-dialog",
-    options: { installed: true, decks: 3 },
-    prepare: async (page, mock) => {
-      await page.goto(`${mock.url}/decks`);
-      await expect(page.locator("article.ppt-deck")).toHaveCount(3);
-      await page.locator(".page-head__actions .ppt-btn").last().click();
-      await expect(page.locator("dialog[open]")).toBeVisible();
-    },
-  },
-  {
-    name: "security-done",
-    options: { installed: true },
+    widths: [360, 1280],
     prepare: async (page, mock) => {
       await page.goto(`${mock.url}/security`);
-      await page.locator("input[name=current-password]").fill(mock.state.password ?? "");
-      await page.locator("input[name=new-password]").fill(mock.state.password ?? "");
-      await page.locator("section[aria-labelledby=password-title] form .ppt-btn--primary").click();
-      await expect(page.locator(".ppt-notice--success")).toBeVisible();
+      await page.locator("section[aria-labelledby=presenter-title] .ppt-btn--secondary").click();
+      await expect(page.locator("input[name=presenter-password]")).toBeVisible();
     },
   },
   {
@@ -192,9 +372,16 @@ const screens: Screen[] = [
       await page.goto(`${mock.url}/security`);
       await page.locator("input[name=current-password]").fill("not the password");
       await page.locator("input[name=new-password]").fill("a new long passphrase");
-      await page.locator("input[type=checkbox]").check();
       await page.locator("section[aria-labelledby=password-title] form .ppt-btn--primary").click();
       await expect(page.locator(".ppt-field__error")).toBeVisible();
+    },
+  },
+  {
+    name: "settings",
+    options: { installed: true },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/settings`);
+      await expect(page.locator("input[name=auto-approve]")).toBeEnabled();
     },
   },
   {
@@ -225,142 +412,11 @@ const screens: Screen[] = [
     },
   },
   {
-    name: "deck-pending",
-    options: { installed: true, decks: 3 },
+    name: "not-found",
+    options: { installed: true },
     prepare: async (page, mock) => {
-      await page.goto(`${mock.url}/decks/deck_001`);
-      await expect(page.locator("[data-testid=freeze-warning]")).toBeVisible();
-      await expect(page.locator(".script")).toHaveCount(2);
-    },
-  },
-  {
-    name: "deck-approved",
-    options: {
-      installed: true,
-      decks: 3,
-      contentOrigin: "separate-site",
-      presenterPassword: "lantern folds 9 maps",
-    },
-    prepare: async (page, mock) => {
-      await page.goto(`${mock.url}/decks/deck_002`);
-      await expect(page.locator("[data-testid=deck-status]")).toContainText(/approved|aprobada/);
-    },
-  },
-  {
-    // Ingest-time vendoring (ADR-022): the "Vendored resources" section with a failed resource.
-    name: "deck-vendored",
-    options: { installed: true, decks: 3, vendored: true },
-    prepare: async (page, mock) => {
-      await page.goto(`${mock.url}/decks/deck_001`);
-      await expect(page.locator("[data-testid=vendored-list] > li")).toHaveCount(5);
-      await expect(page.locator("[data-testid=vendor-failed]")).toBeVisible();
-    },
-  },
-  {
-    name: "deck-vendor-off",
-    options: { installed: true, decks: 3, vendorFetch: "off" },
-    prepare: async (page, mock) => {
-      await page.goto(`${mock.url}/decks/deck_003`);
-      await expect(
-        page.locator('[aria-labelledby="vendored-title"] .ppt-notice--warning'),
-      ).toBeVisible();
-    },
-  },
-  {
-    name: "deck-static",
-    options: { installed: true, decks: 3 },
-    prepare: async (page, mock) => {
-      await page.goto(`${mock.url}/decks/deck_003`);
-      await expect(page.locator("[data-testid=static-deck]")).toBeVisible();
-    },
-  },
-  {
-    name: "deck-off",
-    options: { installed: true, decks: 3, scriptsEnabled: false },
-    widths: [360, 1280],
-    prepare: async (page, mock) => {
-      await page.goto(`${mock.url}/decks/deck_001`);
-      await expect(page.getByText("PPTAKEN_SCRIPTS=owner", { exact: false })).toBeVisible();
-    },
-  },
-  {
-    name: "deck-approve-dialog",
-    options: { installed: true, decks: 3 },
-    prepare: async (page, mock) => {
-      await page.goto(`${mock.url}/decks/deck_001`);
-      await page.locator(".meaning__actions .ppt-btn--primary").click();
-      await expect(page.locator("dialog[open]")).toBeVisible();
-    },
-  },
-  // Script error visibility (ADR-023): the errors block in its three states, the static checks, the extra
-  // confirmation for code with a syntax error, and the amber badge in the list.
-  {
-    name: "deck-errors-none",
-    options: { installed: true, decks: 3 },
-    element: "[data-testid=script-errors]",
-    prepare: async (page, mock) => {
-      await page.goto(`${mock.url}/decks/deck_002#script-errors`);
-      await expect(page.locator("[data-testid=script-errors]")).toHaveAttribute(
-        "data-status",
-        "no_errors",
-      );
-    },
-  },
-  {
-    name: "deck-errors-reported",
-    options: { installed: true, decks: 3, scriptErrors: "errors" },
-    element: "[data-testid=script-errors]",
-    prepare: async (page, mock) => {
-      mock.state.clearedErrors.clear();
-      await page.goto(`${mock.url}/decks/deck_002#script-errors`);
-      await expect(page.locator("[data-testid=script-errors-list] > li")).toHaveCount(4);
-    },
-  },
-  {
-    name: "deck-errors-previous",
-    options: { installed: true, decks: 3, scriptErrors: "previous" },
-    element: "[data-testid=script-errors]",
-    prepare: async (page, mock) => {
-      await page.goto(`${mock.url}/decks/deck_002#script-errors`);
-      await expect(page.locator("[data-testid=script-errors-previous] > li")).toHaveCount(2);
-    },
-  },
-  {
-    name: "deck-checks",
-    options: { installed: true, decks: 3, scriptChecks: true },
-    element: "[data-testid=script-checks]",
-    prepare: async (page, mock) => {
-      await page.goto(`${mock.url}/decks/deck_001`);
-      await expect(page.locator("[data-testid=script-checks] li")).toHaveCount(2);
-    },
-  },
-  {
-    name: "deck-approve-syntax-dialog",
-    options: { installed: true, decks: 3, scriptChecks: true },
-    prepare: async (page, mock) => {
-      await page.goto(`${mock.url}/decks/deck_001`);
-      await page.locator(".meaning__actions .ppt-btn--primary").click();
-      await expect(page.locator("[data-testid=confirm-syntax]")).toBeVisible();
-    },
-  },
-  {
-    name: "decks-script-errors",
-    options: { installed: true, decks: 3, scriptErrors: "errors" },
-    prepare: async (page, mock) => {
-      mock.state.clearedErrors.clear();
-      await page.goto(`${mock.url}/decks`);
-      await expect(page.locator("[data-script-errors]")).toHaveCount(1);
-    },
-  },
-  {
-    name: "security-presenter",
-    options: { installed: true, presenterPassword: "lantern folds 9 maps" },
-    prepare: async (page, mock) => {
-      await page.goto(`${mock.url}/security`);
-      await expect(page.locator("[data-testid=presenter-status]")).toHaveAttribute(
-        "data-set",
-        "true",
-      );
+      await page.goto(`${mock.url}/nowhere`);
+      await expect(page.locator(".ppt-empty")).toBeVisible();
     },
   },
   {
@@ -401,6 +457,13 @@ for (const screen of screens.filter(
             await page.evaluate((l) => localStorage.setItem("pptaken.lang", l), lang);
             await page.evaluate(() => localStorage.removeItem("pptaken.theme"));
             await page.evaluate(
+              (dev) =>
+                dev
+                  ? localStorage.setItem("pptaken.dev", "on")
+                  : localStorage.removeItem("pptaken.dev"),
+              screen.dev === true,
+            );
+            await page.evaluate(
               (collapsed) =>
                 collapsed
                   ? localStorage.setItem("pptaken.sidebar", "collapsed")
@@ -414,6 +477,7 @@ for (const screen of screens.filter(
             if (screen.name.endsWith("-dialog") || screen.name === "nav-drawer")
               await page.waitForTimeout(250);
             await noHorizontalOverflow(page);
+            await basicA11y(page);
             const file = join(OUT, `${screen.name}-${width}-${theme}-${lang}.png`);
             if (screen.element) {
               // The phone top bar is sticky: keep it from covering the block in an element capture.

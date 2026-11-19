@@ -38,6 +38,26 @@ describe("panel dictionaries", () => {
     }
   });
 
+  it("keep jargon out of the normal view (glossary, UX pass 2026-11)", () => {
+    // Technical words are allowed only where Developer details or the copy for Claude show them.
+    const technical = new Set(["dev", "devConnect", "scriptErrors"]);
+    const jargon =
+      /\b(tokens?|scripts?|hash(es)?|fingerprints?|huellas?|SHA-256|digests?|vendor(ed|ing)?|MCP|API|CSP|revisi[oó]n|revision|static version|versi[oó]n est[aá]tica)\b/i;
+    for (const dict of [en, es]) {
+      for (const key of keysOf(dict)) {
+        if (technical.has(key.split(".")[0] ?? "")) continue;
+        expect(readKey(dict, key), key).not.toMatch(jargon);
+      }
+    }
+  });
+
+  it("never sounds alarming in the normal view", () => {
+    const fear = /\b(virus|malware|malicious|danger(ous)?|peligros[oa]|attack|ataque|hack)/i;
+    for (const dict of [en, es]) {
+      for (const key of keysOf(dict)) expect(readKey(dict, key), key).not.toMatch(fear);
+    }
+  });
+
   it("ui dictionaries stay in sync too", () => {
     expect(keysOf(uiEs).sort()).toEqual(keysOf(uiEn).sort());
   });

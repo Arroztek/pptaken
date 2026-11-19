@@ -32,6 +32,13 @@ export interface MockReview {
   capability: { contentOrigin: string; separateSiteContent: boolean; freezeWarning: boolean };
   sources: { slideId: string; index: number; source: string; sha256: string; bytes: number }[];
   warnings: { code: string; message: string; path: string | null; name: string | null }[];
+  /** ADR-024 trust lineage. */
+  approvalMode?: "owner" | "auto" | null;
+  ownerApproved?: boolean;
+  newLibs?: { name: string; sha256: string; source?: string | null }[];
+  previousRevision?: number | null;
+  previous?: unknown;
+  autoApproveUpdates?: boolean;
 }
 
 export interface MockToken {
@@ -103,6 +110,14 @@ export interface MockStateOptions {
   scriptErrors?: "none" | "errors" | "previous";
   /** Adds the static check findings (ADR-023) to the reviews. */
   scriptChecks?: boolean;
+  /** A number of generated presentations already in the trash. */
+  trashed?: number;
+  /** The owner setting "Allow interactive updates automatically" (ADR-024), default true. */
+  autoApproveUpdates?: boolean;
+  /** deck_002 (approved) was last updated by the agent and allowed automatically. */
+  autoApproved?: boolean;
+  /** deck_001 (pending) waits because of a new outside library after an earlier approval. */
+  newLib?: boolean;
 }
 
 export interface MockState {
@@ -131,6 +146,10 @@ export interface MockState {
   scriptErrors: "none" | "errors" | "previous";
   scriptChecks: boolean;
   clearedErrors: Set<string>;
+  trash: (MockDeck & { deletedAt: string })[];
+  purged: string[];
+  approvals: number;
+  autoApproveUpdates: boolean;
 }
 
 export interface MockServer {
@@ -151,3 +170,9 @@ export function startMockServer(
   options?: MockStateOptions & { port?: number; dist?: string },
 ): Promise<MockServer>;
 export function vendoredSample(now?: number): unknown[];
+/** An agent edit of a deck's interactive code, through the mock's mirror of the trust-lineage rule. */
+export function agentEdit(
+  state: MockState,
+  deckId: string,
+  options?: { newLibrary?: boolean },
+): MockReview;

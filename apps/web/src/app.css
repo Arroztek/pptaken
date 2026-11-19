@@ -114,29 +114,51 @@ html.drawer-open { overflow: hidden; }
 }
 .nav-link[disabled] { opacity: 0.45; cursor: not-allowed; }
 
-.sidebar__foot { display: grid; gap: var(--ppt-space-3); padding-top: var(--ppt-space-4); border-top: var(--ppt-border-width) solid var(--ppt-border); }
-.instance { display: flex; align-items: center; gap: var(--ppt-space-3); padding: 0 var(--ppt-space-3); min-height: 40px; }
-.instance .ppt-dot { margin: 0 6px; }
-.instance__text { display: grid; min-width: 0; line-height: var(--ppt-leading-snug); }
-.instance__label { font-family: var(--ppt-font-mono); font-size: var(--ppt-text-xs); letter-spacing: var(--ppt-tracking-caps); text-transform: uppercase; color: var(--ppt-text-muted); }
-.instance__host { font-size: var(--ppt-text-sm); font-weight: var(--ppt-weight-semibold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.instance__meta { font-size: var(--ppt-text-xs); color: var(--ppt-text-muted); }
-.sidebar__prefs { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ppt-space-2); padding: 0 var(--ppt-space-1); }
+/* Sign out sits alone at the bottom, after a rule and a clear gap: never next to a toggle. Quiet, not loud. */
+.sidebar__foot { margin-top: var(--ppt-space-6); padding-top: var(--ppt-space-4); border-top: var(--ppt-border-width) solid var(--ppt-border); }
+.nav-link--quiet { font-weight: var(--ppt-weight-medium); }
+
+/* The app bar: a slim row above every signed-in page (>= 768 px). Slots: start (free for breadcrumbs later),
+   end (status, then display controls). It scrolls with the page: it holds preferences, not navigation. */
+.appbar {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--ppt-space-4);
+  min-height: var(--ppt-size-appbar);
+  width: min(var(--ppt-size-content-max), 100%); margin: 0 auto;
+  padding: var(--ppt-space-2) var(--page-x) 0;
+}
+.appbar__start { min-width: 0; flex: 1; }
+.appbar__end { display: flex; align-items: center; gap: var(--ppt-space-2); flex: none; }
+.appbar__sep { width: 1px; height: 24px; background: var(--ppt-border); margin: 0 var(--ppt-space-1); }
+.conn {
+  display: inline-flex; align-items: center; gap: var(--ppt-space-2); min-width: 0;
+  min-height: 32px; padding: 0 var(--ppt-space-3);
+  border: var(--ppt-border-width) solid var(--ppt-border); border-radius: var(--ppt-radius-pill);
+  font-size: var(--ppt-text-xs); color: var(--ppt-text-muted);
+}
+.conn__host { max-width: 22ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--ppt-weight-medium); }
+.conn__version { font-family: var(--ppt-font-mono); }
+.conn--offline { color: var(--ppt-warning); border-color: currentColor; }
+.appbar .ppt-segmented__opt { min-height: 32px; }
+@media (max-width: 1023px) { .conn__host { max-width: 14ch; } }
+
+/* Below the app bar the page starts closer: the bar already gives the top breathing room. */
+.appbar ~ main .page { padding-top: var(--ppt-space-6); }
+
+/* Phones: the drawer's top area carries the same controls, then the navigation; Sign out stays at the bottom. */
+.drawer-prefs { display: grid; gap: var(--ppt-space-3); padding: var(--ppt-space-3); border-radius: var(--ppt-radius-md); background: var(--ppt-surface-2); }
+.drawer-prefs .conn { justify-self: start; background: var(--ppt-surface); }
+.drawer-prefs__controls { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ppt-space-2); }
 
 /* Collapsed to icons (desktop): labels stay for screen readers, a title shows them on hover. */
 .shell--collapsed .sidebar { padding-inline: var(--ppt-space-3); align-items: stretch; }
 .shell--collapsed .sidebar__top { flex-direction: column; padding-left: 0; gap: var(--ppt-space-3); }
 .shell--collapsed .nav-link { justify-content: center; padding: 0; }
 .shell--collapsed .nav-link__label,
-.shell--collapsed .nav-group__label,
-.shell--collapsed .instance__text {
+.shell--collapsed .nav-group__label {
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden;
   clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 .shell--collapsed .nav-group + .nav-group { padding-top: var(--ppt-space-4); border-top: var(--ppt-border-width) solid var(--ppt-border); }
-.shell--collapsed .instance { justify-content: center; padding: 0; }
-.shell--collapsed .sidebar__prefs { flex-direction: column; padding: 0; }
-.shell--collapsed .sidebar__prefs .ppt-segmented { flex-direction: column; }
 
 /* Below 768 px: a slim top bar and an off-canvas drawer. */
 @media (max-width: 767px) {
@@ -464,3 +486,131 @@ html.drawer-open { overflow: hidden; }
 .presenter-notes { display: grid; gap: var(--ppt-space-2); max-width: 72ch; }
 .presenter-notes p { font-size: var(--ppt-text-sm); color: var(--ppt-text-muted); text-wrap: pretty; }
 .presenter-notes p strong { color: var(--ppt-text); }
+
+/* ======================================================= UX pass 2026-11 */
+/* A quiet text button: secondary actions that must not compete with the one primary action. */
+.link-btn {
+  display: inline-flex; align-items: center; gap: var(--ppt-space-1);
+  min-height: 32px; padding: 0; border: 0; background: none;
+  color: var(--ppt-interactive); font: inherit; font-size: var(--ppt-text-sm); font-weight: var(--ppt-weight-medium);
+  text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: pointer;
+}
+.link-btn:hover { text-decoration-thickness: 2px; }
+.link-btn:focus-visible { outline: var(--ppt-border-focus) solid var(--ppt-focus-ring); outline-offset: 2px; border-radius: 2px; }
+
+/* The deck page's one status line: a calm surface, colour only on the dot. */
+.status-card { display: grid; gap: var(--ppt-space-3); padding: var(--ppt-space-5, 20px) var(--ppt-space-6); scroll-margin-top: var(--ppt-space-6); }
+@media (max-width: 480px) { .status-card { padding: var(--ppt-space-4); } }
+.status-card__label { display: flex; align-items: center; gap: var(--ppt-space-3); font-size: var(--ppt-text-lg); font-weight: var(--ppt-weight-semibold); line-height: var(--ppt-leading-snug); }
+.status-card__label .ppt-dot { flex: none; }
+.status-card__text { max-width: 68ch; color: var(--ppt-text-muted); text-wrap: pretty; }
+.status-card__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ppt-space-2) var(--ppt-space-4); margin-top: var(--ppt-space-1); }
+.status-card__quiet { display: flex; flex-wrap: wrap; gap: var(--ppt-space-1) var(--ppt-space-5, 20px); padding-top: var(--ppt-space-2); border-top: var(--ppt-border-width) solid var(--ppt-border); }
+.page-body > .status-card + .page-section { margin-top: var(--ppt-rhythm-section); }
+.quiet-block { display: grid; gap: var(--ppt-space-2); color: var(--ppt-text-muted); max-width: 72ch; }
+.dev-line { font-size: var(--ppt-text-sm); color: var(--ppt-text-muted); padding-left: var(--ppt-space-3); border-left: 3px solid var(--ppt-border-strong); text-wrap: pretty; }
+
+/* Review changes: before / now side by side on wide screens, stacked on narrow ones. */
+.diff { display: grid; gap: var(--ppt-space-3); grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 900px) { .diff { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.diff__side { display: grid; gap: var(--ppt-space-2); align-content: start; min-width: 0; }
+.diff__label { font-family: var(--ppt-font-mono); font-size: var(--ppt-text-xs); letter-spacing: var(--ppt-tracking-caps); text-transform: uppercase; color: var(--ppt-text-muted); }
+.script--compact { padding: var(--ppt-space-2); }
+
+/* "More" menus. */
+.menu { position: relative; display: inline-flex; }
+.menu__trigger { flex: none; }
+.menu__list {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: var(--ppt-z-overlay);
+  min-width: 200px; margin: 0; padding: var(--ppt-space-1); list-style: none;
+  background: var(--ppt-surface); border: var(--ppt-border-width) solid var(--ppt-border); border-radius: var(--ppt-radius-md);
+  box-shadow: var(--ppt-shadow-overlay);
+  animation: ppt-curtain-in var(--ppt-motion-fast) var(--ppt-ease);
+}
+.menu__item {
+  display: flex; align-items: center; gap: var(--ppt-space-3); width: 100%;
+  min-height: 40px; padding: 0 var(--ppt-space-3); border: 0; border-radius: var(--ppt-radius-sm);
+  background: none; color: var(--ppt-text); font: inherit; font-size: var(--ppt-text-sm); text-align: left; text-decoration: none; cursor: pointer;
+}
+.menu__item:hover, .menu__item:focus-visible { background: var(--ppt-surface-2); outline: none; }
+.menu__item:focus-visible { box-shadow: inset 0 0 0 2px var(--ppt-focus-ring); }
+.menu__item--danger { color: var(--ppt-danger); }
+.menu__item svg { flex: none; color: var(--ppt-text-muted); }
+.menu__item--danger svg { color: currentColor; }
+@media (prefers-reduced-motion: reduce) { .menu__list { animation: none; } }
+
+/* Folds ("Developer", "Advanced"): one line until opened; never alarming. */
+.fold { margin-top: var(--ppt-rhythm-section-sm, 32px); border: var(--ppt-border-width) solid var(--ppt-border); border-radius: var(--ppt-radius-md); background: var(--ppt-surface); }
+.fold__summary { display: grid; gap: 2px; padding: var(--ppt-space-4) var(--ppt-space-5, 20px); cursor: pointer; list-style: none; border-radius: inherit; }
+.fold__summary::-webkit-details-marker { display: none; }
+.fold__summary::after { content: ""; }
+.fold__summary:focus-visible { outline: var(--ppt-border-focus) solid var(--ppt-focus-ring); outline-offset: 2px; }
+.fold__title { display: flex; align-items: center; gap: var(--ppt-space-2); font-weight: var(--ppt-weight-semibold); }
+.fold__title::after { content: "+"; margin-left: auto; font-family: var(--ppt-font-mono); color: var(--ppt-text-muted); }
+.fold[open] .fold__title::after { content: "\2212"; }
+.fold__text { font-size: var(--ppt-text-sm); color: var(--ppt-text-muted); }
+.fold__body { padding: 0 var(--ppt-space-5, 20px) var(--ppt-space-5, 20px); }
+@media (max-width: 480px) { .fold__summary { padding: var(--ppt-space-3) var(--ppt-space-4); } .fold__body { padding: 0 var(--ppt-space-4) var(--ppt-space-4); } }
+.keys-create { display: grid; gap: var(--ppt-space-4); padding: var(--ppt-space-5, 20px); }
+
+/* Presentations: one chip only when something needs the owner; the trash link at the foot. */
+.deck-chip { --_c: var(--ppt-warning); }
+.list-foot { display: flex; justify-content: flex-end; margin-top: var(--ppt-space-8); }
+.list-foot .ppt-link { display: inline-flex; align-items: center; gap: var(--ppt-space-1); }
+.example-prompt { display: grid; gap: var(--ppt-space-3); justify-items: center; max-width: 520px; }
+.example-prompt__text { padding: var(--ppt-space-3) var(--ppt-space-4); border-radius: var(--ppt-radius-md); background: var(--ppt-surface-2); font-style: italic; text-wrap: pretty; }
+.empty-more { justify-content: center; }
+
+/* Trash. */
+.trash-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--ppt-space-2); }
+.trash-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ppt-space-3) var(--ppt-space-4); padding: var(--ppt-space-3) var(--ppt-space-4); }
+.trash-item__text { min-width: 0; flex: 1 1 240px; display: grid; gap: 2px; }
+.trash-item__title { font-weight: var(--ppt-weight-semibold); overflow-wrap: anywhere; }
+.trash-item__meta { font-size: var(--ppt-text-sm); color: var(--ppt-text-muted); }
+.trash-item__actions { display: flex; flex-wrap: wrap; gap: var(--ppt-space-2); }
+
+/* Settings rows. */
+.setting-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ppt-space-3); }
+.setting-row__label { font-weight: var(--ppt-weight-medium); }
+
+/* The one-click approval screen. */
+.approve .hero .ppt-display { max-width: none; font-size: clamp(var(--ppt-text-2xl), 4vw + 0.5rem, var(--ppt-text-3xl)); overflow-wrap: anywhere; }
+.approve__safe { color: var(--ppt-text-muted); max-width: 60ch; text-wrap: pretty; }
+.approve__actions { display: flex; flex-wrap: wrap; gap: var(--ppt-space-3); margin: var(--ppt-space-2) 0 var(--ppt-space-4); }
+.approve__more { margin-bottom: var(--ppt-space-4); }
+
+/* Presentations as a typeset index: hairline rules, a strong title, quiet metadata, actions to the right. */
+.deck-list { list-style: none; margin: 0; padding: 0; border-top: var(--ppt-border-width) solid var(--ppt-border); }
+.deck-row {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--ppt-space-3) var(--ppt-space-6);
+  padding: var(--ppt-space-4) 0; border-bottom: var(--ppt-border-width) solid var(--ppt-border);
+}
+.deck-row__text { flex: 1 1 320px; min-width: 0; display: grid; gap: var(--ppt-space-1); }
+.deck-row__title {
+  font-family: var(--ppt-font-display); font-optical-sizing: auto; font-size: var(--ppt-text-xl);
+  font-weight: var(--ppt-weight-semibold); letter-spacing: var(--ppt-tracking-tight); line-height: var(--ppt-leading-snug);
+  overflow-wrap: anywhere;
+}
+.deck-row__title a { color: var(--ppt-text); text-decoration: none; border-radius: 2px; }
+.deck-row__title a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.deck-row__title a:focus-visible { outline: var(--ppt-border-focus) solid var(--ppt-focus-ring); outline-offset: 3px; }
+.deck-row__meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ppt-space-1) var(--ppt-space-4); font-size: var(--ppt-text-sm); color: var(--ppt-text-muted); font-variant-numeric: tabular-nums; }
+.deck-row__actions { display: flex; align-items: center; gap: var(--ppt-space-2); flex: none; }
+.deck-chip {
+  display: inline-flex; align-items: center; gap: var(--ppt-space-2);
+  color: var(--ppt-warning); font-weight: var(--ppt-weight-semibold); text-decoration: none;
+}
+.deck-chip:hover { text-decoration: underline; text-underline-offset: 3px; }
+.deck-chip:focus-visible { outline: var(--ppt-border-focus) solid var(--ppt-focus-ring); outline-offset: 2px; border-radius: 2px; }
+@media (max-width: 480px) { .deck-row__title { font-size: var(--ppt-text-lg); } }
+
+/* Type, after the landing's logic (docs/brand): one strong, light display title per page, tight tracking;
+   section heads quieter; weight contrast does the work, not colour or boxes. */
+.page-head .ppt-h1,
+.hero .ppt-display {
+  font-weight: 300; letter-spacing: -0.035em; line-height: 1.04; font-optical-sizing: auto; text-wrap: balance;
+}
+.page-head .ppt-h1 { font-size: clamp(2rem, 2.2vw + 1.1rem, 2.75rem); }
+.page-section > .section-head .ppt-h2 { font-size: var(--ppt-text-lg); font-weight: var(--ppt-weight-semibold); letter-spacing: -0.01em; }
+.step > .step__text { grid-column: 2; }
+.connect-quiet { margin-top: var(--ppt-space-6); font-size: var(--ppt-text-sm); color: var(--ppt-text-muted); max-width: 72ch; }

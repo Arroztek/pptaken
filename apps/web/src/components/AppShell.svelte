@@ -1,9 +1,14 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <!--
-  The signed-in dashboard frame: a left sidebar (logo, grouped navigation, this instance, preferences, sign out)
-  and the page column. Desktop: the sidebar is always there and folds to icons (remembered per browser).
-  Below 768 px it becomes a drawer behind a slim top bar: modal while open (the rest is inert, Tab stays inside,
-  Escape or the scrim closes it and focus returns to the menu button).
+  The signed-in dashboard frame.
+  Desktop and tablet (>= 768 px): a left sidebar (logo, navigation, and Sign out alone at the bottom) and the page
+  column, topped by a slim app bar with the display controls on the right (connection status, theme, language).
+  The bar is a row of slots so future controls (help, notifications) slot in without touching the sidebar.
+  Below 768 px: a slim top bar (menu, logo, title) and the sidebar as a drawer, modal while open (the rest is
+  inert, Tab stays inside, Escape or the scrim closes it and focus returns to the menu button). The drawer shows
+  the display controls at its top and Sign out alone at its bottom.
+  Sign out never sits next to a toggle: it is in another region of the screen (sidebar foot vs. app bar), quiet,
+  separated by a rule. No confirmation: signing out costs one sign-in, and nothing is lost.
 -->
 <script lang="ts">
   import { Icon, IconButton, ThemeToggle } from "@pptaken/ui";
@@ -36,14 +41,8 @@
       return location.host;
     }
   });
-
-  const meta = $derived(
-    [
-      network.online ? t("nav.online") : t("nav.offline"),
-      session.status?.version ? t("nav.version", { v: session.status.version }) : "",
-    ]
-      .filter(Boolean)
-      .join(" · "),
+  const statusText = $derived(
+    network.online ? t("nav.statusOnline", { host }) : t("nav.statusOffline", { host }),
   );
 
   onMount(() => {
@@ -138,6 +137,27 @@
 
 <svelte:window {onkeydown} />
 
+{#snippet status()}
+  <span
+    class="conn"
+    class:conn--offline={!network.online}
+    data-testid="instance-status"
+    title={statusText}
+  >
+    <span class="ppt-dot" class:ppt-dot--success={network.online} class:ppt-dot--warning={!network.online} aria-hidden="true"></span>
+    <span class="ppt-sr-only">{statusText}</span>
+    <span class="conn__host" aria-hidden="true" translate="no">{host}</span>
+    {#if prefs.dev && session.status?.version}
+      <span class="conn__version" aria-hidden="true">{t("nav.version", { v: session.status.version })}</span>
+    {/if}
+  </span>
+{/snippet}
+
+{#snippet displayControls()}
+  <ThemeToggle bind:value={prefs.theme} />
+  <LangSwitch />
+{/snippet}
+
 <div class="shell" class:shell--collapsed={collapsed}>
   <header class="topbar" inert={drawer}>
     <button
@@ -194,6 +214,14 @@
       {/if}
     </div>
 
+    {#if mobile}
+      <!-- Phones: the display controls live at the top of the drawer, far from Sign out. -->
+      <div class="drawer-prefs" role="group" aria-label={t("nav.toolbar")}>
+        {@render status()}
+        <div class="drawer-prefs__controls">{@render displayControls()}</div>
+      </div>
+    {/if}
+
     <nav class="sidebar__nav" aria-label={t("nav.label")}>
       {#each NAV_GROUPS as group (group.id)}
         <div class="nav-group">
@@ -218,28 +246,13 @@
     </nav>
 
     <div class="sidebar__foot">
-      <div
-        class="instance"
-        class:instance--offline={!network.online}
-        title={collapsed ? `${host} · ${network.online ? t("nav.online") : t("nav.offline")}` : undefined}
-      >
-        <span class="ppt-dot" class:ppt-dot--success={network.online} class:ppt-dot--warning={!network.online}></span>
-        <span class="instance__text">
-          <span class="instance__label">{t("nav.instance")}</span>
-          <span class="instance__host" translate="no">{host}</span>
-          <span class="instance__meta">{meta}</span>
-        </span>
-      </div>
-      <div class="sidebar__prefs">
-        <ThemeToggle bind:value={prefs.theme} />
-        <LangSwitch />
-      </div>
       <button
         type="button"
-        class="nav-link nav-link--action"
+        class="nav-link nav-link--quiet"
         onclick={signOut}
         disabled={signingOut}
         title={collapsed ? t("nav.signOut") : undefined}
+        data-testid="sign-out"
       >
         <Icon name="sign-out" />
         <span class="nav-link__label">{t("nav.signOut")}</span>
@@ -248,6 +261,16 @@
   </div>
 
   <div class="shell__content" inert={drawer}>
+    {#if !mobile}
+      <header class="appbar">
+        <div class="appbar__start"></div>
+        <div class="appbar__end" role="group" aria-label={t("nav.toolbar")}>
+          {@render status()}
+          <span class="appbar__sep" aria-hidden="true"></span>
+          {@render displayControls()}
+        </div>
+      </header>
+    {/if}
     {@render children()}
   </div>
 </div>
