@@ -372,3 +372,27 @@ describe("performance", () => {
     expect(performance.now() - start).toBeLessThan(2000);
   });
 });
+
+describe("var() fallbacks", () => {
+  it("keeps harmless fallbacks, including inside calc() (staggered animation delays)", () => {
+    expect(C(".a{animation-delay:calc(var(--i,0)*120ms)}").css).toBe(
+      ".a{animation-delay:calc(var(--i,0)*120ms)}",
+    );
+    expect(C(".a{color:var(--c,#fff)}").css).toBe(".a{color:var(--c,#fff)}");
+    expect(C(".a{width:calc(var(--p, 0) * 100%)}").warnings).toHaveLength(0);
+  });
+
+  it("still validates what is inside the fallback", () => {
+    for (const css of [
+      ".a{background:var(--x,url(https://evil.example/x.png))}",
+      ".a{background:var(--x,url(data:image/png;base64,AAAA))}",
+      ".a{width:var(--x,expression(alert(1)))}",
+      ".a{color:var(--x,var(--y,url(//evil.example)))}",
+      ".a{content:var(--x,url(https://evil.example))}",
+    ]) {
+      const r = C(css);
+      expect(r.css, css).not.toMatch(/evil|data:|expression/i);
+      expect(r.warnings.length, css).toBeGreaterThan(0);
+    }
+  });
+});

@@ -674,6 +674,10 @@ function valueNodeProblem(
         : { message: "Invalid operator in CSS value" };
     case "Parentheses":
       return valueProblem(n.children, property, isCustom, depth + 1);
+    case "Value":
+      // The fallback of `var(--name, fallback)`: validated like any other value, so `url()` and friends inside
+      // it are still refused.
+      return valueProblem(n.children, property, isCustom, depth + 1);
     case "Url": {
       const url = String(n.value);
       if (ASSET_REF_PATTERN.test(url) && (isCustom || CSS_ASSET_URL_PROPERTIES.has(property)))
