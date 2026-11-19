@@ -36,7 +36,7 @@
   {
     "name": "create_presentation",
     "title": "Create a presentation",
-    "description": "Use only when the user wants the presentation in PPTaken (do not use it for a plain request to make a presentation). Creates a complete presentation in one call (all slides) and returns presentation_id, revision 1 and urls; give urls.present to the user. Call get_authoring_guide first. Use idempotency_key so a retry does not create a duplicate. To change an existing presentation use update_slides or update_presentation instead. Images: create first, then add_asset and update_slides.",
+    "description": "Use only when the user wants the presentation in PPTaken (do not use it for a plain request to make a presentation). Creates a complete presentation in one call (all slides) and returns presentation_id, revision 1 and urls; give urls.present to the user. Call get_authoring_guide first. Use idempotency_key so a retry does not create a duplicate. To change an existing presentation never create a copy: find it with list_presentations and use update_slides or update_presentation instead. Images: create first, then add_asset and update_slides.",
     "inputSchema": {
       "type": "object",
       "properties": {

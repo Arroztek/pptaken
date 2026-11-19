@@ -92,7 +92,7 @@ ${JSON.stringify(EXAMPLE_SLIDE)}
 With \`theme\`: ${JSON.stringify(GUIDE_EXAMPLE.theme)}
 
 ## Flow
-\`create_presentation\` with all slides in one call → give \`urls.present\` to the user. To edit: \`get_presentation\` (outline by default) shows slide ids and \`revision\`; pass it as \`expected_revision\` to \`update_slides\` or \`update_presentation\`. On REVISION_CONFLICT, read again and reapply. Successful writes may return \`warnings\` listing what the sanitizer removed: fix those slides if the removal matters.
+\`create_presentation\` with all slides in one call → give \`urls.present\` to the user. To change a presentation that already exists, NEVER call \`create_presentation\` again (it would leave the user with duplicate copies they cannot easily remove): find it with \`list_presentations\`, then edit it. To edit: \`get_presentation\` (outline by default) shows slide ids and \`revision\`; pass it as \`expected_revision\` to \`update_slides\` or \`update_presentation\`. On REVISION_CONFLICT, read again and reapply. Successful writes may return \`warnings\` listing what the sanitizer removed: fix those slides if the removal matters.
 `;
 
 // ---------------------------------------------------------------------------------------------------------------

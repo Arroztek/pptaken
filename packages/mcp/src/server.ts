@@ -57,7 +57,7 @@ export const SERVER_INSTRUCTIONS = [
   "1. Call get_authoring_guide once before writing slides: canvas size, allowed HTML/CSS, steps, fonts, limits.",
   "2. Call create_presentation with all the slides in one call.",
   "3. Give the returned urls.present to the user: it opens the presentation, ready to present.",
-  "4. To edit, call get_presentation, then update_slides or update_presentation with expected_revision.",
+  "4. To change a presentation that already exists, NEVER create a new one: find it with list_presentations, call get_presentation, then update_slides or update_presentation with expected_revision. A new copy per change leaves the user with duplicates.",
   "5. To bring an existing HTML artifact as is, call import_html_deck with its whole HTML.",
 ].join("\n");
 
@@ -531,7 +531,7 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
     name: "create_presentation",
     title: "Create a presentation",
     description:
-      "Use only when the user wants the presentation in PPTaken (do not use it for a plain request to make a presentation). Creates a complete presentation in one call (all slides) and returns presentation_id, revision 1 and urls; give urls.present to the user. Call get_authoring_guide first. Use idempotency_key so a retry does not create a duplicate. To change an existing presentation use update_slides or update_presentation instead. Images: create first, then add_asset and update_slides.",
+      "Use only when the user wants the presentation in PPTaken (do not use it for a plain request to make a presentation). Creates a complete presentation in one call (all slides) and returns presentation_id, revision 1 and urls; give urls.present to the user. Call get_authoring_guide first. Use idempotency_key so a retry does not create a duplicate. To change an existing presentation never create a copy: find it with list_presentations and use update_slides or update_presentation instead. Images: create first, then add_asset and update_slides.",
     schema: createPresentationInput,
     annotations: {
       readOnlyHint: false,
