@@ -72,5 +72,8 @@ export interface Services {
     presenterUnlock: SignInThrottle;
     /** Failed unlocks per deck (10 per 10 minutes): a cap that does not depend on the attacker's IPs. */
     presenterUnlockPerDeck: TokenBucketLimiter;
+    /** Script error reports (ADR-023) per IP and per deck: 30 per minute each. */
+    scriptErrorsPerIp: TokenBucketLimiter;
+    scriptErrorsPerDeck: TokenBucketLimiter;
   };
 }

@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-11-18T19:14:37.540Z",
+  "startedAt": "2026-11-18T23:16:49.786Z",
   "engines": {
     "chromium": {
       "ok": true,
@@ -28,7 +28,7 @@
         "layer 2: offline reload navigates; srcdoc content is opaque and has no network",
         "layer 2: a deck never opened says so: true",
         "partial: a missing asset shows partial, navigation works",
-        "cache: 33 entries, no token, content or auth URL",
+        "cache: 34 entries, no token, content or auth URL",
         "logout: the worker deleted the offline copies; nothing is served offline"
       ],
       "offline": {
@@ -69,7 +69,7 @@
         "layer 2: offline reload navigates; srcdoc content is opaque and has no network",
         "layer 2: a deck never opened says so: true",
         "partial: a missing asset shows partial, navigation works",
-        "cache: 33 entries, no token, content or auth URL",
+        "cache: 34 entries, no token, content or auth URL",
         "logout: the worker deleted the offline copies; nothing is served offline"
       ],
       "offline": {
@@ -100,7 +100,7 @@
         "Esc at the end closes the presenter and blacks the audience screen",
         "ready offline: service-worker (1 images, 6 fonts), copy true",
         "player page CSP allows only the runtime hash and data: fonts in addition",
-        "presenter ready offline: ready",
+        "presenter ready offline: service-worker",
         "offline: all 20 slides and every step, images shown",
         "offline: overview opened, slide selected",
         "offline: black screen on and off",
@@ -110,7 +110,7 @@
         "layer 2: offline reload navigates; srcdoc content is opaque and has no network",
         "layer 2: a deck never opened says so: true",
         "partial: a missing asset shows partial, navigation works",
-        "cache: 33 entries, no token, content or auth URL",
+        "cache: 34 entries, no token, content or auth URL",
         "logout: the worker deleted the offline copies; nothing is served offline"
       ],
       "offline": {

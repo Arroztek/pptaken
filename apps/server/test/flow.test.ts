@@ -139,6 +139,7 @@ describe("first-run flow", () => {
         updatedAt: expect.any(String),
         createdBy: "agent",
         scripts: "none",
+        scriptErrors: 0,
       },
     ]);
     res = await api("GET", `/api/v1/decks/${id}`, { cookie });

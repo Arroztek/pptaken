@@ -63,6 +63,7 @@ import { labelsFor, pickLocale } from "./i18n.js";
 import { syncChannelName } from "./sync.js";
 import { keepOfflineCopy, loadContent, SignedOutError } from "./offline-client.js";
 import { createUnlockDialog, forgetUnlockToken, readUnlockToken, requestUnlock, storeUnlockToken } from "./unlock.js";
+import { createErrorReporter } from "./error-report.js";
 const body = document.body;
 const id = body.dataset.deck;
 const stage = document.getElementById("stage");
@@ -93,7 +94,10 @@ function mount(src) {
   body.dataset.scripts = src.scripts ?? "none";
   body.dataset.state = "loading";
   const scripted = src.scripts === "running";
-  let scriptErrors = 0;
+  // ADR-023: the owner's page sends author-script failures to the panel (never shown on this audience screen).
+  const reporter = scripted && !guest && src.digest ? createErrorReporter({ deckId: id, digest: src.digest }) : null;
+  if (reporter) addEventListener("pagehide", () => reporter.flush());
+  const seenErrors = new Set();
   let keeping = false;
   const p = createPlayer(stage, {
     ...(src.fromCopy ? { contentHtml: src.contentHtml } : { contentUrl: src.contentUrl }),
@@ -110,17 +114,21 @@ function mount(src) {
     },
     ...(guest ? {} : { presenterUrl: "/p/" + encodeURIComponent(id) + "/presenter", sync: syncChannelName(id) ?? undefined }),
     onReady: (slides) => { status.hidden = true; body.dataset.slides = String(slides.length); body.dataset.state = "ready"; },
-    onLoadTimeout: () => { body.dataset.state = "slow"; status.hidden = false; status.textContent = "This presentation is taking too long to load. If you are in an embedded preview, open this page in your regular browser."; },
+    onLoadTimeout: () => { body.dataset.state = "slow"; showStatus(t.loadSlow, false); },
     onChange: (s) => { body.dataset.slide = String(s.slide); body.dataset.step = String(s.step); body.dataset.mode = s.mode; body.dataset.black = String(s.black); remote?.onChange(s); unlock?.setIndicatorVisible(!s.black); },
     ...(scripted ? {
       scripts: true,
       expect: src.expect,
       fallbackUrl: () => load({ safe: true }).then((r) => r.contentUrl ?? null),
-      onScriptError: () => { scriptErrors += 1; body.dataset.scriptErrors = String(scriptErrors); },
+      onScriptError: (e) => {
+        seenErrors.add(JSON.stringify([e.kind, e.slideId, e.name, e.message]));
+        body.dataset.scriptErrors = String(seenErrors.size);
+        reporter?.add(e);
+      },
     } : {}),
     onFault: (f) => {
       if (f === "unresponsive") { body.dataset.state = "unresponsive"; body.dataset.scripts = "stopped"; unlock?.setIndicator(false); return; }
-      body.dataset.state = "fault"; status.hidden = false; status.textContent = "The presentation stopped: " + f;
+      body.dataset.state = "fault"; body.dataset.fault = f; showStatus(t.stoppedFault, !guest);
     },
     onOffline: (o) => {
       body.dataset.offline = o.state;
@@ -138,6 +146,20 @@ function mount(src) {
   else p.iframe.focus();
   unlock?.setIndicator(scripted);
   return p;
+}
+// Status line (bottom left): what happened and what to do, with a link to the deck's page for the owner. Text only.
+function showStatus(text, withLink) {
+  status.hidden = false;
+  status.replaceChildren(document.createTextNode(text));
+  if (withLink) {
+    const a = document.createElement("a");
+    a.href = "/decks/" + encodeURIComponent(id) + "#script-errors";
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.textContent = t.openDeckPage;
+    a.style.cssText = "margin-left:8px;color:#C9C3FF";
+    status.append(a);
+  }
 }
 // After a successful unlock: ask again with the token; when the server signs the scripted document, replace the
 // frame (same position, through the URL hash) and show the indicator.
@@ -199,7 +221,7 @@ async function start() {
     }).catch(() => { body.dataset.remote = "unavailable"; });
   }
 }
-start().catch(() => { body.dataset.state = "error"; status.hidden = false; status.textContent = t.loadFailed; });
+start().catch(() => { body.dataset.state = "error"; showStatus(t.loadFailed, false); });
 `;
 
 const PAGE_CSS =
@@ -240,6 +262,9 @@ async function start() {
     // The page is owner-only and the deck came from the network with the owner session: link back to the panel.
     // An offline copy proves no session, so no link there.
     panelUrl: source.fromCopy ? undefined : "/decks",
+    // ADR-023: the actionable script notices link to the deck's page and copy a message for the owner's agent.
+    deckId: source.fromCopy ? undefined : id,
+    deckPageUrl: source.fromCopy ? undefined : "/decks/" + encodeURIComponent(id),
     // ADR-021: offline the deck is static and nothing asks for a password; say so here, never on the audience screen.
     interactiveNotice: interactiveNotice() ?? undefined,
     onFinish: () => { body.dataset.finished = "true"; },

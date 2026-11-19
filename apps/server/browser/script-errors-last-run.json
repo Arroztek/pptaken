@@ -1,0 +1,73 @@
+{
+  "startedAt": "2026-11-19T01:39:24.642Z",
+  "engines": {
+    "chromium": {
+      "ok": true,
+      "checks": [
+        "write: static check warns SCRIPT_UNDECLARED_ROOT and SCRIPT_BLOCKED_API (non-fatal)",
+        "presenter: no notice while nothing failed",
+        "audience screen: no script notice",
+        "deck page API: status errors, the incident with its hint",
+        "deck page API: fetch (lockdown) and eval (CSP) reported",
+        "deck page API: no URL or token in any stack, text bounded",
+        "decks list: error count for the badge",
+        "get_presentation: script_errors with the root hint, labelled untrusted",
+        "presenter: error notice with a link to #script-errors in a new tab",
+        "presenter: keyboard-reachable copy gives a message with the deck id and get_presentation",
+        "presenter: stopped notice (watchdog) replaces the error notice",
+        "repair: no static warning, previous errors returned with the write",
+        "repair: the guide's example runs (text update on click)",
+        "repair: no error for the new code; the old ones kept as previous version",
+        "get_presentation after the repair: previous_only, no current items",
+        "presenter: pending notice links to the approval section",
+        "player: slow-load status says what to do",
+        "no page errors in the trusted pages"
+      ]
+    },
+    "firefox": {
+      "ok": true,
+      "checks": [
+        "write: static check warns SCRIPT_UNDECLARED_ROOT and SCRIPT_BLOCKED_API (non-fatal)",
+        "presenter: no notice while nothing failed",
+        "audience screen: no script notice",
+        "deck page API: status errors, the incident with its hint",
+        "deck page API: fetch (lockdown) and eval (CSP) reported",
+        "deck page API: no URL or token in any stack, text bounded",
+        "decks list: error count for the badge",
+        "get_presentation: script_errors with the root hint, labelled untrusted",
+        "presenter: error notice with a link to #script-errors in a new tab",
+        "presenter: keyboard-reachable copy gives a message with the deck id and get_presentation",
+        "presenter: stopped notice (watchdog) replaces the error notice",
+        "repair: no static warning, previous errors returned with the write",
+        "repair: the guide's example runs (text update on click)",
+        "repair: no error for the new code; the old ones kept as previous version",
+        "get_presentation after the repair: previous_only, no current items",
+        "presenter: pending notice links to the approval section",
+        "no page errors in the trusted pages"
+      ]
+    },
+    "webkit": {
+      "ok": true,
+      "checks": [
+        "write: static check warns SCRIPT_UNDECLARED_ROOT and SCRIPT_BLOCKED_API (non-fatal)",
+        "presenter: no notice while nothing failed",
+        "audience screen: no script notice",
+        "deck page API: status errors, the incident with its hint",
+        "deck page API: fetch (lockdown) and eval (CSP) reported",
+        "deck page API: no URL or token in any stack, text bounded",
+        "decks list: error count for the badge",
+        "get_presentation: script_errors with the root hint, labelled untrusted",
+        "presenter: error notice with a link to #script-errors in a new tab",
+        "presenter: keyboard-reachable copy gives a message with the deck id and get_presentation",
+        "presenter: stopped notice (watchdog) replaces the error notice",
+        "repair: no static warning, previous errors returned with the write",
+        "repair: the guide's example runs (text update on click)",
+        "repair: no error for the new code; the old ones kept as previous version",
+        "get_presentation after the repair: previous_only, no current items",
+        "presenter: pending notice links to the approval section",
+        "no page errors in the trusted pages"
+      ]
+    }
+  },
+  "finishedAt": "2026-11-19T01:40:07.577Z"
+}

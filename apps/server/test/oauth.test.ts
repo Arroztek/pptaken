@@ -936,7 +936,7 @@ describe("CIMD", () => {
       cimd: cimdDocument({
         redirect_uris: [claude, "https://claude.ai/api/mcp/auth_callback2"],
         client_name:
-          "Claude‮ evil name that is definitely much longer than sixty characters in total",
+          "Claude\u202e evil name that is definitely much longer than sixty characters in total",
       }),
     });
     const view = async (redirect: string) => {
@@ -950,7 +950,7 @@ describe("CIMD", () => {
       redirectHost: "claude.ai",
       client: { kind: "cimd", idHost: "client.example" },
     });
-    expect(exact.client.name).not.toContain("‮");
+    expect(exact.client.name).not.toContain("\u202e");
     expect([...exact.client.name].length).toBeLessThanOrEqual(60);
     expect((await view("https://claude.ai/api/mcp/auth_callback2")).redirectKind).toBe("web");
   });

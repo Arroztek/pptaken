@@ -13,9 +13,11 @@ import {
   DEFAULT_WORKSPACE_ID,
   isDomainError,
   ownerPrincipal,
+  type ScriptErrorView,
   type ScriptsStatus,
   scriptsDigest,
   scriptsStateOf,
+  scriptWarnings,
 } from "@pptaken/core";
 import { staticDeck } from "@pptaken/sanitizer";
 import { canvasSize, type Deck } from "@pptaken/schema";
@@ -59,6 +61,10 @@ const decisionBody = z.object({
   scopes: z.array(z.string().max(40)).max(10).optional(),
 });
 const approveBody = z.object({ digest: z.string().regex(/^[0-9a-f]{64}$/) }).strict();
+/** Script error reports (ADR-023): entries are validated one by one by the core (bad ones are dropped). */
+const scriptErrorsBody = z
+  .object({ digest: z.string().regex(/^[0-9a-f]{64}$/), errors: z.array(z.unknown()).max(50) })
+  .strict();
 const presenterPasswordBody = z.object({ password: z.string().max(4096) }).strict();
 const unlockBody = z
   .object({ deckId: z.string().max(64), password: z.string().max(4096) })
@@ -442,6 +448,13 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
       updatedAt: iso(deck.updatedAt),
       createdBy: deck.createdBy.actor === "agent" ? "agent" : "owner",
       scripts: scriptsStateOf(digest, approval?.digest ?? null),
+      // ADR-023: distinct errors reported for the current code (the list shows an amber badge).
+      scriptErrors:
+        digest === null
+          ? 0
+          : (await s.storage.scriptErrors.list(DEFAULT_WORKSPACE_ID, id)).filter(
+              (e) => e.digest === digest,
+            ).length,
     };
   }
 
@@ -568,7 +581,13 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
       return c.json({ url, scripts, ...extra }, 200, { "Cache-Control": "no-store" });
     const canvas = canvasSize(document.aspectRatio);
     return c.json(
-      { url, scripts, expect: { slides: document.slides.map((x) => x.id), ...canvas } },
+      {
+        url,
+        scripts,
+        expect: { slides: document.slides.map((x) => x.id), ...canvas },
+        // ADR-023: the owner's page reports script errors against this digest (guests never report).
+        ...(owned ? { digest } : {}),
+      },
       200,
       { "Cache-Control": "no-store" },
     );
@@ -610,11 +629,26 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
       const review = await s.core.getScriptsReview(owner, { presentationId: id }, callOf(c));
       let warnings: { code: string; message: string; path: string | null; name: string | null }[] =
         [];
+      let checks: {
+        code: string;
+        message: string;
+        path: string | null;
+        slideId: string | null;
+      }[] = [];
       if (review.digest !== null) {
         const { document } = await s.core.getRevision(owner, {
           presentationId: id,
           revision: review.revision,
         });
+        // ADR-023: the static check of the scripts (syntax errors, a bare `root`, blocked APIs).
+        checks = scriptWarnings(document)
+          .slice(0, MAX_REVIEW_WARNINGS)
+          .map((w) => ({
+            code: w.code,
+            message: w.message,
+            path: w.path ?? null,
+            slideId: w.slideId ?? null,
+          }));
         warnings = staticDeck(document)
           .warnings.slice(0, MAX_REVIEW_WARNINGS)
           .map((w) => ({
@@ -630,6 +664,7 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
           sources: review.sources,
           deckSource: review.deckSource,
           warnings,
+          checks,
           presenterPassword: { set: await s.auth.hasPresenterPassword() },
         },
         200,
@@ -670,6 +705,105 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
     try {
       const st = await s.core.revokeScripts(owner, { presentationId: id }, callOf(c));
       return c.json(scriptsJson(st));
+    } catch (error) {
+      return domainErrorResponse(c, error);
+    }
+  });
+
+  // ---------------------------------------------------------------------------------------------------------------
+  // Script error visibility (ADR-023). The owner's player page reports author-script failures; the panel reads and
+  // clears them. Panel session only (this router never accepts API or OAuth tokens), CSRF + same-origin on POST and
+  // DELETE, a small body limit (app.ts), rate limits per IP and per deck, and the core ignores reports unless the
+  // deck's current digest is approved and equals the digest the page was served with.
+
+  const errorJson = (e: ScriptErrorView) => ({
+    kind: e.kind,
+    slideId: e.slideId,
+    slideTitle: e.slideTitle,
+    slideIndex: e.slideIndex,
+    name: e.name,
+    message: e.message,
+    stack: e.stack,
+    count: e.count,
+    firstSeen: iso(e.firstSeen),
+    lastSeen: iso(e.lastSeen),
+    hint: e.hint,
+  });
+
+  /** Browsers say where a request came from; anything but our own page is refused (defense in depth). */
+  const crossSite = (c: Context) => {
+    const site = c.req.header("sec-fetch-site");
+    return site !== undefined && site !== "same-origin";
+  };
+
+  api.post("/decks/:id/script-errors", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    if (crossSite(c)) return apiError(c, "FORBIDDEN", "Cross-site request refused");
+    const id = c.req.param("id");
+    if (!ULID.test(id)) return apiError(c, "NOT_FOUND", "Presentation not found");
+    for (const [limiter, key] of [
+      [s.limits.scriptErrorsPerIp, c.get("ip")],
+      [s.limits.scriptErrorsPerDeck, id],
+    ] as const) {
+      const rl = limiter.take(key);
+      if (!rl.ok) {
+        return apiError(c, "RATE_LIMITED", "Too many script error reports", {
+          retryAfterSec: retryAfter(rl.retryAfterMs),
+        });
+      }
+    }
+    const input = await body(c, scriptErrorsBody);
+    if (input instanceof Response) return input;
+    try {
+      const result = await s.core.reportScriptErrors(
+        owner,
+        { presentationId: id, digest: input.digest, errors: input.errors },
+        callOf(c),
+      );
+      return c.json(result, 200, { "Cache-Control": "no-store" });
+    } catch (error) {
+      return domainErrorResponse(c, error);
+    }
+  });
+
+  api.get("/decks/:id/script-errors", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    const id = c.req.param("id");
+    if (!ULID.test(id)) return apiError(c, "NOT_FOUND", "Presentation not found");
+    try {
+      const r = await s.core.getScriptErrors(owner, { presentationId: id }, callOf(c));
+      const approval = await s.storage.scriptApprovals.get(DEFAULT_WORKSPACE_ID, id);
+      return c.json(
+        {
+          presentationId: r.presentationId,
+          revision: r.revision,
+          digest: r.digest,
+          state: r.state,
+          status: r.status,
+          approvedAt: r.state === "approved" ? iso(approval?.approvedAt ?? null) : null,
+          current: r.current.map(errorJson),
+          previous: r.previous.map(errorJson),
+          previousDigest: r.previousDigest,
+        },
+        200,
+        { "Cache-Control": "no-store" },
+      );
+    } catch (error) {
+      return domainErrorResponse(c, error);
+    }
+  });
+
+  api.delete("/decks/:id/script-errors", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    if (crossSite(c)) return apiError(c, "FORBIDDEN", "Cross-site request refused");
+    const id = c.req.param("id");
+    if (!ULID.test(id)) return apiError(c, "NOT_FOUND", "Presentation not found");
+    try {
+      await s.core.clearScriptErrors(owner, { presentationId: id }, callOf(c));
+      return c.body(null, 204);
     } catch (error) {
       return domainErrorResponse(c, error);
     }

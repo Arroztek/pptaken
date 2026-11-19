@@ -93,6 +93,9 @@ export interface CreateServerOptions {
   testRoutes?: boolean;
 }
 
+/** Largest body of `POST /api/v1/decks/:id/script-errors` (20 bounded entries fit with room for JSON escapes). */
+export const SCRIPT_ERRORS_MAX_BODY_BYTES = 32 * 1024;
+
 /** A Node HTTP server whose `upgrade` events the realtime endpoint (`/ws`) handles. */
 export type UpgradableServer = import("node:http").Server;
 
@@ -307,6 +310,18 @@ export async function createServer(
         intervalMs: 10 * minute,
         clock,
       }),
+      scriptErrorsPerIp: new TokenBucketLimiter({
+        capacity: 30,
+        refill: 30,
+        intervalMs: minute,
+        clock,
+      }),
+      scriptErrorsPerDeck: new TokenBucketLimiter({
+        capacity: 30,
+        refill: 30,
+        intervalMs: minute,
+        clock,
+      }),
     },
   };
 
@@ -398,6 +413,11 @@ export async function createServer(
   // 4. Body size limits, enforced while reading (before parsing).
   const tooLarge = (c: Parameters<typeof apiError>[0]) =>
     apiError(c, "VALIDATION_ERROR", "Request body too large", { status: 413 });
+  // Script error reports (ADR-023): small, bounded bodies only.
+  app.use(
+    "/api/v1/decks/:id/script-errors",
+    bodyLimit({ maxSize: SCRIPT_ERRORS_MAX_BODY_BYTES, onError: tooLarge }),
+  );
   app.use("/api/*", bodyLimit({ maxSize: config.maxApiBodyBytes, onError: tooLarge }));
   app.use("/mcp", bodyLimit({ maxSize: config.maxMcpBodyBytes, onError: tooLarge }));
   app.use(

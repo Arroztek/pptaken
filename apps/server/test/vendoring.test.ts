@@ -142,7 +142,7 @@ describe("import_html_deck over MCP", () => {
     const html = await doc.text();
     expect(html).toContain("<\\/script><\\u0073cript>alert(1)<\\/script>");
     expect(html.indexOf("root.MiniChart")).toBeLessThan(html.indexOf("function draw()"));
-    expect(html.match(/<\/script>/g)?.length).toBe(html.match(/<script>/g)?.length);
+    expect(html.match(/<\/script>/g)?.length).toBe(html.match(/<script[ >]/g)?.length);
   });
 
   it("add_asset accepts an https URL; blocked addresses are refused", async () => {

@@ -15,6 +15,7 @@ import {
   isDomainError,
   ownerPrincipal,
   type Principal,
+  scriptsDigest,
 } from "@pptaken/core";
 import {
   buildOfflineDocument,
@@ -197,9 +198,30 @@ export function presenterRoutes(s: Services): Hono<AppEnv> {
     // Interactive mode (ADR-021): whether the deck's approved scripts can run online. The presenter view uses it to
     // explain, when it runs from the offline copy, that interactive mode needs a connection.
     const interactive = (await unlockableDigest(s, id)) !== null;
-    return c.json(interactive ? { ...data, interactive } : data, 200, {
-      "Cache-Control": "no-store",
-    });
+    // ADR-023: scripts that will not run, and why, so the presenter view can tell the owner what to do.
+    let scripts: "pending" | "off" | undefined;
+    if (!interactive) {
+      const deck = await s.storage.decks.get(DEFAULT_WORKSPACE_ID, id);
+      const revision =
+        deck === null
+          ? null
+          : await s.storage.revisions.get(DEFAULT_WORKSPACE_ID, id, deck.currentRevision);
+      const digest = revision === null ? null : scriptsDigest(revision.document);
+      if (digest !== null) {
+        const approval = await s.storage.scriptApprovals.get(DEFAULT_WORKSPACE_ID, id);
+        if (s.config.scripts !== "owner") scripts = "off";
+        else if (approval?.digest !== digest) scripts = "pending";
+      }
+    }
+    return c.json(
+      {
+        ...data,
+        ...(interactive ? { interactive } : {}),
+        ...(scripts === undefined ? {} : { scripts }),
+      },
+      200,
+      { "Cache-Control": "no-store" },
+    );
   });
 
   app.get("/p/:deckId/presenter", async (c) => {
