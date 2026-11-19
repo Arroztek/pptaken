@@ -291,6 +291,8 @@ exact keys, validated on receipt and before sending, unknown ones ignored:
 | `hello` | none | a window joined; the others answer with `nav` and `black` |
 | `nav` | `slide` 0..199, `step` 0..255 | this window moved by its own input |
 | `black` | `on` boolean | black screen on/off |
+| `script-error` | `slide` -1..199 | an author script of this slide (-1: the deck script or unknown) failed (ADR-023); no text |
+| `script-stopped` | none | the main window's watchdog closed a frozen scripted frame (ADR-023) |
 
 Either window can navigate and both follow. A change applied because of a message is not sent back (no echo,
 hence no ping-pong); a burst of keys converges. When the presenter opens, it says `hello` and takes the main
@@ -706,8 +708,36 @@ value re-validated; `font-display:swap`), in the first `<style>` with the bundle
 the asset path and the asset route sends `Access-Control-Allow-Origin: *`. Offline documents and the HTML export
 inline them as `data:` URIs.
 
-**Errors** reach the main page (`onScriptError`) and the presenter window over the sync channel
-(`script-error {slide}`), which shows a discreet notice; nothing appears on the audience screen.
+**Errors (ADR-023).** The runtime reports every author failure over the port as
+`error { slide, kind, name, message, stack, count }`: `slide` is the index or `-1` (deck script, unattributed);
+`kind` is `setup | handler | rejection | script-load`; `name` ≤ 60, `message` ≤ 300, `stack` ≤ 400 UTF-16 units (at
+most 3 frames, one per line), control/bidi/zero-width characters stripped, URLs redacted to `<deck>`, document
+positions rewritten to the author's (`slide intro, line 3:14`, using the `data-pptaken-for`/`data-pptaken-line`
+attributes the builder puts on author `<script>` elements; attributes are outside the CSP hash); `count` is
+cumulative (≤ 10^6). Only `isTrusted` events are captured (`error`, `unhandledrejection`, and `securitypolicyviolation`
+for `script-src*`/`worker-src` with an inline or URL blocked source). The runtime keeps 20 distinct errors and sends
+at most 200 messages; repeats are flushed with the heartbeat.
+
+The shell validates exact keys and types, cleans the text again, accepts at most `SCRIPT_ERRORS_PER_SECOND` (10) per
+second, `MAX_SCRIPT_ERROR_MESSAGES` (300) per page and `MAX_DISTINCT_SCRIPT_ERRORS` (50), drops counts that do not
+grow, and calls `onScriptError(report)` with `{ kind, slideId, slideIndex, name, message, stack, count }` (`slideId`
+`deck` for -1). The watchdog adds `{ kind: "watchdog", name: "Unresponsive", … }`. The presenter window gets
+`script-error {slide}` (new distinct errors) or `script-stopped` over the sync channel: never text.
+
+**Reporting (owner page).** `@pptaken/player/error-report` (`createErrorReporter({ deckId, digest })`, served as
+`/_player/error-report.js` and cached for offline) posts to `POST /api/v1/decks/:id/script-errors` with the digest
+the content-url endpoint returned: first after 1.5 s, then at most every 5 s, ≤ 20 entries and ≤ 30 requests per
+page, counts as growth since the last report, a 429 pauses it for Retry-After, `keepalive` on `pagehide`. Guest pages
+and the offline copy never report.
+
+**Notices (ADR-023).** Nothing appears on the audience screen except the watchdog's "showing the static version"
+notice and the status line when the deck cannot be shown at all (localized; "check your connection and reload";
+for a fault, a link to the deck page for the owner). The presenter view (`PresenterOptions.deckId`, `deckPageUrl`,
+owner pages only) shows one actionable notice in the bar (`[data-pptaken-script-notice]`, `role=status`,
+`data-kind` = `error | stopped | pending | off`, highest wins): what happened, what to do, a link to the deck page
+(`#script-errors`, or `#scripts` to approve) in a new tab, and for errors "Copy a message for my agent" (the deck's
+title and id and what to ask; never error text; a manual-copy fallback when the clipboard is refused). `pending` and
+`off` come from the presenter data's `scripts` field.
 
 **Offline and export.** Script mode is online only: the offline document, the service worker copy and the
 `.html`/`.pkn` exports are built from `staticDeck(deck)` (no scripts). The presenter window's previews and paired

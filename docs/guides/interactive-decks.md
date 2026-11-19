@@ -78,6 +78,29 @@ are not signed in.
 - Forgot it? Set a new one in Security. `pptaken reset-password --clear-presenter-password` removes it together with
   an owner password reset.
 
+## When a script fails
+
+If something goes wrong in the code while you present, the slides keep working (the broken parts show their static
+version) and nothing appears on the screen your audience sees. Instead:
+
+- **The presenter view** shows a notice: what happened, what to do, a link to the presentation's page and **Copy a
+  message for my agent** (a ready-to-paste sentence with the presentation's title and id). If the code froze the page,
+  it says the presentation switched to the static version. If the code is not approved yet, it tells you to open the
+  presentation's page and approve it.
+- **The presentation's page** (Interactive section) has a **Script errors** block: for each error, the slide, where it
+  happened, the error text, how many times and when, and what it usually means. *"root is not defined"* means the
+  script must start with `var root = slide.root;`; *"Cannot read properties of null"* means a selector did not find
+  an element in the slide; anything about `fetch` means the script tried to use the network, which presentations
+  never allow. **Copy for my agent** copies a short summary to paste into your Claude chat; **Clear** empties the
+  list. The list of presentations marks a deck with errors in amber.
+- **Your agent** sees the same list with `get_presentation` (`script_errors`), clearly marked as untrusted text, and
+  every write already warns about the most common mistakes before you approve (a syntax error asks you to confirm
+  twice).
+
+Ask your agent to fix the scripts, approve the new code and present again. Errors are recorded only for code you
+approved, only while you present it from your own session, and only the latest 30 per version are kept; errors of the
+previous version stay visible, labelled as such, until the code changes again.
+
 ## 6. Offline
 
 Offline, presentations always show their static version and never ask for a password. If you need the interactive

@@ -26,3 +26,4 @@ An **ADR** (*Architecture Decision Record*) is a short note that records **what 
 | 0020 | [Interactive mode (author scripts)](0020-interactive-mode.md) | accepted (foundation phase), completed by 0021 |
 | 0021 | [Presenter password and approval screen](0021-presenter-password-and-approval-screen.md) | accepted |
 | 0022 | [Ingest-time vendoring and the HTML-artifact importer](0022-vendoring-and-html-importer.md) | accepted |
+| 0023 | [Script error visibility](0023-script-error-visibility.md) | accepted |

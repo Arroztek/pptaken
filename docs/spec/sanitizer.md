@@ -72,3 +72,17 @@ css-tree, and never decide what is safe to render):
   with `theme.fontFaces`.
 
 Their output is ordinary deck input: it is validated by the schema and sanitized by this package like any write.
+
+## Static check of author scripts (ADR-023)
+
+`checkScript(source, { kind: "slide" | "deck" })` and `checkDeckScripts(deck)` parse author scripts with acorn
+(8.19.0, MIT, pinned) exactly as the player wraps them (`function (slide) { … }` for slides, global for the deck
+script) and return non-fatal findings `{ code, message, line?, column?, name? }` with stable codes:
+`SCRIPT_SYNTAX_ERROR`, `SCRIPT_UNDECLARED_ROOT` (a bare `root`: the fix is `var root = slide.root;`),
+`SCRIPT_UNDECLARED_SLIDE_API` (bare `onEnter`, `onLeave`, `onStep`, `setSteps`), `SCRIPT_BLOCKED_API` (network,
+workers, eval/new Function, string timers, `import()`, `document.write`, `window.open`, refused markup through
+innerHTML, insertAdjacentHTML or createElement), `SCRIPT_MARKUP` (`<script`, `</script`, `<!--`) and
+`SCRIPT_CHECK_SKIPPED`. Conservative (a name declared anywhere counts as declared; it never runs code) and bounded
+(`SCRIPT_CHECK_LIMITS`: 256 KB per script, 1.2 MB and 750 ms per deck, 200 000 nodes, 10 findings per script; parser
+recursion limits end as "skipped"). The core adds the findings to every write's warnings; they never block a write or
+an approval. Corpus: `test/script-check.test.ts`.

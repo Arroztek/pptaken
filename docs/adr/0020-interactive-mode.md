@@ -195,7 +195,9 @@ server test enumerates the registered GET routes against a reviewed allowlist. A
 6. **Author API**: each script is wrapped as `pptaken.register("<slide id>", function (slide) { … })`; the
    runtime calls it at `DOMContentLoaded` with `{ root, onEnter, onLeave, onStep, setSteps(n) }`. Exceptions in
    author code (setup and callbacks, and uncaught errors) are caught per slide and reported as
-   `{ type: "error", slide }` (no text crosses the boundary); the presenter window shows a discreet notice. Keys
+   `{ type: "error", slide }` (no text crosses the boundary); the presenter window shows a discreet notice.
+   **Changed by [ADR-023](0023-script-error-visibility.md):** bounded, cleaned error text now crosses, is reported to
+   the owner's panel and returned to the agent as untrusted data; the presenter notice is actionable. Keys
    are forwarded unless focus is in a form control (`Escape`, `b`, `f` always forwarded; the shell still drops
    `f` from the frame in script mode, and `Escape` returns focus to the shell).
 7. **Online only**: offline copies and exports are static in this phase.

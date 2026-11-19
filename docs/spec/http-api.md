@@ -92,7 +92,8 @@ The web app polls this endpoint every 2 seconds while the welcome page is open.
 ### `GET /api/v1/decks?cursor=&q=`
 `200 { "decks": [{ "id", "title", "lang", "slideCount", "revision", "updatedAt", "createdBy", "scripts" }], "nextCursor": string|null }`.
 Trashed decks are excluded. `createdBy` is `"owner"` or `"agent"`. `scripts` (ADR-021) is the trust state of the
-current revision's author scripts: `"none"`, `"pending"` or `"approved"` (the list badges).
+current revision's author scripts: `"none"`, `"pending"` or `"approved"` (the list badges). `scriptErrors`
+(ADR-023): distinct script errors reported for the current code (the amber "script errors" badge).
 
 ### `GET /api/v1/decks/:id`
 `200` with the same summary plus `{ "urls": { "present": string, "manage": string } }` (`manage` is the
@@ -114,10 +115,40 @@ Owner session only (cookie; API and OAuth tokens never reach these routes), CSRF
   source, sha256, bytes }]` (every script verbatim, its SHA-256 and UTF-8 size), `warnings: [{ code, message, path,
   name }]` (what the static fallback removes, at most 50) and `presenterPassword: { set }`. Since ADR-022:
   `deckScript` (boolean), `deckSource: { source, sha256, bytes } | null` (the deck-level script) and, per library,
-  `finalUrl` (after redirects) and `bytes`.
+  `finalUrl` (after redirects) and `bytes`. Since ADR-023: `checks: [{ code, message, path, slideId }]`, the
+  static check of the current scripts (`SCRIPT_SYNTAX_ERROR`, `SCRIPT_UNDECLARED_ROOT`,
+  `SCRIPT_UNDECLARED_SLIDE_API`, `SCRIPT_BLOCKED_API`, `SCRIPT_MARKUP`, `SCRIPT_CHECK_SKIPPED`; at most 50). The
+  approve dialog asks for a second confirmation when a `SCRIPT_SYNTAX_ERROR` is listed.
 - `POST /api/v1/decks/:id/scripts/approve` `{ "digest": "<64 hex>" }` → `200` (same shape). `409` when the scripts
   changed since the digest was read; `400` when the instance switch is off or the deck has no scripts. Audited.
 - `POST /api/v1/decks/:id/scripts/revoke` → `200`. Audited.
+
+### Script errors (ADR-023)
+
+Owner session only (cookie; API and OAuth tokens never reach these routes); CSRF header and an allowed `Origin` on
+POST and DELETE; when the browser sends `Sec-Fetch-Site`, anything but `same-origin` is refused (`403`).
+
+- `POST /api/v1/decks/:id/script-errors` `{ "digest": "<64 hex>", "errors": [{ kind, slideId, name?, message?,
+  stack?, count? }] }` (at most 50 entries, body at most 32 KB → `413`; strict keys → `400`) → `200 { accepted,
+  dropped, ignored? }`. Sent by the owner's player page. `kind`: `setup | handler | rejection | script-load |
+  watchdog`; `slideId`: a slide of the current revision or `deck`; `count` 1..10000 (occurrences since the
+  last report). The report is **ignored** (`ignored: "digest_mismatch" | "not_approved"`, nothing stored) unless
+  `digest` is the current revision's digest and the approved one. Each entry is validated alone (invalid ones are
+  dropped), at most 20 are used per request, text is cleaned again (≤ 60 / 300 / 400 characters, no control or bidi
+  characters, URLs redacted). Stored per deck + digest + fingerprint with first/last seen and count; at most 30
+  distinct errors per digest; when the code changes only the current digest and the most recent previous one are
+  kept. `429` with `Retry-After` over 30 reports per minute per IP or per deck.
+- `GET /api/v1/decks/:id/script-errors` → `200 { presentationId, revision, digest, state, status: "none" |
+  "no_errors" | "errors" | "previous_only", approvedAt, current: [Error], previous: [Error], previousDigest }`,
+  `Error = { kind, slideId, slideTitle, slideIndex, name, message, stack, count, firstSeen, lastSeen, hint }`, most
+  recently seen first; `hint` is `declare-root | slide-api | selector-missed | network-disabled | blocked-api |
+  syntax | frozen | null`. Every text field is untrusted: clients show it as text only.
+- `DELETE /api/v1/decks/:id/script-errors` → `204` (all digests). Audited (`presentation.script_errors_clear`).
+
+`GET /api/v1/decks/:id/content-url` adds `digest` (the scripts digest the document was signed for) when the owner's
+session gets the scripted document; the page reports errors against it. `GET /api/v1/decks/:id/presenter` adds
+`scripts: "pending" | "off"` when the deck has scripts that will not run (not approved, or the instance switch is
+off): the presenter view says so and what to do.
 
 ### Presenter password (ADR-021)
 
