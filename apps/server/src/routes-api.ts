@@ -480,6 +480,7 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
     if ((cursor?.length ?? 0) > 200 || (q?.length ?? 0) > 200) {
       return apiError(c, "VALIDATION_ERROR", "cursor and q must be at most 200 characters");
     }
+    const trashed = c.req.query("trash") === "1";
     try {
       const page = await s.core.listPresentations(
         owner,
@@ -487,9 +488,31 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
           limit: 20,
           ...(cursor === undefined ? {} : { cursor }),
           ...(q === undefined ? {} : { query: q }),
+          ...(trashed ? { trashed: true } : {}),
         },
         { ip: c.get("ip"), requestId: c.get("requestId") },
       );
+      if (trashed) {
+        // The trash (owner only): what is there, when it went and until when it can come back.
+        const retention = s.core.config.trashRetentionMs;
+        return c.json(
+          {
+            decks: page.items.map((item) => ({
+              id: item.presentationId,
+              title: item.title,
+              lang: item.lang,
+              slideCount: item.slideCount,
+              revision: item.revision,
+              updatedAt: iso(item.updatedAt),
+              deletedAt: iso(item.deletedAt),
+              restorableUntil: iso((item.deletedAt ?? item.updatedAt) + retention),
+            })),
+            nextCursor: page.nextCursor,
+          },
+          200,
+          { "Cache-Control": "no-store" },
+        );
+      }
       const decks = [];
       for (const item of page.items) {
         const sum = await summary(item.presentationId);
@@ -517,6 +540,91 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
       vendorFetch: s.config.vendorFetch ? "on" : "off",
       vendored: revision?.document.vendored ?? [],
     });
+  });
+
+  // ---------------------------------------------------------------------------------------------------------------
+  // Trash (ADR-014): the owner moves a presentation to the trash, restores it within the retention, or deletes it
+  // for good. Panel session + CSRF only; every step is audited by the core use cases.
+
+  api.delete("/decks/:id", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    const id = c.req.param("id");
+    if (!ULID.test(id)) return apiError(c, "NOT_FOUND", "Presentation not found");
+    try {
+      const r = await s.core.trashPresentation(owner, { presentationId: id }, callOf(c));
+      return c.json({
+        id: r.presentationId,
+        trashed: true,
+        restorableUntil: iso(r.restorableUntil),
+      });
+    } catch (error) {
+      return domainErrorResponse(c, error);
+    }
+  });
+
+  api.post("/decks/:id/restore", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    const id = c.req.param("id");
+    if (!ULID.test(id)) return apiError(c, "NOT_FOUND", "Presentation not found");
+    try {
+      await s.core.restorePresentation(owner, { presentationId: id }, callOf(c));
+      const sum = await summary(id);
+      if (sum === null) return apiError(c, "NOT_FOUND", "Presentation not found");
+      return c.json(sum);
+    } catch (error) {
+      return domainErrorResponse(c, error);
+    }
+  });
+
+  api.delete("/trash/:id", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    const id = c.req.param("id");
+    if (!ULID.test(id)) return apiError(c, "NOT_FOUND", "Presentation not found");
+    try {
+      await s.core.purgePresentation(owner, { presentationId: id }, callOf(c));
+      return c.body(null, 204);
+    } catch (error) {
+      return domainErrorResponse(c, error);
+    }
+  });
+
+  // ---------------------------------------------------------------------------------------------------------------
+  // Owner settings (ADR-024). Only the panel session reaches this router; agents have no way to read or change it.
+
+  const settingsBody = z.object({ autoApproveUpdates: z.boolean() }).strict();
+
+  api.get("/settings", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    return c.json(
+      { autoApproveUpdates: await s.auth.autoApproveUpdates(), scripts: s.config.scripts },
+      200,
+      { "Cache-Control": "no-store" },
+    );
+  });
+
+  api.put("/settings", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    const input = await body(c, settingsBody);
+    if (input instanceof Response) return input;
+    await s.auth.setAutoApproveUpdates(input.autoApproveUpdates);
+    await auditEntry(
+      c,
+      "settings.auto_approve_updates",
+      null,
+      "ok",
+      { on: input.autoApproveUpdates },
+      "owner",
+    );
+    return c.json(
+      { autoApproveUpdates: input.autoApproveUpdates, scripts: s.config.scripts },
+      200,
+      { "Cache-Control": "no-store" },
+    );
   });
 
   // The signed content URL of the current revision for the owner's player page. Side-effect free (it only signs).
@@ -558,6 +666,8 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
       else if (approval?.digest !== digest) scripts = "pending";
       else if (safe) scripts = "safe";
       else if (owned) scripts = "running";
+      // ADR-024: automatic approvals never reach guest contexts; a guest only runs code the owner clicked for.
+      else if (approval.ownerDigest !== digest) scripts = "pending";
       else if (await verifyUnlockToken(s, unlock, id, digest)) scripts = "running";
       else scripts = "locked";
     }
@@ -610,6 +720,11 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
     libs: st.libs,
     deckScript: st.deckScript,
     chars: st.chars,
+    // ADR-024: how the approval was given, what needs a click, and what an automatic approval replaced.
+    approvalMode: st.approvalMode,
+    ownerApproved: st.ownerApproved,
+    newLibs: st.newLibs,
+    previousRevision: st.previousRevision,
     capability: {
       contentOrigin: s.config.contentOrigin,
       separateSiteContent: s.config.contentOrigin === "separate-site",
@@ -663,9 +778,11 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
           ...scriptsJson(review),
           sources: review.sources,
           deckSource: review.deckSource,
+          previous: review.previous,
           warnings,
           checks,
           presenterPassword: { set: await s.auth.hasPresenterPassword() },
+          autoApproveUpdates: await s.auth.autoApproveUpdates(),
         },
         200,
         { "Cache-Control": "no-store" },

@@ -335,7 +335,14 @@ try {
           fixed.script_errors?.status === "previous_only",
         { warnings: fixed.warnings, script_errors: fixed.script_errors },
       );
-      await approve(cookie, id, fixed.interactive.digest);
+      // ADR-024: the repair edits code the owner already approved, adds no library, and the owner's
+      // "allow interactive updates automatically" setting is on by default, so the server approves it itself.
+      check(
+        "repair: allowed automatically (trust lineage), no click needed",
+        fixed.interactive?.status === "approved" &&
+          fixed.interactive?.allowed_automatically === true,
+        fixed.interactive,
+      );
       await page.goto("about:blank"); // a hash-only change would not reload the document
       await page.goto(`${app}/p/${id}#/1/0`);
       await page.waitForSelector('body[data-state="ready"][data-scripts="running"]', {

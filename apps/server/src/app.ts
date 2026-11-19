@@ -173,7 +173,14 @@ export async function createServer(
         ? {}
         : { transport: options.vendorNetwork.transport }),
     });
+  // ADR-024: the owner's "allow interactive updates automatically" setting, read from the auth settings store (the
+  // auth service is created below; the core only calls this during writes, long after startup).
+  let authForTrust: { autoApproveUpdates(): Promise<boolean> } | null = null;
   const core = createCore({
+    trust: {
+      autoApproveUpdates: async () =>
+        authForTrust === null ? false : authForTrust.autoApproveUpdates(),
+    },
     vendor,
     store: storage,
     blobs,
@@ -208,6 +215,7 @@ export async function createServer(
     clock,
     ...(options.scrypt === undefined ? {} : { scrypt: options.scrypt }),
   });
+  authForTrust = auth;
   // An operator-supplied admin password creates the owner at first boot, so no install code is printed.
   // It never overwrites an existing owner (use `pptaken reset-password` for that).
   if (config.adminPassword !== undefined) {

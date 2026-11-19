@@ -140,9 +140,11 @@ try {
     await page.getByText(/Fonts replaced/).isVisible(),
   );
 
-  const open = page.getByRole("link", { name: "Open the presentation" });
+  // "Open the presentation" goes to its page in the panel; Present opens the player (UX pass 2026-11).
+  await page.getByRole("link", { name: "Open the presentation" }).click();
+  await page.waitForURL(/\/decks\/[0-9A-Z]{26}$/, { timeout: 10_000 });
   const popupPromise = context.waitForEvent("page", { timeout: 5000 });
-  await open.click();
+  await page.getByRole("link", { name: "Present (opens in a new tab)" }).click();
   const player = await popupPromise;
   watch(player);
   await player.waitForSelector('body[data-state="ready"]', { timeout: 20_000 });

@@ -185,8 +185,10 @@ export function scriptsGuide(status: ScriptsStatusLabel): string {
 - Shared code (helpers, global functions) can go in the deck-level \`script\`: it runs once in the global scope after \`libs\` and before the slide scripts.
 - Extra HTML in decks with scripts: ${elements}; input type ${types}; data-* attributes. Still removed: ${policy.INTERACTIVE_REMOVED_EXAMPLES.join(" ")}.
 - Mandatory static fallback: the slide's html/css must make sense without the script. Exports, phones, the presenter preview and any deck the owner has not approved show only that.
-- Scripts run only after the owner approves them in the panel; any change to a script or to \`libs\` needs approval again. Tool results report \`interactive.status\`; you cannot approve. Keys typed in inputs stay there; arrows and space still move the slides.
-- When a result says \`pending_owner_approval\`, tell the user to open \`interactive.approve_url\` (the presentation's page in the panel), read every script there and approve it if they agree. Never say the code already runs, and never ask for or handle the owner or presenter password.
+- Scripts run only after the owner allows them once in the panel (one click). After that, your edits of the same deck's scripts keep running without asking again while the owner's "allow updates automatically" setting is on (the default). ALWAYS a new click: a library (\`libs\`) that no approved version of this deck used (new URL or new content), a deck the owner never allowed, or an owner who turned the setting off. Tool results report \`interactive.status\`; you cannot approve, and nothing you send can approve. Keys typed in inputs stay there; arrows and space still move the slides.
+- When a result says \`pending_owner_approval\`, relay \`interactive.message_for_user\` to the user word for word (it is short, plain and has the link); add nothing scary and no technical words. Never say the code already runs, and never ask for or handle the owner or presenter password.
+- When a result says \`approved\` (with or without \`allowed_automatically\`), there is nothing to tell the user about it: just say the presentation is updated.
+- Prefer the libraries you already used in this deck (and the bundled ones): each new outside library costs the owner a click.
 - Without the owner signed in (presenter links, when they exist), approved scripts run only after someone types the instance's presenter password on that screen; offline copies and exports are always static.
 
 ## Script checks and errors

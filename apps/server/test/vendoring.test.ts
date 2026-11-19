@@ -58,7 +58,7 @@ describe("import_html_deck over MCP", () => {
     expect(r.body.heuristic).toBe("slide-class");
     expect(r.body.slide_count).toBe(2);
     expect(r.body.interactive.status).toBe("pending_owner_approval");
-    expect(r.body.interactive.approve_url).toMatch(/\/decks\/[0-9A-Z]{26}#scripts$/);
+    expect(r.body.interactive.approve_url).toMatch(/\/decks\/[0-9A-Z]{26}\/approve$/);
     const kinds = (r.body.vendored as { kind: string; status: string }[]).map(
       (v) => `${v.kind}:${v.status}`,
     );

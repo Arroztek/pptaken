@@ -197,7 +197,7 @@ export function presenterRoutes(s: Services): Hono<AppEnv> {
     if (data === null) return apiError(c, "NOT_FOUND", "Presentation not found");
     // Interactive mode (ADR-021): whether the deck's approved scripts can run online. The presenter view uses it to
     // explain, when it runs from the offline copy, that interactive mode needs a connection.
-    const interactive = (await unlockableDigest(s, id)) !== null;
+    const interactive = (await unlockableDigest(s, id, { guest: false })) !== null;
     // ADR-023: scripts that will not run, and why, so the presenter view can tell the owner what to do.
     let scripts: "pending" | "off" | undefined;
     if (!interactive) {

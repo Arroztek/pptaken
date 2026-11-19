@@ -18,9 +18,11 @@ export {
   type CreateMcpServerOptions,
   createMcpServer,
   type McpServerConfig,
+  messageForUser,
   type RateLimitDecision,
   SERVER_INSTRUCTIONS,
   snakePath,
   TOOL_NAMES,
+  type UserMessageReason,
   WRITE_TOOLS,
 } from "./server.js";

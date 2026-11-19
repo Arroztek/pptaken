@@ -55,14 +55,17 @@ try {
   check("fresh instance redirects to /welcome", true);
 
   await page.getByLabel("Install code").fill(pptaken.installCode);
-  await page.getByLabel("Owner password", { exact: true }).fill("violet otter climbs 7 dunes");
+  await page.getByLabel("Your password", { exact: true }).fill("violet otter climbs 7 dunes");
   await page.getByLabel("Confirm password").fill("violet otter climbs 7 dunes");
-  await page.getByRole("button", { name: "Create owner" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("heading", { name: "Connect Claude." }).waitFor({ timeout: 10_000 });
+  // Claude Code lives under the Developer fold of Connect Claude (UX pass 2026-11).
+  await page.locator("[data-testid=developer-fold] summary").click();
   await page.getByRole("button", { name: "Copy setup prompt" }).waitFor({ timeout: 10_000 });
   check("setup with the install code works and the connect screen opens", true);
 
   await page.getByRole("button", { name: "Copy setup prompt" }).click();
-  await page.getByText(/Waiting for your agent/i).waitFor({ timeout: 10_000 });
+  await page.getByText(/Waiting for Claude/i).waitFor({ timeout: 10_000 });
   // The page confirms once the clipboard write has finished; reading earlier races with it.
   await page.getByText("Copied to clipboard.").waitFor({ timeout: 10_000 });
   const prompt = await page.evaluate(() => navigator.clipboard.readText());
@@ -83,7 +86,7 @@ try {
   );
   const who = await client.callTool({ name: "whoami", arguments: {} });
   check("whoami works with the token from the prompt", !who.isError);
-  await page.getByText(/called whoami/i).waitFor({ timeout: 15_000 });
+  await page.getByText("Claude is connected.").waitFor({ timeout: 15_000 });
   check("the page flips to connected after the first MCP call", true);
 
   const talk = JSON.parse(
@@ -111,7 +114,7 @@ try {
   await page.getByText(talk.title).first().waitFor({ timeout: 10_000 });
   check("the deck appears in the panel list", true);
 
-  const present = page.getByRole("link", { name: "Present", exact: true }).first();
+  const present = page.locator(".deck-row a[href^='/p/']").first();
   const popupPromise = context.waitForEvent("page", { timeout: 3000 }).catch(() => null);
   await present.click();
   const popup = await popupPromise;

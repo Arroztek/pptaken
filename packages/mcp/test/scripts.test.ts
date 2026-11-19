@@ -13,6 +13,7 @@ import {
   EXAMPLE_SCRIPT_SLIDE,
   interactiveExamples,
   type McpServerConfig,
+  messageForUser,
   scriptsGuide,
   TOOL_NAMES,
   vendoringGuide,
@@ -289,6 +290,24 @@ describe("guide lists match the sanitizer policy (contract)", () => {
   });
 });
 
+describe("message_for_user (ADR-024)", () => {
+  it("has one calm sentence per reason, in English and neutral Spanish, without jargon", () => {
+    const url = "https://slides.example.com/decks/X/approve";
+    for (const reason of ["first_time", "new_library", "every_change"] as const) {
+      const en = messageForUser(reason, "en", url);
+      const es = messageForUser(reason, "es", url);
+      expect(en).toContain(url);
+      expect(es).toContain(url);
+      expect(en).toMatch(/Allow/);
+      expect(es).toMatch(/Permitir/);
+      for (const text of [en, es]) {
+        expect(text).not.toMatch(/script|hash|digest|SHA|MCP|token|virus|malicious|peligro/i);
+      }
+    }
+    expect(messageForUser("new_library", "en", url)).toMatch(/one new piece from an outside site/);
+  });
+});
+
 describe("writing scripts through the tools", () => {
   it("create_presentation stores them pending with a distinct warning and the approve URL", async () => {
     const { call } = await connect(ON);
@@ -296,7 +315,7 @@ describe("writing scripts through the tools", () => {
     expect(r.isError).toBe(false);
     expect(r.body.interactive.status).toBe("pending_owner_approval");
     expect(r.body.interactive.approve_url).toBe(
-      `https://slides.example.com/decks/${r.body.presentation_id}#scripts`,
+      `https://slides.example.com/decks/${r.body.presentation_id}/approve`,
     );
     expect(r.body.interactive.digest).toMatch(/^[0-9a-f]{64}$/);
     expect(r.body.interactive.script_slides).toEqual(["sim"]);
@@ -307,11 +326,20 @@ describe("writing scripts through the tools", () => {
     const pending = r.body.warnings.find(
       (w: { code: string }) => w.code === "SCRIPTS_PENDING_APPROVAL",
     );
-    expect(pending.message).toMatch(/open interactive\.approve_url, read the code and approve it/);
-    expect(pending.message).toMatch(/do not say it already runs/);
+    expect(pending.message).toMatch(
+      /Relay interactive\.message_for_user to the user word for word/,
+    );
+    expect(pending.message).toMatch(/do not say they already run/);
+    // ADR-024: a plain, calm sentence with the link and one action; no jargon.
+    expect(r.body.interactive.reason).toBe("first_time");
+    expect(r.body.interactive.message_for_user).toContain(r.body.interactive.approve_url);
+    expect(r.body.interactive.message_for_user).toMatch(/press Allow/);
+    expect(r.body.interactive.message_for_user).not.toMatch(
+      /script|hash|digest|SHA|MCP|token|virus|danger|malicious/i,
+    );
     expect(r.body.urls.manage).toBe(`https://slides.example.com/decks/${r.body.presentation_id}`);
     const guide = scriptsGuide("needs_owner_approval");
-    expect(guide).toContain("interactive.approve_url");
+    expect(guide).toContain("interactive.message_for_user");
     expect(guide).toContain("Never say the code already runs");
     expect(guide).toContain("presenter password");
     // The interactive profile kept the canvas and the range input.

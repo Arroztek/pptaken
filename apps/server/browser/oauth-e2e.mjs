@@ -152,14 +152,14 @@ try {
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForURL(/\/connect\/[A-Za-z0-9_-]{32}$/, { timeout: 10_000 });
-  await page.getByRole("button", { name: "Allow access" }).waitFor({ timeout: 10_000 });
+  await page.getByRole("button", { name: "Allow", exact: true }).waitFor({ timeout: 10_000 });
   check("after sign-in the owner lands on the consent page", true);
 
   const heading = await page.getByRole("heading", { level: 1 }).innerText();
   check("the headline names the redirect host", heading.includes(`127.0.0.1:${cbPort}`));
   check(
     "the loopback warning is shown",
-    await page.getByText("This application runs on a computer, not on a website.").isVisible(),
+    await page.getByText("This app runs on a computer, not on a website.").isVisible(),
   );
   check(
     "no Claude badge for a non-claude.ai redirect",
@@ -178,7 +178,7 @@ try {
     (await page.locator('input[value="share:write"]').count()) === 0,
   );
   await page.locator('input[value="quiz:draft"]').uncheck();
-  await page.getByRole("button", { name: "Allow access" }).click();
+  await page.getByRole("button", { name: "Allow", exact: true }).click();
   const approved = await nextCallback(1);
   check(
     "approving sends the browser to the registered loopback callback",
@@ -211,12 +211,12 @@ try {
   );
   await client.close();
 
-  await page.goto(`${app}/tokens`);
+  await page.goto(`${app}/apps`);
   await page.getByText("OAuth e2e client").waitFor({ timeout: 10_000 });
-  check("the app is listed under Connected applications", true);
+  check("the app is listed under Connected apps", true);
   await page.getByRole("button", { name: "Disconnect OAuth e2e client" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Disconnect" }).click();
-  await page.getByText("Application disconnected.").waitFor({ timeout: 10_000 });
+  await page.getByText("App disconnected.").waitFor({ timeout: 10_000 });
   const after = await fetch(serverUrl, {
     method: "POST",
     headers: {

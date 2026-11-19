@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-11-19T01:39:24.642Z",
+  "startedAt": "2026-11-19T14:42:57.277Z",
   "engines": {
     "chromium": {
       "ok": true,
@@ -16,6 +16,7 @@
         "presenter: keyboard-reachable copy gives a message with the deck id and get_presentation",
         "presenter: stopped notice (watchdog) replaces the error notice",
         "repair: no static warning, previous errors returned with the write",
+        "repair: allowed automatically (trust lineage), no click needed",
         "repair: the guide's example runs (text update on click)",
         "repair: no error for the new code; the old ones kept as previous version",
         "get_presentation after the repair: previous_only, no current items",
@@ -39,6 +40,7 @@
         "presenter: keyboard-reachable copy gives a message with the deck id and get_presentation",
         "presenter: stopped notice (watchdog) replaces the error notice",
         "repair: no static warning, previous errors returned with the write",
+        "repair: allowed automatically (trust lineage), no click needed",
         "repair: the guide's example runs (text update on click)",
         "repair: no error for the new code; the old ones kept as previous version",
         "get_presentation after the repair: previous_only, no current items",
@@ -61,6 +63,7 @@
         "presenter: keyboard-reachable copy gives a message with the deck id and get_presentation",
         "presenter: stopped notice (watchdog) replaces the error notice",
         "repair: no static warning, previous errors returned with the write",
+        "repair: allowed automatically (trust lineage), no click needed",
         "repair: the guide's example runs (text update on click)",
         "repair: no error for the new code; the old ones kept as previous version",
         "get_presentation after the repair: previous_only, no current items",
@@ -69,5 +72,5 @@
       ]
     }
   },
-  "finishedAt": "2026-11-19T01:40:07.577Z"
+  "finishedAt": "2026-11-19T14:43:33.560Z"
 }

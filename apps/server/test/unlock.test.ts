@@ -241,6 +241,10 @@ describe("unlock", () => {
       digest,
       approvedAt: 1,
       approvedBy: { actor: "owner", tokenId: null },
+      mode: "owner",
+      ownerDigest: digest,
+      trustedLibs: [],
+      previousRevision: null,
     });
     expect((await unlock(h, id, PRESENTER)).status).toBe(401);
   });

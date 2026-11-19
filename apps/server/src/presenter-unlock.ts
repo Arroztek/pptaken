@@ -30,7 +30,11 @@ const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/;
  * The digest of the deck's current scripts when it can be unlocked now: live deck, instance switch on, scripts
  * present and that exact digest approved. `null` otherwise. Always reads the deck (constant work per request).
  */
-export async function unlockableDigest(s: Services, deckId: string): Promise<string | null> {
+export async function unlockableDigest(
+  s: Services,
+  deckId: string,
+  options: { guest: boolean } = { guest: true },
+): Promise<string | null> {
   const id = ULID.test(deckId) ? deckId : "0".repeat(26);
   const deck = await s.storage.decks.get(DEFAULT_WORKSPACE_ID, id);
   if (deck === null || deck.deletedAt !== null) return null;
@@ -39,6 +43,9 @@ export async function unlockableDigest(s: Services, deckId: string): Promise<str
   const digest = scriptsDigest(revision.document);
   const approval = await s.storage.scriptApprovals.get(DEFAULT_WORKSPACE_ID, id);
   if (s.config.scripts !== "owner" || digest === null || approval?.digest !== digest) return null;
+  // ADR-024: screens without an owner session only unlock code the owner approved with a click, never code that
+  // was approved automatically by the trust lineage.
+  if (options.guest && approval.ownerDigest !== digest) return null;
   return digest;
 }
 

@@ -34,6 +34,7 @@ export function mcpRoutes(s: Services): Hono<AppEnv> {
         config: {
           version: s.config.version,
           baseUrl: extra.baseUrl,
+          ...(s.config.defaultLang === undefined ? {} : { lang: s.config.defaultLang }),
           scripts: {
             status: s.config.scripts === "owner" ? "needs_owner_approval" : "off",
             separateSiteContent: s.config.contentOrigin === "separate-site",
