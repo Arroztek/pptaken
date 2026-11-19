@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Contract suites of the storage ports. Every adapter (in-memory, storage-sqlite, a future storage-postgres)
 // must pass them unchanged: they are the definition of the ports' behaviour.
-import type { UnitOfWork } from "@pptaken/core";
+import type { ScriptErrorRecord, UnitOfWork } from "@pptaken/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   makeAssetRecord,
@@ -432,6 +432,61 @@ export function runScriptApprovalRepositoryContract(name: string, factory: Stora
   });
 }
 
+export function runScriptErrorRepositoryContract(name: string, factory: StorageFactory): void {
+  describe(`${name}: ScriptErrorRepository contract`, () => {
+    const uow = useHarness(factory);
+    const record = (deckId: string, over: Partial<ScriptErrorRecord> = {}): ScriptErrorRecord => ({
+      workspaceId: WS,
+      deckId,
+      digest: "a".repeat(64),
+      fingerprint: "f".repeat(64),
+      kind: "setup",
+      slideId: "intro",
+      name: "ReferenceError",
+      message: "root is not defined",
+      stack: "ReferenceError: root is not defined\nat <deck>:3:1",
+      count: 1,
+      firstSeen: 10,
+      lastSeen: 10,
+      ...over,
+    });
+
+    it("puts, replaces, lists newest first, isolates workspaces and deletes", async () => {
+      const deck = makeDeckRecord();
+      await uow().decks.insert(deck);
+      expect(await uow().scriptErrors.list(WS, deck.id)).toEqual([]);
+      const a = record(deck.id);
+      await uow().scriptErrors.put(a);
+      expect(await uow().scriptErrors.get(WS, deck.id, a.digest, a.fingerprint)).toEqual(a);
+      expect(await uow().scriptErrors.get(OTHER_WS, deck.id, a.digest, a.fingerprint)).toBeNull();
+      const a2 = { ...a, count: 5, lastSeen: 30 };
+      await uow().scriptErrors.put(a2);
+      const b = record(deck.id, { fingerprint: "e".repeat(64), lastSeen: 20, kind: "handler" });
+      const c = record(deck.id, { digest: "b".repeat(64), lastSeen: 25 });
+      await uow().scriptErrors.put(b);
+      await uow().scriptErrors.put(c);
+      expect((await uow().scriptErrors.list(WS, deck.id)).map((r) => r.lastSeen)).toEqual([
+        30, 25, 20,
+      ]);
+      expect(await uow().scriptErrors.list(OTHER_WS, deck.id)).toEqual([]);
+      expect(await uow().scriptErrors.deleteDigestsExcept(WS, deck.id, ["a".repeat(64)])).toBe(1);
+      expect(await uow().scriptErrors.deleteOne(WS, deck.id, b.digest, b.fingerprint)).toBe(true);
+      expect(await uow().scriptErrors.deleteOne(WS, deck.id, b.digest, b.fingerprint)).toBe(false);
+      expect(await uow().scriptErrors.list(WS, deck.id)).toEqual([a2]);
+      expect(await uow().scriptErrors.deleteForDeck(WS, deck.id)).toBe(1);
+      expect(await uow().scriptErrors.list(WS, deck.id)).toEqual([]);
+    });
+
+    it("refuses a record for an unknown deck and keeps a deck with records", async () => {
+      await expect(uow().scriptErrors.put(record(makeDeckRecord().id))).rejects.toThrow();
+      const deck = makeDeckRecord();
+      await uow().decks.insert(deck);
+      await uow().scriptErrors.put(record(deck.id));
+      await expect(uow().decks.delete(WS, deck.id)).rejects.toThrow();
+    });
+  });
+}
+
 export function runUnitOfWorkContract(name: string, factory: StorageFactory): void {
   describe(`${name}: UnitOfWork (transaction) contract`, () => {
     const uow = useHarness(factory);
@@ -520,5 +575,6 @@ export function runStorageContract(name: string, factory: StorageFactory): void 
   runAuditLogContract(name, factory);
   runIdempotencyRepositoryContract(name, factory);
   runScriptApprovalRepositoryContract(name, factory);
+  runScriptErrorRepositoryContract(name, factory);
   runUnitOfWorkContract(name, factory);
 }

@@ -26,6 +26,8 @@ import {
   type RevisionSummary,
   type ScriptApprovalRecord,
   type ScriptApprovalRepository,
+  type ScriptErrorRecord,
+  type ScriptErrorRepository,
   sha256Hex,
   type UnitOfWork,
 } from "@pptaken/core";
@@ -80,6 +82,7 @@ interface State {
   audit: Map<string, AuditEntry>;
   idempotency: Map<string, IdempotencyRecord>;
   scriptApprovals: Map<string, ScriptApprovalRecord>;
+  scriptErrors: Map<string, ScriptErrorRecord>;
 }
 
 function emptyState(): State {
@@ -91,6 +94,7 @@ function emptyState(): State {
     audit: new Map(),
     idempotency: new Map(),
     scriptApprovals: new Map(),
+    scriptErrors: new Map(),
   };
 }
 
@@ -104,6 +108,7 @@ function cloneState(s: State): State {
     audit: new Map(s.audit),
     idempotency: new Map(s.idempotency),
     scriptApprovals: new Map(s.scriptApprovals),
+    scriptErrors: new Map(s.scriptErrors),
   };
 }
 
@@ -155,7 +160,8 @@ function repositories(exec: Exec): Repositories {
         const used =
           [...s.revisions.values()].some((r) => r.workspaceId === ws && r.deckId === id) ||
           [...s.links.values()].some((l) => l.workspaceId === ws && l.deckId === id) ||
-          s.scriptApprovals.has(k(ws, id));
+          s.scriptApprovals.has(k(ws, id)) ||
+          [...s.scriptErrors.values()].some((r) => r.workspaceId === ws && r.deckId === id);
         if (used) throw new Error("Foreign key constraint: the deck still has revisions or assets");
         s.decks.delete(k(ws, id));
         return true;
@@ -357,7 +363,50 @@ function repositories(exec: Exec): Repositories {
     delete: (ws, deckId) => exec(true, (s) => s.scriptApprovals.delete(k(ws, deckId))),
   };
 
-  return { decks, revisions, assets, audit, idempotency, scriptApprovals };
+  const errKey = (ws: string, deckId: string, digest: string, fp: string) =>
+    k(ws, deckId, digest, fp);
+  const scriptErrors: ScriptErrorRepository = {
+    list: (ws, deckId) =>
+      exec(false, (s) =>
+        [...s.scriptErrors.values()]
+          .filter((r) => r.workspaceId === ws && r.deckId === deckId)
+          .sort((a, b) => b.lastSeen - a.lastSeen || (a.fingerprint < b.fingerprint ? -1 : 1))
+          .map(clone),
+      ),
+    get: (ws, deckId, digest, fp) =>
+      exec(false, (s) => clone(s.scriptErrors.get(errKey(ws, deckId, digest, fp)) ?? null)),
+    put: (r) =>
+      exec(true, (s) => {
+        if (!s.decks.has(k(r.workspaceId, r.deckId))) throw new Error("Unknown deck");
+        s.scriptErrors.set(errKey(r.workspaceId, r.deckId, r.digest, r.fingerprint), clone(r));
+      }),
+    deleteOne: (ws, deckId, digest, fp) =>
+      exec(true, (s) => s.scriptErrors.delete(errKey(ws, deckId, digest, fp))),
+    deleteForDeck: (ws, deckId) =>
+      exec(true, (s) => {
+        let n = 0;
+        for (const [key, r] of s.scriptErrors) {
+          if (r.workspaceId === ws && r.deckId === deckId) {
+            s.scriptErrors.delete(key);
+            n++;
+          }
+        }
+        return n;
+      }),
+    deleteDigestsExcept: (ws, deckId, keep) =>
+      exec(true, (s) => {
+        let n = 0;
+        for (const [key, r] of s.scriptErrors) {
+          if (r.workspaceId === ws && r.deckId === deckId && !keep.includes(r.digest)) {
+            s.scriptErrors.delete(key);
+            n++;
+          }
+        }
+        return n;
+      }),
+  };
+
+  return { decks, revisions, assets, audit, idempotency, scriptApprovals, scriptErrors };
 }
 
 /**
@@ -374,6 +423,7 @@ export class MemoryUnitOfWork implements UnitOfWork {
   readonly audit: AuditLog;
   readonly idempotency: IdempotencyRepository;
   readonly scriptApprovals: ScriptApprovalRepository;
+  readonly scriptErrors: ScriptErrorRepository;
 
   constructor() {
     const repos = repositories(async (write, fn) => {
@@ -391,6 +441,7 @@ export class MemoryUnitOfWork implements UnitOfWork {
     this.audit = repos.audit;
     this.idempotency = repos.idempotency;
     this.scriptApprovals = repos.scriptApprovals;
+    this.scriptErrors = repos.scriptErrors;
   }
 
   transaction<T>(work: (tx: Repositories) => Promise<T>): Promise<T> {

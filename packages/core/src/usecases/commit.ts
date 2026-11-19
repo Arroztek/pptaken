@@ -6,6 +6,7 @@ import { presentationNotFound, revisionConflict } from "../errors.js";
 import type { CallContext, Principal } from "../principal.js";
 import { type ScriptsSummary, scriptsSummary } from "../scripts.js";
 import { actorRef, audit, type Ctx } from "./context.js";
+import { pruneScriptErrors } from "./script-errors.js";
 import { linkVendoredAssets, type VendoredAsset, type VendorReportEntry } from "./vendoring.js";
 
 /** Result of every use case that writes a new revision. */
@@ -78,6 +79,8 @@ export async function commitRevision(
     });
     const approval = await tx.scriptApprovals.get(ws, args.deckId);
     const scripts = scriptsSummary(args.document, approval?.digest ?? null);
+    // ADR-023: errors reported for code that is no longer current are stale; keep only the previous version.
+    await pruneScriptErrors(tx, ws, args.deckId, scripts.digest);
     await audit(ctx, tx, principal, call, args.action, `deck:${args.deckId}`, "ok", {
       revision: number,
       ...args.detail,

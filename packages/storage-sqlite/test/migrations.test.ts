@@ -62,6 +62,7 @@ describe("migrations", () => {
         "deck",
         "deck_asset",
         "deck_scripts_approval",
+        "deck_script_error",
         "idempotency_key",
         "live_device",
         "live_pairing",

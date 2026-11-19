@@ -180,6 +180,6 @@ export function internalError(cause: unknown, requestId?: string): DomainError {
 
 /** Shortens untrusted text before echoing it in a message. */
 export function clip(text: string, max = 60): string {
-  const clean = text.replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮]/g, "?");
+  const clean = text.replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e]/g, "?");
   return clean.length > max ? `${clean.slice(0, max)}…` : clean;
 }

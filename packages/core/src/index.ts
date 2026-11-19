@@ -27,6 +27,7 @@ export {
   outlineOf,
   type SlideUpsert,
   sanitizeAndCheck,
+  scriptWarnings,
   validateDeck,
 } from "./deck.js";
 export {
@@ -96,6 +97,9 @@ export type {
   RevisionSummary,
   ScriptApprovalRecord,
   ScriptApprovalRepository,
+  ScriptErrorKind,
+  ScriptErrorRecord,
+  ScriptErrorRepository,
   UnitOfWork,
   VendorErrorCode,
   VendorFetcher,
@@ -116,6 +120,15 @@ export {
   type Scope,
   systemPrincipal,
 } from "./principal.js";
+export {
+  cleanErrorText,
+  SCRIPT_ERROR_HINT_TEXT,
+  SCRIPT_ERROR_KINDS,
+  SCRIPT_ERROR_LIMITS,
+  type ScriptErrorHint,
+  scriptErrorFingerprint,
+  scriptErrorHint,
+} from "./script-errors.js";
 export {
   SCRIPTS_DIGEST_PATTERN,
   SCRIPTS_DIGEST_VERSION,
@@ -164,6 +177,12 @@ export {
   type UpdateSlidesInput,
 } from "./usecases/presentations.js";
 export type { RevisionDetail, RevisionInfo } from "./usecases/revisions.js";
+export type {
+  ReportScriptErrorsResult,
+  ScriptErrorsResult,
+  ScriptErrorsStatus,
+  ScriptErrorView,
+} from "./usecases/script-errors.js";
 export type { ScriptSource, ScriptsReview, ScriptsStatus } from "./usecases/scripts.js";
 export {
   provenanceUrl,

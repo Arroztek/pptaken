@@ -17,6 +17,9 @@ import type {
   RevisionRepository,
   RevisionSummary,
   ScriptApprovalRepository,
+  ScriptErrorKind,
+  ScriptErrorRecord,
+  ScriptErrorRepository,
 } from "@pptaken/core";
 import { type Kysely, type Selectable, sql } from "kysely";
 
@@ -230,9 +233,25 @@ export interface DeckScriptsApprovalTable {
   approved_by_token: string | null;
 }
 
+export interface DeckScriptErrorTable {
+  workspace_id: string;
+  deck_id: string;
+  digest: string;
+  fingerprint: string;
+  kind: string;
+  slide_id: string;
+  name: string;
+  message: string;
+  stack: string;
+  count: number;
+  first_seen: number;
+  last_seen: number;
+}
+
 /** Typed view of the database for Kysely. */
 export interface Database {
   deck_scripts_approval: DeckScriptsApprovalTable;
+  deck_script_error: DeckScriptErrorTable;
   deck: DeckTable;
   revision: RevisionTable;
   asset: AssetTable;
@@ -737,8 +756,102 @@ function scriptApprovals(db: Db): ScriptApprovalRepository {
   };
 }
 
+function scriptErrors(db: Db): ScriptErrorRepository {
+  const toRecord = (r: Selectable<DeckScriptErrorTable>): ScriptErrorRecord => ({
+    workspaceId: r.workspace_id,
+    deckId: r.deck_id,
+    digest: r.digest,
+    fingerprint: r.fingerprint,
+    kind: r.kind as ScriptErrorKind,
+    slideId: r.slide_id,
+    name: r.name,
+    message: r.message,
+    stack: r.stack,
+    count: r.count,
+    firstSeen: r.first_seen,
+    lastSeen: r.last_seen,
+  });
+  return {
+    async list(ws, deckId) {
+      const rows = await db
+        .selectFrom("deck_script_error")
+        .selectAll()
+        .where("workspace_id", "=", ws)
+        .where("deck_id", "=", deckId)
+        .orderBy("last_seen", "desc")
+        .orderBy("fingerprint", "asc")
+        .execute();
+      return rows.map(toRecord);
+    },
+    async get(ws, deckId, digest, fingerprint) {
+      const r = await db
+        .selectFrom("deck_script_error")
+        .selectAll()
+        .where("workspace_id", "=", ws)
+        .where("deck_id", "=", deckId)
+        .where("digest", "=", digest)
+        .where("fingerprint", "=", fingerprint)
+        .executeTakeFirst();
+      return r === undefined ? null : toRecord(r);
+    },
+    async put(r) {
+      const values = {
+        kind: r.kind,
+        slide_id: r.slideId,
+        name: r.name,
+        message: r.message,
+        stack: r.stack,
+        count: r.count,
+        first_seen: r.firstSeen,
+        last_seen: r.lastSeen,
+      };
+      await db
+        .insertInto("deck_script_error")
+        .values({
+          workspace_id: r.workspaceId,
+          deck_id: r.deckId,
+          digest: r.digest,
+          fingerprint: r.fingerprint,
+          ...values,
+        })
+        .onConflict((oc) =>
+          oc.columns(["workspace_id", "deck_id", "digest", "fingerprint"]).doUpdateSet(values),
+        )
+        .execute();
+    },
+    async deleteOne(ws, deckId, digest, fingerprint) {
+      const res = await db
+        .deleteFrom("deck_script_error")
+        .where("workspace_id", "=", ws)
+        .where("deck_id", "=", deckId)
+        .where("digest", "=", digest)
+        .where("fingerprint", "=", fingerprint)
+        .executeTakeFirst();
+      return count(res.numDeletedRows) > 0;
+    },
+    async deleteForDeck(ws, deckId) {
+      const res = await db
+        .deleteFrom("deck_script_error")
+        .where("workspace_id", "=", ws)
+        .where("deck_id", "=", deckId)
+        .executeTakeFirst();
+      return count(res.numDeletedRows);
+    },
+    async deleteDigestsExcept(ws, deckId, keep) {
+      let q = db
+        .deleteFrom("deck_script_error")
+        .where("workspace_id", "=", ws)
+        .where("deck_id", "=", deckId);
+      if (keep.length > 0) q = q.where("digest", "not in", [...keep]);
+      const res = await q.executeTakeFirst();
+      return count(res.numDeletedRows);
+    },
+  };
+}
+
 export function createRepositories(db: Db): Repositories {
   return {
+    scriptErrors: scriptErrors(db),
     scriptApprovals: scriptApprovals(db),
     decks: decks(db),
     revisions: revisions(db),

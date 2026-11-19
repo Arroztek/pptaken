@@ -799,6 +799,7 @@ export async function purgeDeck(
     }
     await tx.idempotency.deleteForDeck(ws, id);
     await tx.scriptApprovals.delete(ws, id);
+    await tx.scriptErrors.deleteForDeck(ws, id);
     await tx.decks.delete(ws, id);
     await audit(ctx, tx, principal, call, action, `deck:${id}`, "ok", {
       revisionsDeleted,

@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@pptaken/schema": "workspace:*",
+    "acorn": "8.19.0",
     "css-tree": "3.2.1",
     "parse5": "8.0.1"
   },

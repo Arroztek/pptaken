@@ -220,6 +220,60 @@ export interface ScriptApprovalRepository {
   delete(workspaceId: string, deckId: string): Promise<boolean>;
 }
 
+/** Where an author-script failure happened (ADR-023). */
+export type ScriptErrorKind = "setup" | "handler" | "rejection" | "script-load" | "watchdog";
+
+/**
+ * One distinct author-script failure reported by the owner's player for one scripts digest (ADR-023). Every text
+ * field comes from code running in the sandboxed frame: it is UNTRUSTED, already bounded and stripped of control
+ * and bidi characters by the use case, and must only ever be displayed as plain text.
+ */
+export interface ScriptErrorRecord {
+  workspaceId: string;
+  deckId: string;
+  /** The scripts digest the page was served with (equal to the approved digest at report time). */
+  digest: string;
+  /** SHA-256 (hex) of kind, slide, name and message: the dedupe key within a digest. */
+  fingerprint: string;
+  kind: ScriptErrorKind;
+  /** A slide id of the deck, or `deck` for the deck-level script and unattributed errors. */
+  slideId: string;
+  name: string;
+  message: string;
+  stack: string;
+  count: number;
+  firstSeen: number;
+  lastSeen: number;
+}
+
+export interface ScriptErrorRepository {
+  /** Every record of the deck (all digests), most recently seen first. */
+  list(workspaceId: string, deckId: string): Promise<ScriptErrorRecord[]>;
+  get(
+    workspaceId: string,
+    deckId: string,
+    digest: string,
+    fingerprint: string,
+  ): Promise<ScriptErrorRecord | null>;
+  /** Inserts or replaces the record with the same (workspace, deck, digest, fingerprint). */
+  put(record: ScriptErrorRecord): Promise<void>;
+  /** Deletes one record; returns true when it existed. */
+  deleteOne(
+    workspaceId: string,
+    deckId: string,
+    digest: string,
+    fingerprint: string,
+  ): Promise<boolean>;
+  /** Deletes every record of the deck; returns how many were deleted. */
+  deleteForDeck(workspaceId: string, deckId: string): Promise<number>;
+  /** Deletes the records of every digest not in `keep`; returns how many were deleted. */
+  deleteDigestsExcept(
+    workspaceId: string,
+    deckId: string,
+    keep: readonly string[],
+  ): Promise<number>;
+}
+
 export interface IdempotencyRepository {
   get(workspaceId: string, key: string): Promise<IdempotencyRecord | null>;
   /** Inserts the record. Throws if the key already exists. */
@@ -236,6 +290,7 @@ export interface Repositories {
   readonly audit: AuditLog;
   readonly idempotency: IdempotencyRepository;
   readonly scriptApprovals: ScriptApprovalRepository;
+  readonly scriptErrors: ScriptErrorRepository;
 }
 
 /**

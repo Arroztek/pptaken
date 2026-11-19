@@ -479,6 +479,6 @@ function looksLikeSvg(b: Uint8Array): boolean {
   const n = Math.min(b.length, 4096);
   let text = "";
   for (let i = 0; i < n; i++) text += String.fromCharCode(b[i] as number);
-  const trimmed = text.replace(/^﻿|^ï»¿/, "").trimStart();
+  const trimmed = text.replace(/^\ufeff|^ï»¿/, "").trimStart();
   return trimmed.startsWith("<") && /<svg[\s>/]/i.test(text);
 }

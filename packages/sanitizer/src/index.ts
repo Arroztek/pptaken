@@ -16,6 +16,15 @@ export * from "./importer.js";
 export * as policy from "./policy.js";
 export { SANITIZER_LIMITS, type SanitizerProfile } from "./policy.js";
 export {
+  checkDeckScripts,
+  checkScript,
+  type DeckScriptIssue,
+  SCRIPT_CHECK_CODES,
+  SCRIPT_CHECK_LIMITS,
+  type ScriptCheckCode,
+  type ScriptIssue,
+} from "./script-check.js";
+export {
   MAX_WARNINGS_PER_FIELD,
   WARNING_CODES,
   type Warning,

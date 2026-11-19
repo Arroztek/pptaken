@@ -266,6 +266,9 @@ importers:
       '@pptaken/schema':
         specifier: workspace:*
         version: link:../schema
+      acorn:
+        specifier: 8.19.0
+        version: 8.19.0
       css-tree:
         specifier: 3.2.1
         version: 3.2.1

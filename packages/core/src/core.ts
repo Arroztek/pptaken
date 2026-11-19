@@ -77,6 +77,13 @@ import {
   restoreRevision,
 } from "./usecases/revisions.js";
 import {
+  clearScriptErrors,
+  getScriptErrors,
+  type ReportScriptErrorsResult,
+  reportScriptErrors,
+  type ScriptErrorsResult,
+} from "./usecases/script-errors.js";
+import {
   approveScripts,
   getScriptsReview,
   getScriptsStatus,
@@ -255,6 +262,28 @@ export interface Core {
     call?: CallContext,
   ): Promise<ScriptsStatus>;
 
+  /**
+   * Owner only (human). Stores author-script errors the owner's player reported for `digest` (ADR-023); ignored
+   * unless `digest` is the current, approved digest.
+   */
+  reportScriptErrors(
+    p: Principal,
+    input: { presentationId: string; digest: string; errors: unknown },
+    call?: CallContext,
+  ): Promise<ReportScriptErrorsResult>;
+  /** `decks:read`. Errors reported for the current scripts and the previous version (ADR-023). */
+  getScriptErrors(
+    p: Principal,
+    input: { presentationId: string },
+    call?: CallContext,
+  ): Promise<ScriptErrorsResult>;
+  /** Owner only (human). Deletes every reported script error of the deck. Audited. */
+  clearScriptErrors(
+    p: Principal,
+    input: { presentationId: string },
+    call?: CallContext,
+  ): Promise<{ deleted: number }>;
+
   /** Owner only. Newest first. */
   listAuditLog(
     p: Principal,
@@ -300,6 +329,9 @@ export function createCore(deps: CoreDeps): Core {
     getScriptsReview: (p, i, c) => getScriptsReview(ctx, p, i, c),
     approveScripts: (p, i, c) => approveScripts(ctx, p, i, c),
     revokeScripts: (p, i, c) => revokeScripts(ctx, p, i, c),
+    reportScriptErrors: (p, i, c) => reportScriptErrors(ctx, p, i, c),
+    getScriptErrors: (p, i, c) => getScriptErrors(ctx, p, i, c),
+    clearScriptErrors: (p, i, c) => clearScriptErrors(ctx, p, i, c),
     listAuditLog: (p, i, c) =>
       runRead(c, async () => {
         requireOwner(p, "read the audit log");

@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Pure deck operations: validation with agent-friendly errors, sanitizing, slide edits, outline.
 import {
+  checkDeckScripts,
   type ImportWarningCode,
   type Warning as SanitizerWarning,
+  type ScriptCheckCode,
   sanitizeDeck,
 } from "@pptaken/sanitizer";
 import { type Deck, hasScripts, LIB_CATALOG, LIMITS, parseDeck, type Slide } from "@pptaken/schema";
@@ -18,7 +20,8 @@ export type CoreWarningCode =
   | "VENDOR_FONTS_TRIMMED"
   | "VENDOR_STYLESHEET_SKIPPED"
   | "VENDOR_RELATIVE_URL"
-  | ImportWarningCode;
+  | ImportWarningCode
+  | ScriptCheckCode;
 
 /** A non-fatal problem: the write succeeded, but something was removed or looks wrong. */
 export interface CoreWarning {
@@ -136,7 +139,22 @@ export function sanitizeAndCheck(
       if (slide.css !== undefined) check(slide.css, `slides[${i}].css`, slide.id);
     });
   }
+  warnings.push(...scriptWarnings(clean));
   return { deck: clean, warnings };
+}
+
+/**
+ * Static check of the author scripts (ADR-023): syntax errors, a bare `root`, blocked APIs. Non-fatal warnings with
+ * stable codes, so the agent can fix the script before the owner ever presents it. Never blocks a write.
+ */
+export function scriptWarnings(deck: Deck): CoreWarning[] {
+  if (deck.script === undefined && !deck.slides.some((s) => s.script !== undefined)) return [];
+  return checkDeckScripts(deck).map((issue) => {
+    const w: CoreWarning = { code: issue.code, message: issue.message, path: issue.path };
+    if (issue.slideId !== undefined) w.slideId = issue.slideId;
+    if (issue.name !== undefined) w.name = issue.name;
+    return w;
+  });
 }
 
 /** SHA-256 of the bundled vendored scripts (ADR-020). */
