@@ -46,6 +46,11 @@ import { clearSessionCookie, ownerSession, readSessionId, setSessionCookie } fro
 /** Lifetime of the signed URL of a deck document (the shell loads it right away). */
 export const CONTENT_DOC_TTL_MS = 5 * 60 * 1000;
 
+/** Lifetime of the signed URL of a cover (the grid view loads them as the cards come into view). */
+export const COVER_URL_TTL_MS = 30 * 60 * 1000;
+/** Most decks one covers request may ask for (a page of the list is 20). */
+const MAX_COVER_IDS = 24;
+
 const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 const iso = (ms: number | null) => (ms === null ? null : new Date(ms).toISOString());
 
@@ -522,6 +527,54 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
     } catch (error) {
       return domainErrorResponse(c, error);
     }
+  });
+
+  // The cover URLs of a page of decks in one call (the panel's grid view): the first slide of the current revision as
+  // a static, script-free thumbnail document on the content origin (docs/spec/player.md, cover mode). Owner session
+  // only (never an API or OAuth token, never a view grant). Side-effect free: it only signs. Decks that are not
+  // there (trashed, unknown) or have no slide are left out; the panel then shows its fallback cover. The URL carries
+  // a "cover" token bound to this revision: it opens that first slide and nothing else.
+  api.get("/decks/covers", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    const ids = [
+      ...new Set(
+        (c.req.query("ids") ?? "")
+          .split(",")
+          .map((x) => x.trim())
+          .filter((x) => x !== ""),
+      ),
+    ];
+    if (ids.length === 0 || ids.length > MAX_COVER_IDS || !ids.every((id) => ULID.test(id))) {
+      return apiError(c, "VALIDATION_ERROR", `ids: 1 to ${MAX_COVER_IDS} presentation ids`);
+    }
+    const now = s.clock.now();
+    const exp = now + COVER_URL_TTL_MS;
+    const origin = contentOrigin(c, s.config);
+    const covers = [];
+    for (const id of ids) {
+      const deck = await s.storage.decks.get(DEFAULT_WORKSPACE_ID, id);
+      if (deck === null || deck.deletedAt !== null) continue;
+      const revision = await s.storage.revisions.get(
+        DEFAULT_WORKSPACE_ID,
+        id,
+        deck.currentRevision,
+      );
+      if (revision === null || revision.document.slides.length === 0) continue;
+      const token = signToken(s.contentKey, {
+        purpose: "cover",
+        subject: `${id}:${deck.currentRevision}`,
+        exp,
+      });
+      covers.push({
+        id,
+        revision: deck.currentRevision,
+        url: `${origin}/c/${id}/${deck.currentRevision}/cover?ct=${token}`,
+        ...canvasSize(revision.document.aspectRatio),
+        expiresAt: iso(exp),
+      });
+    }
+    return c.json({ covers }, 200, { "Cache-Control": "no-store" });
   });
 
   api.get("/decks/:id", async (c) => {

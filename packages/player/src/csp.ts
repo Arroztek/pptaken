@@ -61,16 +61,28 @@ export interface CspOptions {
   fontBaseUrl?: string | undefined;
   /** Origins allowed to frame the deck document (`frame-ancestors`), for example the app origin. */
   frameAncestors?: readonly string[] | undefined;
+  /**
+   * Cover mode (the panel's grid thumbnails): a static document that never runs script. The policy has no nonce and
+   * no hashes (`script-src 'none'`) and its sandbox grants nothing, not even `allow-scripts`. Mutually exclusive with
+   * `nonce` and `scriptHashes`.
+   */
+  cover?: boolean | undefined;
 }
 
 /** Value of the `Content-Security-Policy` header of a deck document. */
 export function contentSecurityPolicy(options: CspOptions): string {
   const hashes = options.scriptHashes;
-  if ((options.nonce === undefined) === (hashes === undefined)) {
+  const cover = options.cover === true;
+  if (cover) {
+    if (options.nonce !== undefined || hashes !== undefined)
+      throw new TypeError("a cover document has no nonce and no script hashes");
+  } else if ((options.nonce === undefined) === (hashes === undefined)) {
     throw new TypeError("pass exactly one of nonce and scriptHashes");
   }
   let scriptSrc: string;
-  if (hashes !== undefined) {
+  if (cover) {
+    scriptSrc = "'none'";
+  } else if (hashes !== undefined) {
     if (hashes.length === 0 || hashes.length > 512)
       throw new TypeError("scriptHashes: 1 to 512 hashes");
     for (const h of hashes) {
@@ -93,7 +105,7 @@ export function contentSecurityPolicy(options: CspOptions): string {
     fonts = assets === "'none'" ? options.fontBaseUrl : `${assets} ${options.fontBaseUrl}`;
   }
   const directives = [
-    "sandbox allow-scripts",
+    cover ? "sandbox" : "sandbox allow-scripts",
     "default-src 'none'",
     `script-src ${scriptSrc}`,
     "style-src 'unsafe-inline'",

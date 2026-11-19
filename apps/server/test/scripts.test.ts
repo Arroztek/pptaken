@@ -311,6 +311,8 @@ const REVIEWED_GET_ROUTES: Record<string, string> = {
   "GET /api/v1/tokens": "read",
   "GET /api/v1/connect/status": "read",
   "GET /api/v1/decks": "read",
+  "GET /api/v1/decks/covers":
+    "signs short-lived cover URLs (first slide, static, owner session only); no state",
   "GET /api/v1/decks/:id": "read",
   "GET /api/v1/decks/:id/content-url":
     "signs a short-lived content URL; no state (guests: view grant + optional unlock token headers, ADR-021)",
@@ -335,6 +337,7 @@ const REVIEWED_GET_ROUTES: Record<string, string> = {
   "GET /_player/:file": "file",
   "GET /c/fonts/:family/:file": "file",
   "GET /c/asset/:token/:sha256": "file (signed token)",
+  "GET /c/:deckId/:revision/cover": "document (signed cover token): first slide, static, no script",
   "GET /c/:deckId/:revision": "document (signed token)",
 };
 

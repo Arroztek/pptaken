@@ -28,7 +28,7 @@ function deck(input: unknown): Deck {
 }
 
 const tiny = (over: Partial<Deck> = {}): Deck => ({
-  ...deck({ schemaVersion: 1, title: "T", slides: [{ id: "a", html: "<p>a</p>" }] }),
+  ...deck({ schemaVersion: 1, title: "T", slides: [{ id: "a", title: "a", html: "<p>a</p>" }] }),
   ...over,
 });
 
@@ -338,5 +338,93 @@ describe("bundled fonts", () => {
     const built = buildDeckDocument(tiny(), { nonce: NONCE, assetBaseUrl: BASE });
     expect(built.html).not.toContain("@font-face");
     expect(built.csp).toContain(`font-src ${BASE};`);
+  });
+});
+
+describe("cover mode (the panel's grid thumbnails)", () => {
+  const three = (): Deck =>
+    tiny({
+      slides: [
+        {
+          id: "a",
+          title: "a",
+          html: "<h1>FIRST</h1><p data-step>s</p>",
+          css: '[data-slide="a"] h1{color:red}',
+        },
+        { id: "b", title: "b", html: "<h1>SECOND</h1>" },
+        { id: "c", title: "c", html: "<h1>THIRD</h1>" },
+      ],
+    });
+
+  it("builds the first slide only, visible, with no script and no runtime", () => {
+    const { html } = buildDeckDocument(three(), { cover: true, assetBaseUrl: BASE });
+    expect(html).toContain("FIRST");
+    expect(html).not.toContain("SECOND");
+    expect(html).not.toContain("THIRD");
+    expect(html.match(/<section /g)).toHaveLength(1);
+    expect(html).not.toMatch(/<section [^>]*\bhidden\b/);
+    expect(html).not.toMatch(/<script|nonce|pptaken-mode|RUNTIME/i);
+    expect(html).not.toContain(RUNTIME_SOURCE.slice(0, 40));
+    expect(html).toContain("color:red");
+    expect(html).toContain('<div id="pptaken-stage" data-width="1920" data-height="1080">');
+    expect(html).toContain("[data-step]{visibility:visible!important}");
+    expect(html).toContain("animation:none!important");
+  });
+
+  it("sizes the document to the canvas of the deck's aspect ratio", () => {
+    const { html } = buildDeckDocument(tiny({ aspectRatio: "4:3" }), { cover: true });
+    expect(html).toContain('data-width="1440" data-height="1080"');
+    expect(html).toContain("width:1440px!important;height:1080px!important");
+  });
+
+  it("has a CSP with no script source and a sandbox that grants nothing", () => {
+    const { csp } = buildDeckDocument(three(), {
+      cover: true,
+      assetBaseUrl: BASE,
+      frameAncestors: ["https://app.example"],
+    });
+    const parts = csp.split("; ");
+    expect(parts[0]).toBe("sandbox");
+    expect(parts).toContain("script-src 'none'");
+    expect(parts).toContain("frame-src 'none'");
+    expect(parts).toContain("connect-src 'none'");
+    expect(parts).toContain("frame-ancestors https://app.example");
+    expect(csp).not.toMatch(/allow-|nonce|sha256|unsafe-eval/);
+    expect(csp).toBe(
+      contentSecurityPolicy({
+        cover: true,
+        assetBaseUrl: BASE,
+        frameAncestors: ["https://app.example"],
+      }),
+    );
+  });
+
+  it("refuses to be combined with scripts, a nonce or script hashes", () => {
+    expect(() => buildDeckDocument(three(), { cover: true, scripts: true })).toThrow(/never runs/);
+    expect(() => buildDeckDocument(three(), { cover: true, nonce: NONCE })).toThrow(/no nonce/);
+    expect(() => contentSecurityPolicy({ cover: true, nonce: NONCE })).toThrow(/no nonce/);
+    expect(() => contentSecurityPolicy({ cover: true, scriptHashes: [RUNTIME_SHA256] })).toThrow(
+      /no nonce/,
+    );
+  });
+
+  it("sends the usual content headers with the cover CSP", () => {
+    const headers = contentHeaders({ cover: true, assetBaseUrl: BASE });
+    expect(headers["Content-Security-Policy"]).toContain("script-src 'none'");
+    expect(headers["Cache-Control"]).toBe("no-store");
+    expect(headers["X-Content-Type-Options"]).toBe("nosniff");
+    expect(headers["Referrer-Policy"]).toBe("no-referrer");
+  });
+
+  it("rewrites asset references of the first slide and never serves the other slides' assets", () => {
+    const d = tiny({
+      slides: [
+        { id: "a", title: "a", html: `<img src="asset:${"a".repeat(64)}" alt="">` },
+        { id: "b", title: "b", html: `<img src="asset:${"b".repeat(64)}" alt="">` },
+      ],
+    });
+    const { html } = buildDeckDocument(d, { cover: true, assetBaseUrl: BASE });
+    expect(html).toContain(`${BASE}${"a".repeat(64)}`);
+    expect(html).not.toContain("b".repeat(64));
   });
 });

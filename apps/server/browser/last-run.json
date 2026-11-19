@@ -1,5 +1,5 @@
 {
-  "startedAt": "2026-11-19T14:27:14.720Z",
+  "startedAt": "2026-11-19T15:55:52.474Z",
   "engines": {
     "chromium": {
       "ok": true,
@@ -69,7 +69,7 @@
         "layer 2: offline reload navigates; srcdoc content is opaque and has no network",
         "layer 2: a deck never opened says so: true",
         "partial: a missing asset shows partial, navigation works",
-        "cache: 29 entries, no token, content or auth URL",
+        "cache: 34 entries, no token, content or auth URL",
         "logout: the worker deleted the offline copies; nothing is served offline"
       ],
       "offline": {

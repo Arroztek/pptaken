@@ -32,6 +32,8 @@ import { ownerSession } from "./session.js";
 
 /** Lifetime of the token embedded in a document's asset URLs (images on later slides load lazily). */
 export const ASSET_TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
+/** Lifetime of the asset token inside a cover document (its images load right away, once). */
+export const COVER_ASSET_TOKEN_TTL_MS = 15 * 60 * 1000;
 const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 const SHA256 = /^[0-9a-f]{64}$/;
 
@@ -361,6 +363,30 @@ function forbiddenText(): Response {
   });
 }
 
+/** The page that frames a content document: the public origin, or this same origin as accessed. */
+function frameAncestorsOf(c: Context, s: Services): string[] {
+  return [
+    ...new Set([
+      publicOrigin(c, s.config),
+      ...(s.config.contentUrl === null ? [ownOrigin(c, s.config)] : []),
+    ]),
+  ];
+}
+
+/** A failed cover request: an empty, inert document (status 403 or 404), never text. */
+function emptyCover(c: Context, s: Services, status: 403 | 404): Response {
+  return new Response("", {
+    status,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Content-Security-Policy": `default-src 'none'; sandbox; frame-ancestors ${frameAncestorsOf(c, s).join(" ")}`,
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "no-referrer",
+    },
+  });
+}
+
 /** Subject of a signed token (unverified; only used to pick what to verify against). */
 function subjectOf(token: string): string | null {
   const payload = token.split(".")[0];
@@ -561,6 +587,57 @@ export function contentRoutes(s: Services): Hono<AppEnv> {
     }
   });
 
+  // Cover mode: the first slide of a revision as a static thumbnail document (the panel's grid view). Its own token
+  // purpose ("cover", subject `<deck>:<revision>`, minted for the owner session by GET /api/v1/decks/covers) so a
+  // cover token never opens the full document and a document token never opens a cover. Always the static version
+  // of the deck (author scripts and libraries removed, HTML re-sanitized with the safe profile), so it needs no
+  // approval and never runs code; the document itself carries no script and a CSP sandbox that grants nothing.
+  // Failures answer with an empty document (never text that would be scaled into a thumbnail).
+  app.get("/:deckId/:revision/cover", async (c) => {
+    const deckId = c.req.param("deckId");
+    const revisionText = c.req.param("revision");
+    if (!ULID.test(deckId) || !/^[1-9][0-9]{0,8}$/.test(revisionText)) return emptyCover(c, s, 404);
+    const now = s.clock.now();
+    if (
+      !verifyToken(s.contentKey, c.req.query("ct") ?? "", {
+        purpose: "cover",
+        subject: `${deckId}:${revisionText}`,
+        now,
+      })
+    ) {
+      return emptyCover(c, s, 403);
+    }
+    let document: Awaited<ReturnType<typeof s.core.getRevision>>["document"];
+    try {
+      ({ document } = await s.core.getRevision(contentReader, {
+        presentationId: deckId,
+        revision: Number(revisionText),
+      }));
+    } catch (error) {
+      if (isDomainError(error) && error.code === "NOT_FOUND") return emptyCover(c, s, 404);
+      throw error;
+    }
+    const first = document.slides[0];
+    if (first === undefined) return emptyCover(c, s, 404);
+    // First slide only, without its notes (T7), through the static profile.
+    const { notes: _notes, ...slide } = first;
+    const { deck } = staticDeck({ ...document, slides: [slide] });
+    const origin = contentOrigin(c, s.config);
+    const assetToken = signToken(s.contentKey, {
+      purpose: "asset",
+      subject: deckId,
+      exp: now + COVER_ASSET_TOKEN_TTL_MS,
+    });
+    const options = {
+      cover: true,
+      assetBaseUrl: `${origin}/c/asset/${assetToken}/`,
+      fontBaseUrl: `${origin}/c/fonts/`,
+      frameAncestors: frameAncestorsOf(c, s),
+    } as const;
+    const built = buildDeckDocument(deck, { ...options, fontFaces: fontFacesOf(s) });
+    return c.body(built.html, 200, contentHeaders(options));
+  });
+
   app.get("/:deckId/:revision", async (c) => {
     const deckId = c.req.param("deckId");
     const revisionText = c.req.param("revision");
@@ -621,13 +698,7 @@ export function contentRoutes(s: Services): Hono<AppEnv> {
       exp: now + ASSET_TOKEN_TTL_MS,
     });
     const assetBaseUrl = `${origin}/c/asset/${assetToken}/`;
-    // The player page that frames this document: the public origin, or this same origin as accessed.
-    const frameAncestors = [
-      ...new Set([
-        publicOrigin(c, s.config),
-        ...(s.config.contentUrl === null ? [ownOrigin(c, s.config)] : []),
-      ]),
-    ];
+    const frameAncestors = frameAncestorsOf(c, s);
     const fontBaseUrl = `${origin}/c/fonts/`;
     const fontFaces = fontFacesOf(s);
     if (scripted) {

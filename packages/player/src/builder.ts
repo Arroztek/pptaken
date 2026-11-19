@@ -65,6 +65,13 @@ export interface BuildOptions {
   lang?: string | undefined;
   /** Origins allowed to frame the document (CSP `frame-ancestors`). */
   frameAncestors?: readonly string[] | undefined;
+  /**
+   * Cover mode: a static thumbnail document of the FIRST slide only, for the panel's grid. No runtime and no
+   * script of any kind (no nonce, `script-src 'none'`, a sandbox that grants nothing), the slide visible at the
+   * canvas size at the top left (the frame scales it), every step shown, animations frozen. Incompatible with
+   * `scripts` and `nonce`; the caller passes a deck that already went through the static sanitizer profile.
+   */
+  cover?: boolean | undefined;
 }
 
 /** The stored files of a vendored script. */
@@ -138,6 +145,22 @@ function stageCss(width: number, height: number): string {
     printCss("html[data-pptaken-mode=print]", width),
     `@media print{${printCss("html", width)}}`,
     `@page{size:${width}px ${height}px;margin:0}`,
+  ].join("\n");
+}
+
+/**
+ * Stage rules of a cover document: the first slide, visible, at the canvas size in the top left corner of a
+ * document that is exactly that size (the panel scales the frame). Nothing here depends on script.
+ */
+function coverCss(width: number, height: number): string {
+  return [
+    `html,body{margin:0!important;padding:0!important;width:${width}px!important;height:${height}px!important;overflow:hidden!important;background:#000!important}`,
+    `#pptaken-stage{position:absolute!important;left:0!important;top:0!important;width:${width}px!important;height:${height}px!important;margin:0!important;overflow:hidden!important}`,
+    `#pptaken-stage>section[data-slide]{position:absolute!important;left:0!important;top:0!important;display:block!important;width:${width}px!important;height:${height}px!important;margin:0!important;overflow:hidden!important;contain:layout paint}`,
+    ":where(#pptaken-stage>section[data-slide]){box-sizing:border-box;background:#fff;color:#000}",
+    "#pptaken-stage [data-step]{visibility:visible!important}",
+    "#pptaken-overlay{display:none!important}",
+    "*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}",
   ].join("\n");
 }
 
@@ -244,7 +267,11 @@ function checkedCss(css: string, where: string): string {
  */
 export function buildDeckDocument(deck: Deck, options: BuildOptions): DeckDocument {
   const scripted = options?.scripts === true;
-  if (scripted) {
+  const cover = options?.cover === true;
+  if (cover) {
+    if (scripted) throw new TypeError("a cover document never runs scripts");
+    if (options.nonce !== undefined) throw new TypeError("a cover document has no nonce");
+  } else if (scripted) {
     if (options.nonce !== undefined) throw new TypeError("a scripted document has no nonce");
   } else {
     assertNonce(options?.nonce);
@@ -272,7 +299,8 @@ export function buildDeckDocument(deck: Deck, options: BuildOptions): DeckDocume
   const ids = new Set<string>();
   const sections: string[] = [];
   const slideCss: string[] = [];
-  deck.slides.forEach((slide, index) => {
+  const shown = cover ? deck.slides.slice(0, 1) : deck.slides;
+  shown.forEach((slide, index) => {
     if (!SLIDE_ID_PATTERN.test(slide.id)) throw new TypeError(`slides[${index}].id is not valid`);
     if (ids.has(slide.id)) throw new TypeError(`slides[${index}].id is duplicated`);
     ids.add(slide.id);
@@ -280,7 +308,7 @@ export function buildDeckDocument(deck: Deck, options: BuildOptions): DeckDocume
     const group = slide.section ? ` data-section="${escapeHtml(slide.section)}"` : "";
     const marked = scripted && slide.script !== undefined ? " data-pptaken-script" : "";
     sections.push(
-      `<section data-slide="${escapeHtml(slide.id)}"${group}${marked} role="group" aria-roledescription="slide"${label} hidden>` +
+      `<section data-slide="${escapeHtml(slide.id)}"${group}${marked} role="group" aria-roledescription="slide"${label}${cover ? "" : " hidden"}>` +
         `${rewriteAssets(slide.html, base, true)}</section>`,
     );
     if (slide.css) {
@@ -341,10 +369,14 @@ export function buildDeckDocument(deck: Deck, options: BuildOptions): DeckDocume
     `<style>${themeCss}</style>`,
     `<style>${slideCss.join("\n")}</style>`,
     ...(libCss.length > 0 ? [`<style>${libCss.join("\n")}</style>`] : []),
-    `<style>${stageCss(width, height)}</style>`,
-    scripted
-      ? `<script>${RUNTIME_SOURCE}</script>`
-      : `<script nonce="${escapeHtml(options.nonce ?? "")}">${RUNTIME_SOURCE}</script>`,
+    `<style>${cover ? coverCss(width, height) : stageCss(width, height)}</style>`,
+    ...(cover
+      ? []
+      : [
+          scripted
+            ? `<script>${RUNTIME_SOURCE}</script>`
+            : `<script nonce="${escapeHtml(options.nonce ?? "")}">${RUNTIME_SOURCE}</script>`,
+        ]),
     "</head>",
     "<body>",
     `<div id="pptaken-stage" data-width="${width}" data-height="${height}">`,
@@ -361,9 +393,11 @@ export function buildDeckDocument(deck: Deck, options: BuildOptions): DeckDocume
   });
   const html = [head, ...placed, "</body>", "</html>", ""].join("\n");
 
-  const csp: CspOptions = scripted
-    ? { scriptHashes: hashes, assetBaseUrl: base, fontBaseUrl: fontBase }
-    : { nonce: options.nonce, assetBaseUrl: base, fontBaseUrl: fontBase };
+  const csp: CspOptions = cover
+    ? { cover: true, assetBaseUrl: base, fontBaseUrl: fontBase }
+    : scripted
+      ? { scriptHashes: hashes, assetBaseUrl: base, fontBaseUrl: fontBase }
+      : { nonce: options.nonce, assetBaseUrl: base, fontBaseUrl: fontBase };
   if (options.frameAncestors !== undefined) csp.frameAncestors = options.frameAncestors;
   return { html, csp: contentSecurityPolicy(csp) };
 }
