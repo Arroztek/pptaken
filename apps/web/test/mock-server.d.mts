@@ -14,6 +14,8 @@ export interface MockDeck {
   updatedAt: string;
   createdBy: "owner" | "agent";
   scripts?: "none" | "pending" | "approved";
+  /** Canvas of the deck's cover (default 16:9). */
+  aspectRatio?: "16:9" | "4:3";
   vendored?: unknown[];
 }
 
@@ -97,6 +99,10 @@ export interface MockStateOptions {
   loginLimit?: number;
   retryAfter?: number;
   csp?: string;
+  /** Covers of the grid view: "ok" (default), "none" (no covers) or "error" (the request fails). */
+  covers?: "ok" | "none" | "error";
+  /** Milliseconds a cover document takes to answer. */
+  coverDelayMs?: number;
   /** A number of generated connected applications, or explicit ones. */
   apps?: number | MockApp[];
   /** A number of generated pending consent requests, or explicit ones. */
@@ -136,6 +142,12 @@ export interface MockState {
   firstTokenAt: number | null;
   loginAttempts: number[];
   csp: string;
+  covers: "ok" | "none" | "error";
+  coverDelayMs: number;
+  /** Paths of the cover documents requested. */
+  coverLog: string[];
+  /** The ids asked for by each covers request. */
+  coverAsks: string[][];
   log: MockLogEntry[];
   exports: { id: string; format: string; notes: string | null }[];
   imports: number[];

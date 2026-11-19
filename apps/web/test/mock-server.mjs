@@ -13,6 +13,7 @@ import { readFile, stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { coverCsp, coverDocument } from "./cover-fixtures.mjs";
 
 export const INSTALL_CODE = "7K2M-9QXD";
 export const OWNER_PASSWORD = "stagehand crew 2026";
@@ -416,6 +417,14 @@ export function createState(options = {}) {
     firstTokenAt: null,
     loginAttempts: [],
     csp: options.csp ?? STRICT_CSP,
+    /** Covers (grid view): "ok" answers with a cover per deck, "none" with no covers, "error" with a 500. */
+    covers: options.covers ?? "ok",
+    /** Milliseconds a cover document takes to answer (to see the skeleton). */
+    coverDelayMs: options.coverDelayMs ?? 0,
+    /** Cover document requests, for assertions (path only). */
+    coverLog: [],
+    /** The ids asked for by each covers request. */
+    coverAsks: [],
     /** Every API request, for assertions (method, path, csrf header, origin). */
     log: [],
     /** Export downloads ({ id, format, notes }) and import body sizes. */
@@ -812,6 +821,34 @@ async function handleApi(state, req, res, url) {
     return send(res, 200, { decks: page, nextCursor: next });
   }
 
+  // The cover URLs of a page of decks in one call (the grid view).
+  if (method === "GET" && path === "/decks/covers") {
+    const ids = (url.searchParams.get("ids") ?? "").split(",").filter(Boolean);
+    state.coverAsks.push(ids);
+    if (ids.length === 0 || ids.length > 24)
+      return fail(res, 400, "VALIDATION_ERROR", "ids: 1 to 24 presentation ids");
+    if (state.covers === "error") return fail(res, 500, "INTERNAL", "Something went wrong.");
+    const covers =
+      state.covers === "none"
+        ? []
+        : ids.flatMap((id) => {
+            const deck = state.decks.find((d) => d.id === id);
+            if (!deck) return [];
+            const four = deck.aspectRatio === "4:3";
+            return [
+              {
+                id,
+                revision: deck.revision,
+                url: publicUrl(state, req) + "/c/" + id + "/" + deck.revision + "/cover?ct=mock",
+                width: four ? 1440 : 1920,
+                height: 1080,
+                expiresAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+              },
+            ];
+          });
+    return send(res, 200, { covers });
+  }
+
   // Export: a small stand-in file per format, with the real server's download headers.
   const exp = path.match(/^\/decks\/([^/]+)\/export$/);
   if (method === "GET" && exp) {
@@ -1124,6 +1161,28 @@ export async function startMockServer(options = {}) {
         return res.end(
           '<!doctype html><html lang="en"><title>Player</title><h1>Player placeholder</h1></html>',
         );
+      }
+      const cover = url.pathname.match(/^\/c\/([^/]+)\/(\d+)\/cover$/);
+      if (cover) {
+        state.coverLog.push(url.pathname);
+        if (state.coverDelayMs > 0) await new Promise((r) => setTimeout(r, state.coverDelayMs));
+        const origin = "http://" + req.headers.host;
+        const index = state.decks.findIndex((d) => d.id === decodeURIComponent(cover[1]));
+        const base = {
+          "Content-Type": "text/html; charset=utf-8",
+          "Content-Security-Policy": coverCsp(origin),
+          "Cache-Control": "no-store",
+        };
+        if (url.searchParams.get("ct") !== "mock" || index < 0) {
+          res.writeHead(index < 0 ? 404 : 403, base);
+          return res.end("");
+        }
+        res.writeHead(200, {
+          ...base,
+          "X-Content-Type-Options": "nosniff",
+          "Referrer-Policy": "no-referrer",
+        });
+        return res.end(coverDocument(state.decks[index], index));
       }
       if (url.pathname === "/mcp")
         return fail(res, 401, "UNAUTHENTICATED", "Bearer token required.");

@@ -149,6 +149,20 @@ const deckSummary = object({
   scriptErrors: optionalNull(count),
 });
 const deckPage = object({ decks: arrayOf(deckSummary), nextCursor: nullable(str) });
+/**
+ * The signed cover of a deck (the grid view): a static thumbnail document of the first slide of `revision`, on the
+ * content origin, drawn at `width` x `height` (the deck's canvas) and scaled down by the page. `expiresAt` is when
+ * the URL stops working.
+ */
+const deckCover = object({
+  id: str,
+  revision: count,
+  url: str,
+  width: count,
+  height: count,
+  expiresAt: isoDate,
+});
+const deckCovers = object({ covers: arrayOf(deckCover) });
 /** A presentation in the trash: when it went and until when it can come back. */
 const trashedDeck = object({
   id: str,
@@ -373,6 +387,7 @@ export type CreatedToken = Infer<typeof createdToken>;
 export type ConnectStatus = Infer<typeof connectStatus>;
 export type DeckSummary = Infer<typeof deckSummary>;
 export type DeckPage = Infer<typeof deckPage>;
+export type DeckCover = Infer<typeof deckCover>;
 export type DeckDetail = Infer<typeof deckDetail>;
 export type TrashedDeck = Infer<typeof trashedDeck>;
 export type Settings = Infer<typeof settings>;
@@ -501,6 +516,8 @@ export interface ApiClient {
   revokeToken(id: string): Promise<void>;
   connectStatus(): Promise<ConnectStatus>;
   listDecks(params?: { cursor?: string | null; q?: string }): Promise<DeckPage>;
+  /** The cover URLs of up to 24 decks in one call; decks without a cover (gone, no slides) are left out. */
+  deckCovers(ids: readonly string[]): Promise<DeckCover[]>;
   /** Uploads a .pkn archive as the raw body (application/zip); the server creates a new presentation. */
   importDeck(file: Blob): Promise<ImportResult>;
   /** Uploads a PowerPoint .pptx as the raw body; the server converts it into a new presentation. */
@@ -637,6 +654,11 @@ export function createApi(
       if (params.q) query.set("q", params.q);
       const qs = query.toString();
       return request("GET", `/decks${qs ? `?${qs}` : ""}`, deckPage);
+    },
+    async deckCovers(ids) {
+      if (ids.length === 0) return [];
+      const query = new URLSearchParams({ ids: ids.join(",") });
+      return (await request("GET", `/decks/covers?${query.toString()}`, deckCovers)).covers;
     },
     oauthRequest: (id) => request("GET", `/oauth/requests/${encodeURIComponent(id)}`, oauthRequest),
     async decideOAuthRequest(id, decision, scopes) {

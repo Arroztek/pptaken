@@ -292,7 +292,6 @@ html.drawer-open { overflow: hidden; }
 .ppt-copyblock__value { overflow-wrap: anywhere; white-space: pre-wrap; }
 
 /* ------------------------------------------------------------ decks list */
-.deck-grid { display: grid; gap: var(--ppt-space-4); grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); }
 .toolbar { display: flex; flex-wrap: wrap; gap: var(--ppt-space-3); align-items: center; margin-bottom: var(--ppt-space-6); }
 .toolbar .search { position: relative; flex: 1 1 240px; max-width: 360px; }
 .toolbar .search__icon { position: absolute; left: 12px; top: 50%; translate: 0 -50%; color: var(--ppt-text-muted); pointer-events: none; }
@@ -603,6 +602,68 @@ html.drawer-open { overflow: hidden; }
 .deck-chip:hover { text-decoration: underline; text-underline-offset: 3px; }
 .deck-chip:focus-visible { outline: var(--ppt-border-focus) solid var(--ppt-focus-ring); outline-offset: 2px; border-radius: 2px; }
 @media (max-width: 480px) { .deck-row__title { font-size: var(--ppt-text-lg); } }
+
+/* View switch: two segments in one hairline pill; the chosen one is filled with the quiet surface. */
+.seg { display: inline-flex; padding: 2px; gap: 2px; border: var(--ppt-border-width) solid var(--ppt-border); border-radius: var(--ppt-radius-pill); background: var(--ppt-surface); }
+.seg__btn {
+  display: inline-flex; align-items: center; gap: var(--ppt-space-2); min-height: 32px; padding: 0 var(--ppt-space-3);
+  border: 0; border-radius: var(--ppt-radius-pill); background: none; color: var(--ppt-text-muted);
+  font: inherit; font-size: var(--ppt-text-sm); font-weight: var(--ppt-weight-medium); cursor: pointer;
+  transition: background-color var(--ppt-motion-fast) var(--ppt-ease), color var(--ppt-motion-fast) var(--ppt-ease);
+}
+.seg__btn:hover { color: var(--ppt-text); }
+.seg__btn[aria-pressed="true"] { background: var(--ppt-surface-2); color: var(--ppt-text); }
+.seg__btn:focus-visible { outline: var(--ppt-border-focus) solid var(--ppt-focus-ring); outline-offset: 1px; }
+@media (max-width: 480px) { .seg__btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } .seg__btn { padding: 0 var(--ppt-space-3); min-width: 40px; justify-content: center; } }
+
+/* Presentations as a grid of covers: 1 column on phones, 2 from 640px, 3 from 1100px. A cover is the first slide as
+   rendered in a hairline frame; the title link stretches over the whole card, Present and More sit above it. */
+.deck-cards {
+  list-style: none; margin: 0; padding: 0; display: grid; gap: var(--ppt-space-8) var(--ppt-space-6);
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 640px) { .deck-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1100px) { .deck-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.deck-card { position: relative; display: grid; grid-template-rows: auto 1fr; gap: var(--ppt-space-3); min-width: 0; }
+.deck-card__body { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--ppt-space-3); row-gap: var(--ppt-space-1); align-items: start; grid-template-rows: auto auto 1fr auto; }
+.deck-card__title {
+  font-family: var(--ppt-font-display); font-optical-sizing: auto; font-size: var(--ppt-text-lg);
+  font-weight: var(--ppt-weight-semibold); letter-spacing: var(--ppt-tracking-tight); line-height: var(--ppt-leading-snug);
+  overflow-wrap: anywhere; min-width: 0;
+}
+.deck-card__title a { color: var(--ppt-text); text-decoration: none; }
+.deck-card__title a::after { content: ""; position: absolute; inset: 0; border-radius: var(--ppt-radius-md); }
+.deck-card:hover .deck-card__title a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.deck-card__title a:focus-visible { outline: none; }
+.deck-card__title a:focus-visible::after { outline: var(--ppt-border-focus) solid var(--ppt-focus-ring); outline-offset: 4px; }
+.deck-card__more { position: relative; z-index: 1; margin: -6px -6px -6px 0; }
+.deck-card__more:has([aria-expanded="true"]) { z-index: var(--ppt-z-overlay); }
+.deck-card__meta { grid-column: 1 / -1; font-size: var(--ppt-text-sm); color: var(--ppt-text-muted); font-variant-numeric: tabular-nums; }
+.deck-card__foot { grid-column: 1 / -1; position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--ppt-space-2) var(--ppt-space-4); margin-top: var(--ppt-space-2); align-self: end; }
+.deck-card .deck-chip { font-size: var(--ppt-text-sm); }
+.deck-card:hover .cover { border-color: var(--ppt-border-strong); }
+
+/* The cover frame: 16:9 (or 4:3, set inline), hairline, the slide scaled from its canvas by the page. */
+.cover {
+  position: relative; isolation: isolate; overflow: hidden; width: 100%; aspect-ratio: 16 / 9;
+  border: var(--ppt-border-width) solid var(--ppt-border); border-radius: var(--ppt-radius-md);
+  background: var(--ppt-surface-2);
+  transition: border-color var(--ppt-motion-fast) var(--ppt-ease);
+}
+.cover__frame {
+  position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; background: transparent;
+  pointer-events: none; user-select: none; opacity: 0;
+}
+.cover--ready .cover__frame { opacity: 1; transition: opacity var(--ppt-motion-base) var(--ppt-ease); }
+.cover__skeleton { position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--ppt-text) 6%, transparent) 50%, transparent 70%) 0 0 / 220% 100%; animation: cover-sheen 1.6s var(--ppt-ease) infinite; }
+@keyframes cover-sheen { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+.cover__title {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; margin: 0; padding: var(--ppt-space-6);
+  text-align: center; text-wrap: balance; color: var(--ppt-text); font-family: var(--ppt-font-display); font-optical-sizing: auto;
+  font-size: var(--ppt-text-lg); font-weight: var(--ppt-weight-semibold); letter-spacing: var(--ppt-tracking-tight); line-height: var(--ppt-leading-snug);
+}
+.cover__title span { overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; }
+@media (prefers-reduced-motion: reduce) { .cover__skeleton { animation: none; } .cover--ready .cover__frame { transition: none; } }
 
 /* Type, after the landing's logic (docs/brand): one strong, light display title per page, tight tracking;
    section heads quieter; weight contrast does the work, not colour or boxes. */

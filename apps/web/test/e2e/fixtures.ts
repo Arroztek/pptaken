@@ -18,7 +18,16 @@ declare global {
 
 /** Expected noise: browsers log non-2xx fetches (401 from /auth/me, 4xx in error-path tests). */
 const EXPECTED_CONSOLE =
-  /Failed to load resource: the server responded with a status of (400|401|403|404|409|429)/;
+  /Failed to load resource: the server responded with a status of (400|401|403|404|409|429|500)/;
+
+/**
+ * Chromium reports "Blocked script execution ... sandboxed" for a cover frame (a document that must run no script)
+ * when Playwright's own init scripts, added below for every frame, try to run in it. The cover document has no script
+ * at all; the real-server browser test (apps/server/browser/covers-e2e.mjs) runs without init scripts and asserts
+ * that no such message appears.
+ */
+const SANDBOXED_COVER_INIT_SCRIPT =
+  /^Blocked script execution in '[^']*\/c\/[^/']+\/\d+\/cover\?ct=mock' because the document's frame is sandboxed/;
 
 export const test = base.extend<{ mockOptions: MockOptions; mock: Mock }>({
   mockOptions: [{}, { option: true }],
@@ -37,7 +46,11 @@ export const test = base.extend<{ mockOptions: MockOptions; mock: Mock }>({
       if (url.origin !== origin) external.push(request.url());
     });
     page.on("console", (message) => {
-      if (message.type() === "error" && !EXPECTED_CONSOLE.test(message.text()))
+      if (
+        message.type() === "error" &&
+        !EXPECTED_CONSOLE.test(message.text()) &&
+        !SANDBOXED_COVER_INIT_SCRIPT.test(message.text())
+      )
         errors.push(message.text());
     });
     page.on("pageerror", (error) => errors.push(error.message));

@@ -5,7 +5,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Page } from "@playwright/test";
-import { makeApps, makeOAuthRequests } from "../mock-server.mjs";
+import { makeApps, makeDecks, makeOAuthRequests } from "../mock-server.mjs";
 import {
   expect,
   type Mock,
@@ -54,6 +54,42 @@ async function basicA11y(page: Page): Promise<void> {
   });
   expect(problems, "basic a11y").toEqual([]);
 }
+/** Decks for the grid screens: one of them has a 4:3 canvas. */
+function gridDecks(n: number) {
+  const decks = makeDecks(n);
+  const four = decks[4];
+  if (four) four.aspectRatio = "4:3";
+  return decks;
+}
+
+/** Opens /decks with the grid chosen, the way a returning owner would find it. */
+async function openGrid(page: Page, mock: Mock): Promise<void> {
+  await page.evaluate(() => localStorage.setItem("pptaken.decks.view", "grid"));
+  await page.goto(`${mock.url}/decks`);
+  await expect(page.getByTestId("deck-grid")).toBeVisible();
+}
+
+/** Scrolls through the page so every cover comes near the viewport, waits until each reached `phase`, scrolls back. */
+async function settleCovers(page: Page, phase: "ready" | "fallback"): Promise<void> {
+  const total = await page.locator(".cover").count();
+  const height = await page.evaluate(() => document.documentElement.scrollHeight);
+  for (let y = 0; y <= height; y += 500) {
+    await page.evaluate((top) => window.scrollTo(0, top), y);
+    await page.waitForTimeout(60);
+  }
+  await expect(page.locator(`.cover[data-phase="${phase}"]`)).toHaveCount(total, {
+    timeout: 20_000,
+  });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  // Frames outside the viewport are not painted by a full-page capture: make the viewport as tall as the page.
+  const width = page.viewportSize()?.width ?? 1280;
+  await page.setViewportSize({
+    width,
+    height: await page.evaluate(() => document.documentElement.scrollHeight),
+  });
+  await page.waitForTimeout(500);
+}
+
 const THEMES = ["light", "dark"] as const;
 const LANGS = ["en", "es"] as const;
 
@@ -154,6 +190,48 @@ const screens: Screen[] = [
       await page.locator(".deck-row .menu__trigger").first().click();
       await page.locator(".menu__item--danger").click();
       await expect(page.locator("dialog[open]")).toBeVisible();
+    },
+  },
+  {
+    name: "decks-grid",
+    options: { installed: true, decks: gridDecks(14), scriptErrors: "errors" },
+    prepare: async (page, mock) => {
+      mock.state.clearedErrors.clear();
+      await openGrid(page, mock);
+      await expect(page.locator(".deck-card")).toHaveCount(6);
+      await expect(page.locator(".deck-chip")).toHaveCount(2);
+      await settleCovers(page, "ready");
+    },
+  },
+  {
+    name: "decks-grid-loading",
+    options: { installed: true, decks: gridDecks(14), coverDelayMs: 600_000 },
+    widths: [360, 1280],
+    prepare: async (page, mock) => {
+      await openGrid(page, mock);
+      await expect(page.locator(".deck-card")).toHaveCount(6);
+      await expect(page.locator('.cover[data-phase="loading"]').first()).toBeVisible();
+    },
+  },
+  {
+    name: "decks-grid-fallback",
+    options: { installed: true, decks: gridDecks(14), covers: "none" },
+    widths: [360, 1280],
+    prepare: async (page, mock) => {
+      await openGrid(page, mock);
+      await expect(page.locator(".deck-card")).toHaveCount(6);
+      await settleCovers(page, "fallback");
+    },
+  },
+  {
+    name: "decks-grid-menu",
+    options: { installed: true, decks: gridDecks(6) },
+    widths: [360, 1280],
+    prepare: async (page, mock) => {
+      await openGrid(page, mock);
+      await settleCovers(page, "ready");
+      await page.locator(".deck-card .menu__trigger").nth(1).click();
+      await expect(page.getByRole("menu")).toBeVisible();
     },
   },
   {

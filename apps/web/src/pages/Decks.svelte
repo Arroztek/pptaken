@@ -1,15 +1,17 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <!--
-  /decks: the presentations. Each card: a thumbnail, the title, one quiet line (slides · edited), at most ONE chip
-  and only when something needs the owner (needs your OK, had a problem), Present, and a "More" menu (Details,
-  Download, Move to trash). Deleting asks once, then a toast offers Undo. The empty state says what to do next.
-  Server error text is never shown as-is (Developer details adds it under the plain sentence).
+  /decks: the presentations, as a calm typeset list or as a grid of covers (the first slide as rendered; the choice is
+  remembered in this browser, the list is the default). Each item: the title, one quiet line (slides · edited), at
+  most ONE chip and only when something needs the owner (needs your OK, had a problem), Present, and a "More" menu
+  (Details, Download, Move to trash). Deleting asks once, then a toast offers Undo. The empty state says what to do
+  next. Server error text is never shown as-is (Developer details adds it under the plain sentence).
 -->
 <script lang="ts">
   import { Button, Dialog, EmptyState, Icon, Notice, toast } from "@pptaken/ui";
   import { onDestroy, onMount } from "svelte";
   import ActionMenu from "../components/ActionMenu.svelte";
   import CopyButton from "../components/CopyButton.svelte";
+  import DeckCover from "../components/DeckCover.svelte";
   import PageLayout from "../components/PageLayout.svelte";
   import {
     ApiError,
@@ -22,6 +24,8 @@
     MAX_IMPORT_MB,
     uploadImport,
   } from "../lib/api";
+  import { COVER_CONCURRENCY, createCoverStore, createLimiter } from "../lib/covers";
+  import { type DeckView, readDeckView, saveDeckView } from "../lib/deck-view";
   import { errorMessage } from "../lib/errors";
   import { debounce, describeWhen } from "../lib/format";
   import { countOfflineCopies, forgetOfflineCopies } from "../lib/offline";
@@ -191,6 +195,20 @@
       loadingMore = false;
     }
   }
+
+  // List or grid. The grid shows each deck's first slide (DeckCover); the signed cover URLs of the page come in one
+  // request, and the covers load a few at a time as they near the viewport.
+  let view = $state<DeckView>(readDeckView());
+  function chooseView(next: DeckView) {
+    view = next;
+    saveDeckView(next);
+  }
+  const coverStore = createCoverStore((ids) => api.deckCovers(ids));
+  const coverSlots = createLimiter(COVER_CONCURRENCY);
+  $effect(() => {
+    if (view === "grid" && decks.length > 0)
+      void coverStore.resolve(decks.map((d) => ({ id: d.id, revision: d.revision })));
+  });
 
   // Offline copies kept by the player on this device (secure contexts only); a control deletes them.
   let offlineCopies = $state(0);
@@ -378,6 +396,14 @@
       {#if !loading}
         <span class="count" aria-live="polite">{countText}</span>
       {/if}
+      <div class="seg" role="group" aria-label={t("decks.viewLabel")} data-testid="view-switch">
+        <button type="button" class="seg__btn" aria-pressed={view === "list"} onclick={() => chooseView("list")}>
+          <Icon name="list" size={16} /><span>{t("decks.viewList")}</span>
+        </button>
+        <button type="button" class="seg__btn" aria-pressed={view === "grid"} onclick={() => chooseView("grid")}>
+          <Icon name="squares-four" size={16} /><span>{t("decks.viewGrid")}</span>
+        </button>
+      </div>
     </div>
 
     {#if loading && decks.length === 0}
@@ -389,40 +415,56 @@
         {/snippet}
       </EmptyState>
     {:else}
-      <!-- A list that reads like a well-set index: title, one quiet line, at most one chip, Present and More. -->
-      <ul class="deck-list" aria-busy={loading} data-testid="deck-list">
-        {#each decks as deck (deck.id)}
-          {@const chip = attention(deck)}
-          <li class="deck-row" data-id={deck.id}>
-            <div class="deck-row__text">
-              <h2 class="deck-row__title" lang={deck.lang ?? undefined}>
-                <a href="/decks/{encodeURIComponent(deck.id)}">{deck.title}</a>
-              </h2>
-              <p class="deck-row__meta">
-                <span>{meta(deck)}</span>
-                {#if chip}
-                  <a class="deck-chip" data-chip={chip} data-scripts={deck.scripts}
-                    href={chip === "needsOk" ? `/decks/${encodeURIComponent(deck.id)}/approve` : `/decks/${encodeURIComponent(deck.id)}`}>
-                    <span class="ppt-dot ppt-dot--warning" aria-hidden="true"></span>{chip === "needsOk" ? t("decks.chipNeedsOk") : t("decks.chipProblems")}</a>
-                {/if}
-              </p>
-            </div>
-            <div class="deck-row__actions">
-              <Button size="sm" variant="secondary" icon="play" href="/p/{encodeURIComponent(deck.id)}" target="_blank"
-                >{t("decks.present")}<span class="ppt-sr-only"> {deck.title} {t("deck.newTab")}</span></Button
-              >
-              <ActionMenu
-                label={t("decks.moreFor", { title: deck.title })}
-                items={[
-                  { id: "open", label: t("decks.menuOpen"), icon: "info", run: () => navigate(`/decks/${encodeURIComponent(deck.id)}`) },
-                  { id: "download", label: t("decks.menuDownload"), icon: "download", run: () => openExport(deck) },
-                  { id: "delete", label: t("decks.menuDelete"), icon: "trash", danger: true, run: () => askDelete(deck) },
-                ]}
-              />
-            </div>
-          </li>
-        {/each}
-      </ul>
+      {#if view === "list"}
+        <!-- A list that reads like a well-set index: title, one quiet line, at most one chip, Present and More. -->
+        <ul class="deck-list" aria-busy={loading} data-testid="deck-list">
+          {#each decks as deck (deck.id)}
+            <li class="deck-row" data-id={deck.id}>
+              <div class="deck-row__text">
+                <h2 class="deck-row__title" lang={deck.lang ?? undefined}>
+                  <a href="/decks/{encodeURIComponent(deck.id)}">{deck.title}</a>
+                </h2>
+                <p class="deck-row__meta">
+                  <span>{meta(deck)}</span>
+                  {@render chipOf(deck)}
+                </p>
+              </div>
+              <div class="deck-row__actions">{@render actionsOf(deck)}</div>
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <!-- A grid of covers: the first slide as rendered, then the same quiet text and actions as the list. -->
+        <ul class="deck-cards" aria-busy={loading} data-testid="deck-grid">
+          {#each decks as deck (deck.id)}
+            <li class="deck-card" data-id={deck.id}>
+              {#key deck.revision}
+                <DeckCover
+                  title={deck.title}
+                  lang={deck.lang ?? undefined}
+                  limiter={coverSlots}
+                  resolve={() =>
+                    coverStore.get(
+                      { id: deck.id, revision: deck.revision },
+                      decks.map((d) => ({ id: d.id, revision: d.revision })),
+                    )}
+                />
+              {/key}
+              <div class="deck-card__body">
+                <h2 class="deck-card__title" lang={deck.lang ?? undefined}>
+                  <a href="/decks/{encodeURIComponent(deck.id)}">{deck.title}</a>
+                </h2>
+                <div class="deck-card__more">{@render moreOf(deck)}</div>
+                <p class="deck-card__meta">{meta(deck)}</p>
+                <div class="deck-card__foot">
+                  {@render presentOf(deck)}
+                  {@render chipOf(deck)}
+                </div>
+              </div>
+            </li>
+          {/each}
+        </ul>
+      {/if}
       {#if nextCursor}
         <div class="load-more">
           <Button variant="secondary" loading={loadingMore} onclick={loadMore}>{t("decks.loadMore")}</Button>
@@ -440,6 +482,41 @@
     </p>
   {/if}
 </PageLayout>
+
+{#snippet chipOf(deck: DeckSummary)}
+  {@const chip = attention(deck)}
+  {#if chip}
+    <a
+      class="deck-chip"
+      data-chip={chip}
+      data-scripts={deck.scripts}
+      href={chip === "needsOk" ? `/decks/${encodeURIComponent(deck.id)}/approve` : `/decks/${encodeURIComponent(deck.id)}`}
+      ><span class="ppt-dot ppt-dot--warning" aria-hidden="true"></span>{chip === "needsOk" ? t("decks.chipNeedsOk") : t("decks.chipProblems")}</a
+    >
+  {/if}
+{/snippet}
+
+{#snippet presentOf(deck: DeckSummary)}
+  <Button size="sm" variant="secondary" icon="play" href="/p/{encodeURIComponent(deck.id)}" target="_blank"
+    >{t("decks.present")}<span class="ppt-sr-only"> {deck.title} {t("deck.newTab")}</span></Button
+  >
+{/snippet}
+
+{#snippet moreOf(deck: DeckSummary)}
+  <ActionMenu
+    label={t("decks.moreFor", { title: deck.title })}
+    items={[
+      { id: "open", label: t("decks.menuOpen"), icon: "info", run: () => navigate(`/decks/${encodeURIComponent(deck.id)}`) },
+      { id: "download", label: t("decks.menuDownload"), icon: "download", run: () => openExport(deck) },
+      { id: "delete", label: t("decks.menuDelete"), icon: "trash", danger: true, run: () => askDelete(deck) },
+    ]}
+  />
+{/snippet}
+
+{#snippet actionsOf(deck: DeckSummary)}
+  {@render presentOf(deck)}
+  {@render moreOf(deck)}
+{/snippet}
 
 {#snippet headActions()}
   {@render importButton("secondary")}

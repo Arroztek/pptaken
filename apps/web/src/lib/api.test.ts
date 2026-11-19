@@ -537,3 +537,30 @@ describe("interactive mode (ADR-021)", () => {
     expect(page.decks.map((d) => d.scripts)).toEqual([null, "approved"]);
   });
 });
+
+describe("deckCovers", () => {
+  const cover = {
+    id: "a",
+    revision: 2,
+    url: "https://content.example/c/a/2/cover?ct=t",
+    width: 1920,
+    height: 1080,
+    expiresAt: NOW,
+  };
+
+  it("asks for the ids in one GET and validates the answer", async () => {
+    const { calls, api } = fakeFetch(200, { covers: [cover] });
+    expect(await api.deckCovers(["a", "b"])).toEqual([cover]);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.url).toBe("/api/v1/decks/covers?ids=a%2Cb");
+    expect(calls[0]?.init.method).toBe("GET");
+  });
+
+  it("makes no request for no ids and refuses a malformed answer", async () => {
+    const empty = fakeFetch(200, { covers: [] });
+    expect(await empty.api.deckCovers([])).toEqual([]);
+    expect(empty.calls).toHaveLength(0);
+    const bad = fakeFetch(200, { covers: [{ ...cover, width: "wide" }] });
+    await expect(bad.api.deckCovers(["a"])).rejects.toMatchObject({ code: "BAD_RESPONSE" });
+  });
+});
