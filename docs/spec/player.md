@@ -82,6 +82,24 @@ presenting (in-memory preload and service worker) is specified below; HTML expor
 - The runtime is in `<head>`, before any content element exists, so it captures `window`, `document` and
   `parent` before content could define named properties.
 
+### Cover mode
+
+`buildDeckDocument(deck, { cover: true, ... })` builds the **cover document**: a thumbnail of the FIRST slide for the
+panel's grid, not a player. It is the deck document above with these differences:
+
+- one `<section data-slide>` (the first slide), **without** `hidden`; no runtime, **no `<script>` of any kind** and no
+  nonce (a cover is incompatible with `scripts` and `nonce`; the builder throws);
+- stage rules that need no script: the document is exactly the canvas size (1920x1080, or 1440x1080 for 4:3), the
+  slide sits at the top left at that size, every `[data-step]` is visible and CSS animations and transitions are off,
+  so what shows is the slide as the audience would see it with every step revealed;
+- the CSP (`contentSecurityPolicy({ cover: true, ... })`) has `sandbox` with no flags, `script-src 'none'` and no nonce
+  or hashes; the rest (`default-src 'none'`, assets and fonts only from the signed paths, `frame-ancestors`) is as for
+  any content document.
+
+The panel frames it in an `<iframe sandbox="">` (decorative: `aria-hidden`, `tabindex="-1"`, no pointer events) drawn at
+the canvas size and scaled down with a CSS transform, so the thumbnail is what the layout produces with no JavaScript.
+The server decides what is built: always the static version of the deck (see `docs/spec/http-api.md`, Covers).
+
 ## Canvas, scaling and letterbox
 
 The stage is the logical canvas (1920×1080 for 16:9, 1440×1080 for 4:3). The runtime scales it with

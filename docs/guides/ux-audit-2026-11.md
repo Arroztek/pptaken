@@ -101,7 +101,7 @@ Every notice follows: what happened, in plain words → what to do → one butto
 
 | Removed | Why |
 |---|---|
-| Card grid with a thumbnail that repeated the title, two badges per card ("By your agent", "Interactive · …") | Identical boxes and chip soup; the thumbnail carried no information the title did not. Replaced by a typeset list |
+| Card grid with a thumbnail that repeated the title, two badges per card ("By your agent", "Interactive · …") | Identical boxes and chip soup; the thumbnail carried no information the title did not. Replaced by a typeset list, and later by an optional grid whose thumbnail is the real first slide (section 8) |
 | Amber/red/green notices on the deck page (freeze, approval meaning, capability, vendoring) | Colour as decoration; none asked the owner to do anything |
 | Shield icon heading "What approving means" and the checkbox "I read the code" | Fear framing and ceremony; consent is the one click on a plain sentence, the code one link away |
 | Instance block, version and both toggles in the sidebar foot next to Sign out | Clutter and an error trap; moved to the app bar |
@@ -114,9 +114,35 @@ Every notice follows: what happened, in plain words → what to do → one butto
 Kept on purpose: the empty-stage illustration (it teaches the product's metaphor once, on an empty list), the
 spotlight colour only on the single primary action, the focus rings, hairline borders, the 6/14 px radii.
 
+## 8. Grid view with first-slide covers (added after the list redesign)
+
+The list stays the default. A small segmented control (List / Grid, a hairline pill beside the search) switches to a
+grid; the choice is remembered in this browser (`localStorage`, guarded) and nothing else decides it.
+
+- **Cover = the first slide as rendered**, in a 16:9 frame with a hairline and the panel's 14 px radius; a 4:3 deck
+  keeps its shape, centered with quiet bars, so a row stays even. Under it: the title (display face, semibold), one
+  muted line (slides, edited), **Present** and the **More** menu, and the same single chip as the list, only when
+  something needs the owner. No icon circles, no badges, no shadows or gradients; hover darkens the hairline and
+  underlines the title.
+- **The whole card is the title link** (stretched link); Present and More sit above it and are real controls in the tab
+  order. The thumbnail frame is decorative and never takes focus.
+- **Columns:** 1 at 360, 2 from 640, 3 from 1100 px.
+- **Loading:** a quiet skeleton while a cover loads (still under reduced motion); lazy (only near the viewport), at
+  most four at once, signed URLs asked for in one request per page and reused until a minute before they expire. When a
+  cover cannot show (no slide, offline, slow, failed request) the frame shows the title on the neutral surface; there is
+  never an error message for it.
+- **Security:** the slide is never rendered in the panel's origin. See `docs/spec/http-api.md` (Covers) and
+  `docs/spec/player.md` (Cover mode): a script-less, sandboxed document, always the simple version of an interactive
+  deck, so a cover needs no approval.
+- **Checked:** unit tests (store, limiter, persistence, API client), server tests (tokens, headers, first slide only),
+  panel screenshots at 360/768/1280, light and dark, English and Spanish, with no horizontal overflow and the basic
+  accessibility checks, keyboard tests, and a real-server run in Chromium, Firefox and WebKit
+  (`apps/server/browser/covers-e2e.mjs`).
+
 ## 7. Not verified
 
 - Real Claude Desktop/web connector flow (external); verified only against the mock server and the server tests.
 - Firefox and WebKit runs of the new e2e specs were not part of the final verification run (Chromium only); the
   `screens.spec.ts` matrix is Chromium-only by design.
+- Grid covers: a page cannot tell a cover that failed inside its sandboxed frame from a blank slide (the server answers failures with an empty document, so it stays blank; a load that never finishes falls back after 12 s). Only the bundled fonts and the sample decks were checked.
 - Screen-reader testing beyond the automated checks (landmarks, names, one h1, keyboard menus and drawer).

@@ -226,6 +226,35 @@ them, with the session cookie in WebKit); `apps/server/test/scripts.test.ts` enu
 - The player page CSP's `frame-src` is exactly the content origin when `PPTAKEN_CONTENT_URL` is set, `'self'`
   otherwise.
 
+### Covers (the panel's grid view)
+
+The Presentations page can show each deck's first slide as a thumbnail. Slide content is untrusted, so the panel never
+renders it itself: it frames a **cover document** (cover mode, `docs/spec/player.md`) on the content origin.
+
+- `GET /api/v1/decks/covers?ids=<id>,<id>,...` (1 to 24 ULIDs, owner session only; an API token, an OAuth token or a
+  view grant gets `401`; a bad or too long list gets `400`) answers `200 { "covers": [ { "id", "revision", "url",
+  "width", "height", "expiresAt" } ] }` with `Cache-Control: no-store`. One entry per deck that exists, is not in the
+  trash and has a slide, in the order asked; the others are simply absent (the panel then shows its fallback cover).
+  `url` is `<content origin>/c/<id>/<revision>/cover?ct=<token>` for the CURRENT revision; `width` x `height` is the
+  deck's canvas (1920x1080 or 1440x1080); `expiresAt` is 30 minutes ahead. It only signs: no state changes (it is on
+  the reviewed list of `scripts.test.ts`).
+- `GET /c/:deckId/:revision/cover?ct=<token>` serves the cover document. The token has its own purpose (`cover`,
+  subject `<deck>:<revision>`): it opens this cover and nothing else (not the full document, not another deck or
+  revision), and a document token does not open a cover. A missing, forged, wrong or expired token answers `403` and an
+  unknown deck or revision `404`, both with an empty body (an inert HTML document with `default-src 'none'; sandbox;
+  frame-ancestors <app origin>`), never text that a thumbnail would scale up.
+- The document is **always the static version** (scripts and libraries removed, HTML re-sanitized with the safe
+  profile), whatever the deck's script state or the instance switch: a cover never needs an approval and never runs
+  code. Only the first slide is built, without its speaker notes.
+- Headers: the content-document set of `contentHeaders` (`nosniff`, `Referrer-Policy: no-referrer`, a
+  `Permissions-Policy` that turns everything off, `X-DNS-Prefetch-Control: off`, `Cache-Control: no-store`) and a CSP
+  with `sandbox` (no `allow-*` flag: no scripts, no same origin, no popups, no top navigation), `script-src 'none'`,
+  `default-src 'none'`, `connect-src 'none'`, `frame-src 'none'`, `form-action 'none'`, `base-uri 'none'`, images and
+  fonts only from the signed asset path and the bundled fonts, and `frame-ancestors` = the public origin (plus the
+  request's own origin only when there is no separate content origin): no other site can frame it.
+- Panel CSP: the panel's pages already allow `frame-src 'self'` plus the content origin when `PPTAKEN_CONTENT_URL` is
+  set; covers loosen nothing (`apps/server/test/cover.test.ts` pins the header for both layouts).
+
 ## Static files and pages
 
 `apps/server` serves the built web app. Routes handled by the web app (client-side): `/` (redirects to `/welcome`
