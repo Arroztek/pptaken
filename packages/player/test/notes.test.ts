@@ -279,9 +279,11 @@ describe("renderNotes: time on adversarial input", () => {
     for (const [name, make] of shapes) {
       // Warm up the JIT on this shape.
       renderNotes(make(small));
-      const a = Math.max(best(make(small)), 0.05);
+      // Millisecond-scale timings are noisy on shared CI runners (a ratio of 10.1 was seen on linear code), so the
+      // floor is not tiny and the bound sits between linear (4x) and quadratic (16x).
+      const a = Math.max(best(make(small)), 0.25);
       const b = best(make(small * 4));
-      expect(b / a, `${name}: ${a.toFixed(2)} ms -> ${b.toFixed(2)} ms`).toBeLessThan(10);
+      expect(b / a, `${name}: ${a.toFixed(2)} ms -> ${b.toFixed(2)} ms`).toBeLessThan(13);
     }
   });
 

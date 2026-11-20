@@ -8,10 +8,10 @@ changes; they are always listed under "Changed" or "Removed". See [`docs/releasi
 
 ## [Unreleased]
 
-Nothing has been tagged yet. The first release will be 0.1.0 (the version already set in
-`apps/server/package.json`); it contains everything built so far: the player, the MCP server, the owner panel, the
-phone remote, export/import, PowerPoint import and interactive decks. When you cut it, move these entries under
-`## [0.1.0] - <date>`.
+## [0.1.0] - 2026-11-19
+
+First release: the player, the MCP server, the owner panel, the phone remote, offline presenting, export and
+import (including PowerPoint), interactive decks, the published Docker image and `npx pptaken`.
 
 ### Added
 
