@@ -244,7 +244,8 @@ try {
   const bin = join(installedPkg, "bin", "pptaken.cjs");
   check(
     "installed copy lives outside the repository",
-    existsSync(bin) && relative(repoRoot, bin).startsWith(".."),
+    existsSync(bin) &&
+      (relative(repoRoot, bin).startsWith("..") || isAbsolute(relative(repoRoot, bin))),
   );
   const deps = readdirSync(join(project, "node_modules")).filter((n) => !n.startsWith("."));
   check(
