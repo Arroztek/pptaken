@@ -8,17 +8,26 @@ a clicker, and engage your audience with live Q&A and quizzes.
 
 PPTaken does not try to be a slide designer. It is the stagehand behind the curtain.
 
-> **Status: under construction (phase 0).** Nothing is usable yet. Follow the roadmap in
+> **Status: early, usable, pre-1.0.** The player, the MCP server, the owner panel, phone remote, offline
+> presenting, export/import, PowerPoint import and interactive decks work today. Public share links,
+> audience Q&A, quizzes, an `npx` installer and the hosted cloud are not built yet. Documentation:
+> https://docs.pptaken.com (coming soon). Roadmap:
 > [`docs/foundation/07-roadmap-and-backlog.md`](docs/foundation/07-roadmap-and-backlog.md).
 
-## Planned for v1
+## What works today
 
-- Self-hosted in one container; SQLite storage behind swappable interfaces.
-- MCP server so agents can create, update, list and delete presentations.
-- Player with speaker notes, timer, overview and an offline mode.
-- Phone remote (QR pairing, laser pointer) that works on a local network without internet.
-- Read-only public links.
+- Self-hosted in one container (Docker), SQLite storage; works behind Dokploy, Coolify or Traefik.
+- MCP server so Claude (Desktop, web, Code) can create, update, list and delete presentations; sign-in with OAuth.
+- Sandboxed player with speaker notes, timer, overview, print and offline presenting.
+- Phone remote (QR pairing with approval, laser pointer) that works on a local network.
+- Export to a single HTML file or a `.pkn` archive; import of `.pkn` and PowerPoint (`.pptx`).
+- Interactive decks (JavaScript) that only run after you allow them, plus fonts and libraries saved from the web.
+
+## Coming next
+
+- Read-only public links and presenter links.
 - Audience tools: anonymous Q&A with votes, and a Kahoot-style quiz (draft until the owner approves it).
+- `npx` installer and a published Docker image.
 
 A hosted cloud service is planned for people who do not want to self-host. The open-source core stays
 open: see [`docs/foundation/06-open-source-guide.md`](docs/foundation/06-open-source-guide.md).

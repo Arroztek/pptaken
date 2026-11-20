@@ -26,6 +26,10 @@ services:
       PPTAKEN_SECRET_KEY: ${PPTAKEN_SECRET_KEY:-}
       # Optional: creates the owner at first start so no install code is needed (min. 12 characters).
       PPTAKEN_ADMIN_PASSWORD: ${PPTAKEN_ADMIN_PASSWORD:-}
+      # Files saved from the web when a presentation is written (fonts, libraries, images): see the docs.
+      PPTAKEN_VENDOR_FETCH: ${PPTAKEN_VENDOR_FETCH:-}
+      PPTAKEN_VENDOR_ALLOW_HOSTS: ${PPTAKEN_VENDOR_ALLOW_HOSTS:-}
+      PPTAKEN_VENDOR_DENY_HOSTS: ${PPTAKEN_VENDOR_DENY_HOSTS:-}
       PPTAKEN_MAX_API_BODY_KB: ${PPTAKEN_MAX_API_BODY_KB:-}
       PPTAKEN_MAX_MCP_BODY_MB: ${PPTAKEN_MAX_MCP_BODY_MB:-}
       PPTAKEN_MAX_IMPORT_MB: ${PPTAKEN_MAX_IMPORT_MB:-}
