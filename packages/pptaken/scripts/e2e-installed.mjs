@@ -30,7 +30,7 @@ import {
 import { request } from "node:http";
 import { createServer as createNetServer } from "node:net";
 import { tmpdir } from "node:os";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { chromium } from "@playwright/test";
@@ -57,7 +57,10 @@ function check(name, ok, detail) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const tmp = realpathSync(mkdtempSync(join(tmpdir(), "pptaken-installed-")));
-if (!relative(repoRoot, tmp).startsWith("..")) {
+// `relative` returns an absolute path when the two folders are on different drives (Windows CI: D:\ vs C:\), which is
+// outside the repository, not inside it.
+const fromRepo = relative(repoRoot, tmp);
+if (!fromRepo.startsWith("..") && !isAbsolute(fromRepo)) {
   console.error(`The temp folder ${tmp} is inside the repository; set TMPDIR/TEMP elsewhere.`);
   process.exit(2);
 }
