@@ -1,0 +1,12 @@
+# Override: build the image from this checkout instead of pulling the published one (development, or a platform
+# the published image does not cover). Combine it with the base file; add compose.standalone.yaml when you want a
+# published host port:
+#   docker compose -f docker/compose.yaml -f docker/compose.build.yaml up -d --build
+#   docker compose -f docker/compose.yaml -f docker/compose.build.yaml -f docker/compose.standalone.yaml up -d --build
+# Paths are relative to the first compose file (the docker/ directory), so the build context is the repository root.
+services:
+  pptaken:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: pptaken:local

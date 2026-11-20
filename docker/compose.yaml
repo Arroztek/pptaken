@@ -1,15 +1,16 @@
 # PPTaken, one service. This file publishes NO host port, so it is safe behind Dokploy, Coolify or Traefik
 # (the platform routes to container port 8080 over the internal Docker network).
 #
+# The image is pulled from the public registry (ghcr.io/arroztek/pptaken); nothing is built on your machine.
+# Pin a release with PPTAKEN_VERSION (for example 0.1.0, 0.1 or 0; the default is the newest stable release).
+#
 # Standalone, with plain commands (publishes 127.0.0.1:8080 by default):
-#   docker compose -f docker/compose.yaml -f docker/compose.standalone.yaml up -d --build
+#   docker compose -f docker/compose.yaml -f docker/compose.standalone.yaml up -d
+# Build from source instead of pulling: add -f docker/compose.build.yaml and --build (see docker/README.md).
 # Then read the install code: docker compose -f docker/compose.yaml logs pptaken
 services:
   pptaken:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-    image: pptaken:local
+    image: ghcr.io/arroztek/pptaken:${PPTAKEN_VERSION:-latest}
     restart: unless-stopped
     environment:
       # The URL people and agents use to reach this instance (no trailing slash).

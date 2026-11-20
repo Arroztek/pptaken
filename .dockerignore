@@ -7,6 +7,15 @@ data
 apps/server/data
 .git
 .github
+.codegraph
+.vscode
+.idea
+.env
+.env.*
+**/.DS_Store
 docs
-docker/Dockerfile
+# Compose files, the smoke test and the Dockerfile itself are not part of the image (BuildKit still reads the
+# Dockerfile given with -f).
+docker
+scripts
 *.log

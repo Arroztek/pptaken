@@ -2,9 +2,13 @@
 # PPTaken image: multi-stage build of the pnpm workspace, production dependencies only, non-root, no package
 # manager in the final image. Build from the repository root:
 #   docker build -f docker/Dockerfile -t pptaken .
+# Published as ghcr.io/arroztek/pptaken (linux/amd64 + linux/arm64, one native build per architecture; see
+# .github/workflows/release.yml). Multi-arch notes: better-sqlite3 13 ships its prebuilt binaries inside the
+# npm package, including linuxmusl-x64 and linuxmusl-arm64, so no compilation happens on either architecture (the build
+# tools below are only a fallback) and nothing here is architecture specific. Only the musl binaries are kept.
 
 FROM node:22-alpine AS build
-# Compilers only in this stage: better-sqlite3 falls back to building from source when no prebuilt binary matches.
+# Compilers only in this stage, as a fallback for a native dependency without a prebuilt binary (none today).
 RUN apk add --no-cache python3 make g++ && corepack enable
 WORKDIR /repo
 COPY . .
@@ -17,9 +21,16 @@ RUN pnpm --filter @pptaken/server deploy --prod --legacy /out \
  && if [ -d apps/web/dist ]; then cp -r apps/web/dist /out/web; else mkdir -p /out/web; fi \
  && rm -rf /out/src /out/test /out/browser /out/tsconfig*.json \
  && cd /out/node_modules/.pnpm/better-sqlite3@*/node_modules/better-sqlite3 \
- && rm -rf deps src build/Release/obj build/Release/obj.target build/Release/.deps build/deps build/test_extension.node
+ && rm -rf deps src build/Release/obj build/Release/obj.target build/Release/.deps build/deps build/test_extension.node \
+ && find prebuilds -type f ! -name 'linuxmusl-*' -delete
 
 FROM node:22-alpine
+# Static labels so local builds are linked to the repository too; the release workflow adds version, revision and
+# creation time (docker/metadata-action).
+LABEL org.opencontainers.image.source="https://github.com/Arroztek/pptaken" \
+      org.opencontainers.image.licenses="AGPL-3.0-or-later" \
+      org.opencontainers.image.title="PPTaken" \
+      org.opencontainers.image.description="Self-hosted presentation player driven by AI agents over MCP."
 ENV NODE_ENV=production \
     PPTAKEN_PORT=8080 \
     PPTAKEN_DATA_DIR=/data \
@@ -35,5 +46,5 @@ COPY --from=build /out ./
 USER node
 EXPOSE 8080
 VOLUME ["/data"]
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s CMD wget -qO- http://127.0.0.1:8080/healthz || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s CMD wget -qO- http://127.0.0.1:${PPTAKEN_PORT}/healthz || exit 1
 CMD ["node", "dist/main.js"]

@@ -1,0 +1,317 @@
+# Release: builds and publishes ghcr.io/arroztek/pptaken for linux/amd64 and linux/arm64.
+#
+# - Trigger: pushing a tag vX.Y.Z (or vX.Y.Z-rc.N), or a manual run (workflow_dispatch). A manual run on a branch is
+#   always a dry run (build and smoke test, nothing pushed). A manual run on a tag with dry_run=false republishes it.
+# - Each architecture is built on its own NATIVE runner (no QEMU), smoke tested, and pushed by digest only.
+#   A final job merges the two digests into one multi-arch manifest list and applies the tags.
+# - Cost: public repository + standard GitHub-hosted Linux runners + public package = free. Nothing here uses larger,
+#   paid or self-hosted runners. See docs/releasing.md.
+# - Every third-party action is pinned by commit SHA (the version is in the trailing comment).
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run: build and smoke test only, do not push anything"
+        type: boolean
+        default: true
+
+# Two runs for the same ref never overlap (a re-run waits instead of racing on the same tags).
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/arroztek/pptaken # must be lowercase
+
+jobs:
+  prepare:
+    name: Check version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      publish: ${{ steps.v.outputs.publish }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: v
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          EVENT: ${{ github.event_name }}
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -eu
+          pkg_version="$(node -p "require('./apps/server/package.json').version")"
+          publish=false
+          if [ "$REF_TYPE" = "tag" ]; then
+            case "$REF_NAME" in
+              v[0-9]*.[0-9]*.[0-9]*) ;;
+              *) echo "::error::Tag '$REF_NAME' is not a release tag (expected vX.Y.Z or vX.Y.Z-rc.N)"; exit 1 ;;
+            esac
+            tag_version="${REF_NAME#v}"
+            if [ "$tag_version" != "$pkg_version" ]; then
+              echo "::error title=Tag and package version differ::The tag is $REF_NAME but apps/server/package.json says version $pkg_version. Fix the version (node scripts/bump-version.mjs), publish a new tag, and never reuse a published one. See docs/releasing.md."
+              exit 1
+            fi
+            version="$tag_version"
+            if [ "$EVENT" = "push" ] || [ "$DRY_RUN" = "false" ]; then publish=true; fi
+          else
+            # A branch: only a dry run is allowed, nothing is pushed.
+            if [ "$DRY_RUN" != "true" ]; then
+              echo "::error::Publishing needs a release tag. Run this workflow on a vX.Y.Z tag, or keep dry_run enabled."
+              exit 1
+            fi
+            version="$pkg_version"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          echo "Version $version, publish=$publish"
+
+  build:
+    name: Build ${{ matrix.arch }}
+    needs: prepare
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write # push by digest to ghcr.io
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Image metadata (labels)
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+          labels: |
+            org.opencontainers.image.source=https://github.com/Arroztek/pptaken
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
+            org.opencontainers.image.title=PPTaken
+            org.opencontainers.image.description=Self-hosted presentation player driven by AI agents over MCP.
+            org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      # 1. Build into the local Docker image store and smoke test it BEFORE anything is pushed.
+      - name: Build (local, for the smoke test)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: ${{ matrix.platform }}
+          load: true
+          push: false
+          tags: pptaken:smoke
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=pptaken-${{ matrix.arch }}
+          cache-to: type=gha,scope=pptaken-${{ matrix.arch }},mode=max
+
+      - name: Smoke test (${{ matrix.arch }})
+        run: sh docker/smoke-test.sh pptaken:smoke
+
+      # 2. Push by digest only (no tags yet). Reuses the layers built above, so this step is quick.
+      #    If one architecture fails its smoke test the other may already have pushed an untagged digest; an untagged
+      #    digest is never reachable by a tag, so it is harmless.
+      - name: Log in to ghcr.io
+        if: needs.prepare.outputs.publish == 'true'
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: push
+        if: needs.prepare.outputs.publish == 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Attestations are added once, on the merged manifest list (see the merge job), so this digest stays a
+          # plain single-platform image.
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=pptaken-${{ matrix.arch }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        if: needs.prepare.outputs.publish == 'true'
+        env:
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          set -eu
+          mkdir -p "${RUNNER_TEMP}/digests"
+          touch "${RUNNER_TEMP}/digests/${DIGEST#sha256:}"
+
+      - name: Upload digest
+        if: needs.prepare.outputs.publish == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: digests-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    name: Publish manifest
+    needs: [prepare, build]
+    if: needs.prepare.outputs.publish == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write # create the tags on ghcr.io
+      id-token: write # build provenance attestation (OIDC)
+      attestations: write # build provenance attestation
+    outputs:
+      digest: ${{ steps.inspect.outputs.digest }}
+      arch_digests: ${{ steps.inspect.outputs.arch_digests }}
+      tags: ${{ steps.meta.outputs.tags }}
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # X.Y.Z, X.Y, X and latest for a stable tag; only X.Y.Z-rc.N (and no latest) for a pre-release tag.
+      - name: Image metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: index
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: |
+            latest=auto
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+          labels: |
+            org.opencontainers.image.source=https://github.com/Arroztek/pptaken
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
+            org.opencontainers.image.title=PPTaken
+            org.opencontainers.image.description=Self-hosted presentation player driven by AI agents over MCP.
+            org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create the multi-arch manifest list
+        env:
+          META_JSON: ${{ steps.meta.outputs.json }}
+        run: |
+          set -eu
+          # Positional parameters keep annotation values with spaces intact.
+          set --
+          for t in $(printf '%s' "$META_JSON" | jq -r '.tags[]'); do set -- "$@" -t "$t"; done
+          printf '%s' "$META_JSON" | jq -r '(.annotations // [])[]' > "${RUNNER_TEMP}/annotations.txt"
+          while IFS= read -r a; do set -- "$@" --annotation "$a"; done < "${RUNNER_TEMP}/annotations.txt"
+          for f in $(find "${RUNNER_TEMP}/digests" -type f); do set -- "$@" "${IMAGE}@sha256:$(basename "$f")"; done
+          echo "docker buildx imagetools create $*"
+          docker buildx imagetools create "$@"
+
+      - name: Inspect the published image
+        id: inspect
+        env:
+          FIRST_TAG: ${{ steps.meta.outputs.version }}
+        run: |
+          set -eu
+          ref="${IMAGE}:${FIRST_TAG}"
+          docker buildx imagetools inspect "$ref"
+          digest="$(docker buildx imagetools inspect "$ref" --format '{{json .Manifest}}' | jq -r '.digest')"
+          arch_digests=""
+          for d in "${RUNNER_TEMP}"/digests/digests-*; do
+            arch="${d##*/digests-}"
+            arch_digests="${arch_digests}${arch}=sha256:$(ls "$d" | head -n 1) "
+          done
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "arch_digests=$arch_digests" >> "$GITHUB_OUTPUT"
+
+      # Optional, first-party and free for public repositories: a signed build provenance attestation for the
+      # published manifest list. Verify with:
+      #   gh attestation verify oci://ghcr.io/arroztek/pptaken:X.Y.Z --owner Arroztek
+      # An SBOM is intentionally NOT generated here (kept simple; tracked in the roadmap, E10.3).
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.inspect.outputs.digest }}
+          push-to-registry: true
+
+  summary:
+    name: Summary
+    needs: [prepare, build, merge]
+    if: always() && needs.prepare.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Write the job summary
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+          PUBLISH: ${{ needs.prepare.outputs.publish }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          MERGE_RESULT: ${{ needs.merge.result }}
+          DIGEST: ${{ needs.merge.outputs.digest }}
+          ARCH_DIGESTS: ${{ needs.merge.outputs.arch_digests }}
+          TAGS: ${{ needs.merge.outputs.tags }}
+        run: |
+          {
+            echo "## PPTaken image ${VERSION}"
+            echo
+            if [ "$PUBLISH" != "true" ]; then
+              echo "Dry run: both architectures were built and smoke tested (build: ${BUILD_RESULT}). Nothing was pushed."
+            elif [ "$MERGE_RESULT" = "success" ]; then
+              echo "Published for linux/amd64 and linux/arm64."
+              echo
+              echo "- Image: \`${IMAGE}:${VERSION}\`"
+              echo "- Manifest list digest: \`${DIGEST}\`"
+              for a in $ARCH_DIGESTS; do echo "- Platform digest ${a%%=*}: \`${a#*=}\`"; done
+              echo
+              echo "Tags:"
+              echo
+              printf '%s\n' '```' "$TAGS" '```'
+              echo
+              echo "Pull it with \`docker pull ${IMAGE}:${VERSION}\`."
+              echo "First release only: make the package public (docs/releasing.md)."
+            else
+              echo "**Not published.** build: ${BUILD_RESULT}, merge: ${MERGE_RESULT}. Fix the cause, then push a new patch tag (never move a published tag)."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
