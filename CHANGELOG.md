@@ -25,8 +25,8 @@ import (including PowerPoint), interactive decks, the published Docker image and
   connection notes, `--port`/`--host`/`--data-dir`/`--public-url`/`--scripts`/`--admin-password-file`/`--open`/
   `--log-level`/`--json-logs`, the `backup` and `reset-password` commands, documented exit codes, and a clean stop on
   Ctrl+C. See `docs/guides/npx.md` and ADR-025.
-- The release workflow tests the npm tarball as an installed copy and publishes it with npm trusted publishing and
-  provenance; `npm-package.yml` runs the same installed-copy test on Linux, Windows and macOS with Node.js 22 and 24.
+- The release workflow tests the npm tarball as an installed copy and is set up to publish later versions with npm
+  trusted publishing and provenance (0.1.0 itself was published by hand, without provenance); `npm-package.yml` runs the same installed-copy test on Linux, Windows and macOS with Node.js 22 and 24.
 
 ### Changed
 

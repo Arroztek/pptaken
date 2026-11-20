@@ -78,9 +78,9 @@ with this data folder, 4 data folder not usable, 5 Node.js too old, 6 the SQLite
 
 ## Verify what you install
 
-Every version is built and published from GitHub Actions with
-[npm provenance](https://docs.npmjs.com/generating-provenance-statements): the npm page links the exact commit and
-workflow run. `npm audit signatures` checks it. The package has no install scripts, and its `npm-shrinkwrap.json`
+Versions after 0.1.0 are meant to be built and published from GitHub Actions with
+[npm provenance](https://docs.npmjs.com/generating-provenance-statements) (the npm page then links the exact commit and
+workflow run, and `npm audit signatures` checks it); 0.1.0 was published by hand and has none. The package has no install scripts, and its `npm-shrinkwrap.json`
 pins its one dependency (and that dependency's own) to exact, hash-checked versions.
 
 ## Links

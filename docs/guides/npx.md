@@ -110,8 +110,10 @@ backup made by that version.
 
 ## Checking what you install
 
-The package is published from GitHub Actions with npm provenance (the npm page links the commit and the workflow run);
-`npm audit signatures` verifies it. It has a single dependency (`better-sqlite3`), no install scripts, and its
+Version 0.1.0 was published by hand by the maintainer, so it carries **no** npm provenance statement. The release
+workflow is set up to publish later versions from GitHub Actions with npm provenance (the npm page then links the
+commit and the workflow run, and `npm audit signatures` verifies it); this guide will say so once that has happened.
+The package has a single dependency (`better-sqlite3`), no install scripts, and its
 `THIRD-PARTY-NOTICES.md` lists every bundled component.
 
 ## Limits

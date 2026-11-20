@@ -67,7 +67,7 @@ receive one package, not fifteen.
 - The first version is published **by hand** by the maintainer (npm needs the package to exist before a trusted
   publisher can be attached to it). After that, the release workflow publishes on the same `vX.Y.Z` tags as the image,
   from a **separate job** with `contents: read` and `id-token: write` only, using **npm trusted publishing (OIDC)**: no
-  npm token is stored in GitHub. Every version carries an npm **provenance** statement (`publishConfig.provenance`).
+  npm token is stored in GitHub. Versions published by the workflow carry an npm **provenance** statement (`publishConfig.provenance`); version 0.1.0, published by hand, does not.
 - The job publishes the exact tarball that passed the installed-copy test (checked by SHA-256), checks that the tag
   equals the package version, never runs on dry runs or forks, runs only after the image is published, skips with a
   notice while the package does not exist, and uses the `next` dist-tag for pre-releases.
