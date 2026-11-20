@@ -2,5 +2,8 @@ packages:
   - "apps/*"
   - "packages/*"
 onlyBuiltDependencies:
-  - better-sqlite3
   - esbuild
+# better-sqlite3 ships prebuilt binaries inside its npm package: building it from source (node-gyp, needs Visual Studio
+# on Windows) is never wanted, so its implicit install script is not run.
+ignoredBuiltDependencies:
+  - better-sqlite3
