@@ -1,0 +1,68 @@
+{
+  "name": "pptaken",
+  "version": "0.1.0",
+  "description": "PPTaken in one command: a self-hosted presentation player your AI agent (Claude) drives over MCP. Runs locally with Node.js, no Docker needed.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "bin": {
+    "pptaken": "bin/pptaken.cjs"
+  },
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "sideEffects": [
+    "./bin/pptaken.cjs",
+    "./dist/app/*.js"
+  ],
+  "files": [
+    "bin/pptaken.cjs",
+    "dist/",
+    "LICENSE",
+    "LICENSE-APACHE-2.0.txt",
+    "THIRD-PARTY-NOTICES.md",
+    "npm-shrinkwrap.json"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Arroztek/pptaken.git",
+    "directory": "packages/pptaken"
+  },
+  "bugs": {
+    "url": "https://github.com/Arroztek/pptaken/issues"
+  },
+  "homepage": "https://docs.pptaken.com",
+  "keywords": [
+    "presentation",
+    "slides",
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "ai-agent",
+    "self-hosted",
+    "player",
+    "remote-control"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --testTimeout=120000",
+    "test:installed": "node scripts/e2e-installed.mjs"
+  },
+  "dependencies": {
+    "better-sqlite3": "13.1.1"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "2.4.0",
+    "@playwright/test": "1.65.0",
+    "@types/node": "22.20.5",
+    "esbuild": "0.28.2",
+    "vitest": "5.1.0"
+  }
+}

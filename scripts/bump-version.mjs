@@ -4,9 +4,10 @@
 //   node scripts/bump-version.mjs 0.2.0           # or 0.2.0-rc.1
 //   node scripts/bump-version.mjs 0.2.0 --dry-run # print what would change
 //
-// Only the root package.json and apps/server/package.json carry the product version: the server reports it at
-// runtime (MCP server info, startup log) and the release workflow checks the git tag against it. The libraries under
-// packages/ and apps/web stay at 0.0.0 (private, versioned with the product, never published separately).
+// The root package.json, apps/server/package.json and packages/pptaken/package.json carry the product version: the
+// server reports it at runtime (MCP server info, startup log), `pptaken` is the published npm package (npx), and the
+// release workflow checks the git tag against both. The other libraries under packages/ and apps/web stay at 0.0.0
+// (private, bundled into `pptaken`, never published separately).
 // The script refuses to run on a dirty working tree, so the version bump is a clean, reviewable commit.
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -14,7 +15,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const FILES = ["package.json", "apps/server/package.json"];
+const FILES = ["package.json", "apps/server/package.json", "packages/pptaken/package.json"];
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$/;
 
 const args = process.argv.slice(2);
