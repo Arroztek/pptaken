@@ -14,7 +14,7 @@ An **ADR** (*Architecture Decision Record*) is a short note that records **what 
 | 0008 | [MCP: stateless Streamable HTTP, in the same process](0008-mcp-streamable-http.md) | accepted |
 | 0009 | [Agent authentication: API token + built-in OAuth 2.1 server](0009-agent-authentication.md) | accepted, amended by 0018 |
 | 0010 | [Monorepo and tooling](0010-monorepo-and-tooling.md) | accepted |
-| 0011 | [Packaging and distribution](0011-packaging-and-distribution.md) | accepted |
+| 0011 | [Packaging and distribution](0011-packaging-and-distribution.md) | accepted, amended by 0025 |
 | 0012 | [License: AGPL-3.0 for the application, Apache-2.0 for the format and client libraries; license-grant CLA](0012-license.md) | accepted |
 | 0013 | [Relationship between `pptaken` (public) and `pptaken-cloud` (private)](0013-pptaken-and-pptaken-cloud.md) | accepted |
 | 0014 | [Immutable revisions and soft delete](0014-immutable-revisions-soft-delete.md) | accepted |
@@ -28,3 +28,4 @@ An **ADR** (*Architecture Decision Record*) is a short note that records **what 
 | 0022 | [Ingest-time vendoring and the HTML-artifact importer](0022-vendoring-and-html-importer.md) | accepted |
 | 0023 | [Script error visibility](0023-script-error-visibility.md) | accepted |
 | 0024 | [Approval bound to a trust lineage (automatic interactive updates)](0024-approval-trust-lineage.md) | accepted |
+| 0025 | [npx distribution: one bundled npm package `pptaken`](0025-npx-distribution.md) | accepted |

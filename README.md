@@ -9,14 +9,15 @@ a clicker, and engage your audience with live Q&A and quizzes.
 PPTaken does not try to be a slide designer. It is the stagehand behind the curtain.
 
 > **Status: early, usable, pre-1.0.** The player, the MCP server, the owner panel, phone remote, offline
-> presenting, export/import, PowerPoint import and interactive decks work today. Public share links,
-> audience Q&A, quizzes, an `npx` installer and the hosted cloud are not built yet. Documentation:
+> presenting, export/import, PowerPoint import and interactive decks work today, with Docker or `npx pptaken`.
+> Public share links, audience Q&A, quizzes and the hosted cloud are not built yet. Documentation:
 > https://docs.pptaken.com (coming soon). Roadmap:
 > [`docs/foundation/07-roadmap-and-backlog.md`](docs/foundation/07-roadmap-and-backlog.md).
 
 ## What works today
 
 - Self-hosted in one container (Docker), SQLite storage; works behind Dokploy, Coolify or Traefik.
+- Or on your own computer with one command, no Docker: `npx pptaken`.
 - MCP server so Claude (Desktop, web, Code) can create, update, list and delete presentations; sign-in with OAuth.
 - Sandboxed player with speaker notes, timer, overview, print and offline presenting.
 - Phone remote (QR pairing with approval, laser pointer) that works on a local network.
@@ -27,10 +28,24 @@ PPTaken does not try to be a slide designer. It is the stagehand behind the curt
 
 - Read-only public links and presenter links.
 - Audience tools: anonymous Q&A with votes, and a Kahoot-style quiz (draft until the owner approves it).
-- `npx` installer.
+- Background service, auto-update and a tunnel helper for the `npx` version.
 
 A hosted cloud service is planned for people who do not want to self-host. The open-source core stays
 open: see [`docs/foundation/06-open-source-guide.md`](docs/foundation/06-open-source-guide.md).
+
+## Try it on your computer with npx
+
+Needs [Node.js](https://nodejs.org) 22 or newer (Windows, macOS or Linux; nothing is compiled):
+
+```bash
+npx pptaken
+```
+
+It prints the address (http://localhost:8080), a one-time install code and where your data is kept; `Ctrl+C` stops
+it. Claude Code on the same computer can connect right away; Claude Desktop and claude.ai need a public `https://`
+address, which is what the Docker setup below is for. Options (`--port`, `--data-dir`, `--host`, `--public-url`,
+`--scripts owner`, `backup`, `reset-password`, ...) and limits: [`docs/guides/npx.md`](docs/guides/npx.md).
+Update with `npx pptaken@latest`.
 
 ## Install with Docker
 
@@ -60,14 +75,19 @@ pnpm --filter @pptaken/server dev
 
 ## Repository layout
 
-| Path              | Purpose                                 |
-| ----------------- | --------------------------------------- |
-| `apps/server`     | HTTP server composition (Hono)          |
-| `apps/web`        | Web interface (Svelte, upcoming)        |
-| `packages/schema` | Deck format (Apache-2.0)                |
-| `packages/ui`     | Design tokens and components            |
-| `docs/foundation` | Foundational design documents |
-| `docs/adr`        | Architecture decision records           |
+| Path               | Purpose                                                                    |
+| ------------------ | -------------------------------------------------------------------------- |
+| `apps/server`      | HTTP server composition (Hono)                                             |
+| `apps/web`         | Owner panel (Svelte)                                                       |
+| `packages/schema`  | Deck format (Apache-2.0)                                                   |
+| `packages/player`  | Player engine (Apache-2.0)                                                 |
+| `packages/ui`      | Design tokens, fonts and components                                        |
+| `packages/pptaken` | The npm package `pptaken` (`npx pptaken`): one bundle of all of the above  |
+| `docs/foundation`  | Foundational design documents                                              |
+| `docs/adr`         | Architecture decision records                                              |
+
+Every package under `packages/` is private and internal except `packages/pptaken`, the only one published to npm
+([ADR-025](docs/adr/0025-npx-distribution.md)).
 
 ## License
 

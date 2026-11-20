@@ -1,8 +1,9 @@
 # Releasing PPTaken
 
-How a release of the Docker image `ghcr.io/arroztek/pptaken` is cut, what the automation does, and the few clicks
-that only the organization owner can make. Everything here is free: the repository is public, the image is a public
-package and the workflows use standard GitHub-hosted Linux runners only.
+How a release of the Docker image `ghcr.io/arroztek/pptaken` and of the npm package `pptaken` (`npx pptaken`) is cut,
+what the automation does, and the few clicks that only the organization owner can make. Everything here is free: the
+repository is public, the image and the npm package are public, and the workflows use standard GitHub-hosted runners
+only.
 
 ## Versioning policy
 
@@ -18,16 +19,18 @@ package and the workflows use standard GitHub-hosted Linux runners only.
   `X.Y` to follow patch fixes only. Before 1.0.0 the `0` tag moves across minor releases that may break, so avoid it.
 - A published tag is **never moved or deleted** (see Rolling back).
 
-Only two `package.json` files carry the product version and are kept in sync: the root `package.json` and
-`apps/server/package.json`. The server reports its own version at runtime (startup log, MCP server info) and the
-workflow compares the git tag with `apps/server/package.json`. The libraries under `packages/` and `apps/web` stay
-at `0.0.0` (private, never published separately).
+Three `package.json` files carry the product version and are kept in sync: the root `package.json`,
+`apps/server/package.json` and `packages/pptaken/package.json` (the npm package). The server reports its own version
+at runtime (startup log, MCP server info) and the workflow compares the git tag with `apps/server/package.json` and
+`packages/pptaken/package.json`. The other libraries under `packages/` and `apps/web` stay at `0.0.0` (private,
+bundled into `pptaken`, never published separately; see [ADR-025](adr/0025-npx-distribution.md)). npm versions follow
+the same rules: a stable `X.Y.Z` gets the `latest` dist-tag, a pre-release `X.Y.Z-rc.N` gets `next`.
 
 ## Cutting a release, step by step
 
 1. Start from an up-to-date `main` with a green CI, in a clean working tree.
 2. Run the full check locally: `pnpm check`.
-3. Bump the versions: `node scripts/bump-version.mjs 0.2.0` (add `--dry-run` to preview). It updates the two files
+3. Bump the versions: `node scripts/bump-version.mjs 0.2.0` (add `--dry-run` to preview). It updates the three files
    above and refuses to run on a dirty tree.
 4. Update `CHANGELOG.md`: move the entries of `## [Unreleased]` under a new heading `## [0.2.0] - YYYY-MM-DD` and
    write them from the conventional commits since the last tag (`feat:` goes to Added, `fix:` to Fixed,
@@ -43,8 +46,8 @@ at `0.0.0` (private, never published separately).
    ```
 8. Watch the Release run (Actions tab). When it is green, the job summary lists the image reference and digests.
 9. Check it from a clean machine: `docker pull ghcr.io/arroztek/pptaken:0.2.0` (and `docker run --rm
-   ghcr.io/arroztek/pptaken:0.2.0 node -v`). Optionally publish a GitHub Release for the tag with the changelog
-   entry as its notes.
+   ghcr.io/arroztek/pptaken:0.2.0 node -v`) and `npx pptaken@0.2.0 --version`. Optionally publish a GitHub Release
+   for the tag with the changelog entry as its notes.
 
 ## What the workflow does
 
@@ -61,13 +64,21 @@ at `0.0.0` (private, never published separately).
    then attaches a signed build provenance attestation to the manifest list (first-party
    `actions/attest-build-provenance`, free for public repositories). Verify it with
    `gh attestation verify oci://ghcr.io/arroztek/pptaken:0.2.0 --owner Arroztek`. No SBOM is generated yet.
-4. **Summary**: writes the image reference, the manifest list digest and the per-architecture digests to the job
-   summary.
+4. **npm package (build and installed test)**, on every run including dry runs: builds the workspace, runs the
+   `pptaken` unit tests, packs the tarball and runs `scripts/e2e-installed.mjs` against that exact tarball (installed
+   into a fresh project, started, driven with HTTP, MCP and Chromium). Only `contents: read`.
+5. **Publish to npm**, only for a real release, only in `Arroztek/pptaken`, and only after the image was published:
+   publishes the tested tarball (SHA-256 checked) with npm trusted publishing and provenance. See
+   [npm package](#npm-package-pptaken).
+6. **Summary**: writes the image reference, the manifest list digest, the per-architecture digests and the npm result
+   to the job summary.
 
 Re-running a failed release run is safe (tags are overwritten with the same content). Two runs for the same tag never
 overlap (`concurrency`). The pull-request workflow `docker-check.yml` builds the amd64 image and runs the same smoke
 test whenever `docker/**`, `apps/**` or `packages/**` change, so the release should not be the first time the
-Dockerfile is exercised.
+Dockerfile is exercised. Likewise `npm-package.yml` builds the npm tarball and runs the installed-copy test on Linux,
+Windows and macOS with Node.js 22 and 24 for every pull request that touches `packages/**`, `apps/server/**` or
+`apps/web/**`.
 
 Third-party actions are pinned by commit SHA. To update one, look up the new release on its repository, take the
 commit SHA of the release tag and replace both the SHA and the version in the trailing comment.
@@ -95,6 +106,93 @@ Do these once, right after the **first** tag has been pushed and the run has pub
    workflows declare their own permissions).
 
 After that, every release is just "bump, tag, push".
+
+## npm package `pptaken`
+
+`packages/pptaken` is the only package published to npm: one bundle of the server, the web app and every workspace
+package, with `better-sqlite3` as its single dependency ([ADR-025](adr/0025-npx-distribution.md),
+[npx guide](guides/npx.md)). The name is unscoped; the npm organizations `arroztek` and `pptaken` exist.
+
+### First publish (by hand, once)
+
+npm can attach a trusted publisher only to a package that exists, so the first version is published from the
+maintainer's computer. Use a clean checkout of the release tag.
+
+1. Make sure your npm account has **two-factor authentication** on (npmjs.com, Account, Two-Factor Authentication;
+   "Authorization and writes").
+2. Build and check, from the repository root of the tagged commit:
+   ```sh
+   pnpm install --frozen-lockfile
+   pnpm build
+   pnpm --filter pptaken test
+   pnpm --filter pptaken test:installed
+   ```
+3. Look at what will be uploaded: `cd packages/pptaken && npm pack --dry-run` (only `bin/pptaken.cjs`, `dist/`,
+   `LICENSE`, `LICENSE-APACHE-2.0.txt`, `THIRD-PARTY-NOTICES.md`, `npm-shrinkwrap.json`, `README.md`,
+   `package.json`; about 6.5 MB unpacked).
+4. Log in and publish from `packages/pptaken`:
+   ```sh
+   npm login                         # opens the browser; complete the 2FA step
+   npm publish --access public --provenance=false
+   ```
+   `--provenance=false` is needed only here: `publishConfig.provenance` is on, and provenance can only be generated in
+   CI, not on a laptop (without the flag npm stops with "Automatic provenance generation not supported"; a flag on
+   the command line wins over `publishConfig`). npm asks for the one-time code. Every later version is published by
+   CI with provenance.
+5. Check it: `npm view pptaken` and, in an empty folder, `npx pptaken@<version> --version`.
+
+### Trusted publisher (once, right after the first publish)
+
+On npmjs.com: **pptaken** (the package page), **Settings**, **Trusted Publisher**, **GitHub Actions**:
+
+| Field                | Value                                                                   |
+| -------------------- | ----------------------------------------------------------------------- |
+| Organization or user | `Arroztek`                                                              |
+| Repository           | `pptaken`                                                               |
+| Workflow filename    | `release.yml` (only the file name)                                      |
+| Environment name     | empty, or `npm` if you add `environment: npm` to the `npm-publish` job |
+
+Then, still under the package **Settings**, **Publishing access**: choose **"Require two-factor authentication and
+disallow tokens"** once a CI publish has worked (trusted publishing keeps working; long-lived tokens stop). From the
+command line the same is `npm access set mfa=publish pptaken`. npm does not validate the trusted publisher when it is
+saved: a mistake shows up only at the next publish ("Unable to authenticate"), so check the fields carefully.
+The `repository.url` in `packages/pptaken/package.json` must keep pointing at `github.com/Arroztek/pptaken`.
+
+Optional, stricter: allow only `npm stage publish` for the trusted publisher, so that every CI publish waits for a
+maintainer's 2FA approval on npmjs.com (the workflow would then need `npm stage publish`; not wired today).
+
+### Organizations, owners and 2FA
+
+- Enable **"Require two-factor authentication"** for members of both npm organizations (`arroztek`, `pptaken`):
+  npmjs.com, the organization, **Settings**, **Two-factor authentication enforcement**.
+- Add a second maintainer so the package never depends on one account: `npm owner add <npm-user> pptaken` (any owner
+  can publish and add owners; 2FA asks for a code). List them with `npm owner ls pptaken`.
+- Team access: `npm access grant read-write pptaken:<team> pptaken` (the argument is `<org>:<team>`; create the team
+  first with `npm team create pptaken:<team>`). *Not verified:* the npm documentation does not say whether a team of an
+  organization can be granted access to an **unscoped** package owned by a user account. If npm refuses, either keep
+  using `npm owner add` for individual maintainers, or move the package into the organization from the website
+  (organization, **Packages**) if npm offers it. Check `npm access list collaborators pptaken` afterwards.
+
+### What CI does on each tag
+
+See steps 4 and 5 of [What the workflow does](#what-the-workflow-does). The publish job:
+
+- has only `contents: read` and `id-token: write` (OIDC); no npm token exists in the repository secrets;
+- checks that the tarball is byte-for-byte the one that passed the installed-copy test and that its version equals
+  the tag;
+- skips with a notice when `pptaken` does not exist on npm yet, and when the version is already published (so a re-run
+  is safe);
+- publishes `npm publish <tarball> --provenance --access public --tag latest|next` with npm 11.5.1 or newer (Node 24).
+
+Verify a published version: the npm page shows "Provenance" with a link to the workflow run; locally,
+`npm audit signatures` in a project that installed it.
+
+### Rolling back on npm
+
+npm versions are immutable: never try to republish a version. Fix forward with a patch release. Mark a bad version
+with `npm deprecate pptaken@0.2.0 "Broken, use 0.2.1"` (users still can install it on purpose; `npx pptaken` gets
+`latest`). Move `latest` back if needed: `npm dist-tag add pptaken@0.1.2 latest`. `npm unpublish` is only possible
+within 72 hours and only if nothing depends on the version; reserve it for a leaked secret.
 
 ## Cost note
 

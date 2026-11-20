@@ -3,6 +3,10 @@
 The image is published at `ghcr.io/arroztek/pptaken` (`linux/amd64` and `linux/arm64`, public, no login needed).
 The compose files pull it; nothing is built unless you ask for it.
 
+Just trying PPTaken on your own computer, without Docker? `npx pptaken` runs the same server with Node.js 22+; see
+[`docs/guides/npx.md`](../docs/guides/npx.md). Its data folder has the same layout as the `/data` volume, so you can
+move to Docker later by copying it.
+
 | File                             | What it does                                                                                                 |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `docker/compose.yaml`            | The service: published image, one volume, hardened container, **no host port** (Dokploy, Coolify, Traefik). |
