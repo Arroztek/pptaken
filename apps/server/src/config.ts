@@ -3,6 +3,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { configVar } from "./config-vars.js";
 
 const PACKAGE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -128,13 +129,12 @@ function originOf(name: string, value: string): string {
   return url.origin;
 }
 
-function int(
-  name: string,
-  value: string | undefined,
-  fallback: number,
-  min: number,
-  max: number,
-): number {
+/** An integer variable: default and bounds come from the declarative table in config-vars.ts. */
+function int(name: string, value: string | undefined): number {
+  const spec = configVar(name);
+  const fallback = Number(spec.default);
+  const min = spec.min ?? 0;
+  const max = spec.max ?? Number.MAX_SAFE_INTEGER;
   if (value === undefined || value === "") return fallback;
   if (!/^\d+$/.test(value)) throw new ConfigError(`${name} must be an integer (got "${value}")`);
   const n = Number(value);
@@ -235,7 +235,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     contentOrigin: contentOriginRelation(publicUrl, contentUrl),
     scripts,
     host: env.PPTAKEN_HOST || "0.0.0.0",
-    port: int("PPTAKEN_PORT", env.PPTAKEN_PORT, 8080, 0, 65535),
+    port: int("PPTAKEN_PORT", env.PPTAKEN_PORT),
     dataDir: resolve(env.PPTAKEN_DATA_DIR || "./data"),
     trustProxy: bool("PPTAKEN_TRUST_PROXY", env.PPTAKEN_TRUST_PROXY),
     webDir: resolve(env.PPTAKEN_WEB_DIR || resolve(PACKAGE_DIR, "../web/dist")),
@@ -245,12 +245,9 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     adminPassword: adminPasswordFrom(env),
     secretKey: env.PPTAKEN_SECRET_KEY || undefined,
     secretKeyFile: env.PPTAKEN_SECRET_KEY_FILE || undefined,
-    maxApiBodyBytes:
-      int("PPTAKEN_MAX_API_BODY_KB", env.PPTAKEN_MAX_API_BODY_KB, 64, 1, 1024) * 1024,
-    maxMcpBodyBytes:
-      int("PPTAKEN_MAX_MCP_BODY_MB", env.PPTAKEN_MAX_MCP_BODY_MB, 4, 1, 32) * 1024 * 1024,
-    maxImportBytes:
-      int("PPTAKEN_MAX_IMPORT_MB", env.PPTAKEN_MAX_IMPORT_MB, 100, 1, 1024) * 1024 * 1024,
+    maxApiBodyBytes: int("PPTAKEN_MAX_API_BODY_KB", env.PPTAKEN_MAX_API_BODY_KB) * 1024,
+    maxMcpBodyBytes: int("PPTAKEN_MAX_MCP_BODY_MB", env.PPTAKEN_MAX_MCP_BODY_MB) * 1024 * 1024,
+    maxImportBytes: int("PPTAKEN_MAX_IMPORT_MB", env.PPTAKEN_MAX_IMPORT_MB) * 1024 * 1024,
     logLevel: logLevel as ServerConfig["logLevel"],
   };
 }

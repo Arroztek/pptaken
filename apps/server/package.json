@@ -22,7 +22,8 @@
     "test:unlock": "pnpm run build && node browser/unlock-e2e.mjs",
     "test:covers": "pnpm run build && node browser/covers-e2e.mjs",
     "test:vendor": "pnpm run build && node browser/vendor-e2e.mjs",
-    "smoke:vendor": "pnpm run build && node scripts/vendor-smoke.mjs"
+    "smoke:vendor": "pnpm run build && node scripts/vendor-smoke.mjs",
+    "docs:config": "tsc -p tsconfig.json && node scripts/config-reference.mjs"
   },
   "dependencies": {
     "@hono/node-server": "2.1.8",
