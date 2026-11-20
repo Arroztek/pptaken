@@ -1,7 +1,7 @@
 {
   "name": "pptaken-monorepo",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "PPTaken: self-hosted presentation player driven by AI agents over MCP.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
