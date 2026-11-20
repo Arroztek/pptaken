@@ -27,10 +27,26 @@ PPTaken does not try to be a slide designer. It is the stagehand behind the curt
 
 - Read-only public links and presenter links.
 - Audience tools: anonymous Q&A with votes, and a Kahoot-style quiz (draft until the owner approves it).
-- `npx` installer and a published Docker image.
+- `npx` installer.
 
 A hosted cloud service is planned for people who do not want to self-host. The open-source core stays
 open: see [`docs/foundation/06-open-source-guide.md`](docs/foundation/06-open-source-guide.md).
+
+## Install with Docker
+
+The image is published at `ghcr.io/arroztek/pptaken` for `linux/amd64` and `linux/arm64` (VPS, Raspberry Pi,
+Apple Silicon). Nothing is built on your machine:
+
+```bash
+git clone https://github.com/Arroztek/pptaken.git && cd pptaken
+docker compose -f docker/compose.yaml -f docker/compose.standalone.yaml up -d
+docker compose -f docker/compose.yaml logs pptaken   # prints the install code
+```
+
+Then open http://localhost:8080. Pin a release with `PPTAKEN_VERSION=0.1.0`, update with
+`docker compose -f docker/compose.yaml pull && docker compose -f docker/compose.yaml up -d`, or build from source
+with the extra `-f docker/compose.build.yaml`. Behind Dokploy or Coolify use `docker/compose.yaml` alone. Details,
+HTTPS and OAuth notes: [`docker/README.md`](docker/README.md). Releases: [`docs/releasing.md`](docs/releasing.md).
 
 ## Development
 
