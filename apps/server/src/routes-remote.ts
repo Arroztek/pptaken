@@ -3,16 +3,16 @@
 // URL fragment, which the browser never sends; the page strips it and redeems it over HTTP) and the browser
 // modules under `/_rt/` (the @pptaken/realtime ES modules, the phone stylesheet and the pinned QR encoder).
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { BROWSER_FILES, PHONE_CSS } from "@pptaken/realtime";
 import { Hono } from "hono";
 import type { AppEnv, Services } from "./context.js";
 import { playerPagePolicy } from "./routes-content.js";
+import { runtimePaths } from "./runtime-paths.js";
 
-const REALTIME_DIST = dirname(fileURLToPath(import.meta.resolve("@pptaken/realtime")));
+const REALTIME_DIST = runtimePaths.realtimeDir;
 /** The QR encoder: `qr` (paulmillr/qr), pinned in package.json, zero dependencies, one self-contained module. */
-const QR_FILE = fileURLToPath(import.meta.resolve("qr"));
+const QR_FILE = runtimePaths.qrFile;
 const FILES = new Set<string>(BROWSER_FILES);
 
 /** The phone page script: injects the player modules the phone needs (previews, next position, notes, clock). */

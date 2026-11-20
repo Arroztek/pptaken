@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Configuration from environment variables (architecture §12), validated at startup with clear errors.
 import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { configVar } from "./config-vars.js";
-
-const PACKAGE_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+import { runtimePaths } from "./runtime-paths.js";
 
 function packageVersion(): string {
   try {
-    const pkg = JSON.parse(readFileSync(resolve(PACKAGE_DIR, "package.json"), "utf8")) as {
+    const pkg = JSON.parse(readFileSync(runtimePaths.packageJson, "utf8")) as {
       version?: unknown;
     };
     return typeof pkg.version === "string" ? pkg.version : "0.0.0";
@@ -238,8 +236,8 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     port: int("PPTAKEN_PORT", env.PPTAKEN_PORT),
     dataDir: resolve(env.PPTAKEN_DATA_DIR || "./data"),
     trustProxy: bool("PPTAKEN_TRUST_PROXY", env.PPTAKEN_TRUST_PROXY),
-    webDir: resolve(env.PPTAKEN_WEB_DIR || resolve(PACKAGE_DIR, "../web/dist")),
-    fontsDir: resolve(env.PPTAKEN_FONTS_DIR || resolve(PACKAGE_DIR, "../../packages/ui/fonts")),
+    webDir: resolve(env.PPTAKEN_WEB_DIR || runtimePaths.webDir),
+    fontsDir: resolve(env.PPTAKEN_FONTS_DIR || runtimePaths.fontsDir),
     allowedHosts,
     defaultLang: lang,
     adminPassword: adminPasswordFrom(env),

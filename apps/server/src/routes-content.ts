@@ -3,8 +3,7 @@
 // the deck document built from the stored, already sanitized revision, its assets and the bundled fonts.
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { signToken, verifyToken } from "@pptaken/auth-local";
 import {
   DEFAULT_WORKSPACE_ID,
@@ -28,6 +27,7 @@ import { Hono } from "hono";
 import type { AppEnv, Services } from "./context.js";
 import { loadFontFaces } from "./fonts.js";
 import { contentOrigin, ownOrigin, playerCsp, publicOrigin, SERVICE_WORKER_CSP } from "./http.js";
+import { runtimePaths } from "./runtime-paths.js";
 import { ownerSession } from "./session.js";
 
 /** Lifetime of the token embedded in a document's asset URLs (images on later slides load lazily). */
@@ -46,7 +46,7 @@ const contentReader: Principal = {
 
 // The player shell and presenter modules of @pptaken/player, served as static ES modules to the trusted pages.
 // The same list (plus the generated page files) is what the service worker stores for offline use.
-const PLAYER_DIST = dirname(fileURLToPath(import.meta.resolve("@pptaken/player/shell")));
+const PLAYER_DIST = runtimePaths.playerDir;
 const GENERATED_FILES = new Set(["page.js", "page.css", "presenter-page.js", "presenter.css"]);
 const PLAYER_FILES = new Set<string>(SHELL_FILES.filter((f) => !GENERATED_FILES.has(f)));
 
