@@ -1,0 +1,87 @@
+# npm package check: builds the publishable `pptaken` tarball (npx distribution, ADR-025), runs its unit tests and the
+# installed-copy end-to-end test (`test:installed`: npm pack -> install into a fresh project, npx, a global prefix ->
+# start it and drive it with HTTP, MCP and Chromium) on Linux, Windows and macOS with Node.js 22 and 24.
+# Nothing is published here. Standard GitHub-hosted runners on a public repository: free.
+# Every third-party action is pinned by commit SHA (the version is in the trailing comment).
+name: npm package
+
+on:
+  pull_request:
+    paths:
+      - "packages/**"
+      - "apps/server/**"
+      - "apps/web/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "package.json"
+      - ".github/workflows/npm-package.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/**"
+      - "apps/server/**"
+      - "apps/web/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "package.json"
+      - ".github/workflows/npm-package.yml"
+  workflow_dispatch:
+
+# A newer push to the same pull request cancels the older, now useless run.
+concurrency:
+  group: npm-package-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  installed:
+    name: ${{ matrix.os }} / Node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1 (version from package.json "packageManager")
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Builds every workspace package, then packages/pptaken (bundle, assets, licence gate, notices).
+      - run: pnpm build
+
+      # CLI parsing, data folders, the Node.js version shim, the licence gate and the files allowlist (npm pack).
+      - run: pnpm --filter pptaken test
+
+      - name: Install Chromium for the end-to-end test
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            pnpm --filter pptaken exec playwright install --with-deps chromium
+          else
+            pnpm --filter pptaken exec playwright install chromium
+          fi
+
+      - name: Installed-copy end-to-end test
+        run: pnpm --filter pptaken test:installed
+
+      - name: Package size
+        if: matrix.os == 'ubuntu-latest' && matrix.node == 22
+        shell: bash
+        working-directory: packages/pptaken
+        run: |
+          npm pack --dry-run --json --ignore-scripts \
+            | node -e 'const [p]=JSON.parse(require("fs").readFileSync(0,"utf8"));console.log(`pptaken ${p.version}: ${p.entryCount} files, ${(p.size/1048576).toFixed(2)} MB packed, ${(p.unpackedSize/1048576).toFixed(2)} MB unpacked`)' \
+            >> "$GITHUB_STEP_SUMMARY"
