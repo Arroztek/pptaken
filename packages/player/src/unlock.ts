@@ -84,11 +84,15 @@ export function forgetUnlockToken(deck: string): void {
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
-/** POST /api/v1/presenter/unlock. No cookies are needed or sent; the answer is validated before use. */
+/**
+ * POST /api/v1/presenter/unlock. No cookies are needed or sent; the answer is validated before use. `headers` carries
+ * the page's presenter-link grant (`X-PPTaken-View`, ADR-026): the server unlocks only for a presenter link.
+ */
 export async function requestUnlock(
   deck: string,
   password: string,
   fetchImpl: FetchLike = (i, init) => fetch(i, init),
+  headers: Record<string, string> = {},
 ): Promise<UnlockOutcome> {
   let res: Response;
   try {
@@ -96,7 +100,7 @@ export async function requestUnlock(
       method: "POST",
       credentials: "omit",
       cache: "no-store",
-      headers: { "Content-Type": "application/json", "X-PPTaken-CSRF": "1" },
+      headers: { ...headers, "Content-Type": "application/json", "X-PPTaken-CSRF": "1" },
       body: JSON.stringify({ deckId: deck, password }),
     });
   } catch {

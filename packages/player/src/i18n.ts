@@ -109,8 +109,11 @@ const en = {
     "Interactive mode ended (the presentation changed or the unlock expired). Press U to unlock again.",
   interactiveOn: "Interactive mode",
   interactiveOffline: "Interactive mode needs a connection. Unlock before you go offline.",
-  linkInvalid: "This presentation link is no longer valid. Ask for a new one.",
+  linkInvalid: "This link is not available anymore. Ask the person who shared it for a new one.",
   loadFailed: "Could not load the presentation. Check your connection and reload this page.",
+  guestHint: "Use the arrow keys to move. Press ? to see all keys.",
+  guestPresenterHint:
+    "Press S to open the presenter view with your notes. Press ? to see all keys.",
 } as const;
 
 export type LabelKey = keyof typeof en;
@@ -223,9 +226,12 @@ const es: Labels = {
   interactiveOn: "Modo interactivo",
   interactiveOffline:
     "El modo interactivo necesita conexión. Desbloquéalo antes de quedarte sin conexión.",
-  linkInvalid: "Este enlace de presentación ya no es válido. Pide uno nuevo.",
+  linkInvalid: "Este enlace ya no está disponible. Pide uno nuevo a quien te lo compartió.",
   loadFailed:
     "No se pudo cargar la presentación. Revisa tu conexión y vuelve a cargar esta página.",
+  guestHint: "Usa las flechas para avanzar. Pulsa ? para ver todas las teclas.",
+  guestPresenterHint:
+    "Pulsa S para abrir la vista del presentador con tus notas. Pulsa ? para ver todas las teclas.",
 };
 
 export const LABELS: Readonly<Record<Locale, Labels>> = { en, es };

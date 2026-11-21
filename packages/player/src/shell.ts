@@ -122,6 +122,12 @@ export interface PlayerOptions {
    */
   unlockKey?: boolean;
   /**
+   * Printing (`P`, the browser's print menu). Default `true`. `false` (public links, ADR-026): `P` does nothing, the
+   * key help leaves it out and the browser's print is not switched to the one-page-per-slide layout. A deterrent,
+   * not a control: whoever can see slides can capture them.
+   */
+  print?: boolean;
+  /**
    * Script mode (ADR-020): the document at `contentUrl` runs approved author scripts. The shell then treats the
    * frame as hostile: private port handshake, `ready` once and checked against `expect`, `preload` unverified,
    * `state` checked, every gated key, `Enter` and `f` from the frame dropped before `onKey`, navigation keys from
@@ -272,6 +278,7 @@ export function keyHelpRows(
   presenter: boolean,
   remote: boolean,
   unlock = false,
+  print = true,
 ): [string, string][] {
   const rows: [string, string][] = [
     ["→ Space PgDn Enter", t.helpNext],
@@ -290,7 +297,8 @@ export function keyHelpRows(
     );
   if (remote) rows.push(["R", t.helpRemote], ["K", t.helpKick]);
   if (unlock) rows.push(["U", t.helpUnlock]);
-  rows.push(["P", t.helpPrint], ["?", t.helpHelp], ["Esc", t.helpClose]);
+  if (print) rows.push(["P", t.helpPrint]);
+  rows.push(["?", t.helpHelp], ["Esc", t.helpClose]);
   return rows;
 }
 
@@ -318,6 +326,7 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
   const useHash = options.hash !== false;
   const useKeyboard = options.keyboard !== false;
   const useHelp = options.help ?? useKeyboard;
+  const allowPrint = options.print !== false;
   const labels = labelsFor(options.locale);
   const reduced = win.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
   const fade = reduced ? "none" : "opacity 200ms cubic-bezier(.2,0,0,1)";
@@ -426,6 +435,7 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
       presenterUrl !== null,
       options.remoteKeys === true,
       options.unlockKey === true,
+      allowPrint,
     )) {
       const row = table.insertRow();
       const k = row.insertCell();
@@ -675,7 +685,7 @@ export function createPlayer(host: HTMLElement, options: PlayerOptions): Player 
   };
 
   const startPrint = (): Promise<void> | null => {
-    if (!slides || !canvas || faulted || printing) return null;
+    if (!allowPrint || !slides || !canvas || faulted || printing) return null;
     if (mode === "overview") setMode("present");
     if (helpOn) showHelp(false);
     layoutForPrint(true);

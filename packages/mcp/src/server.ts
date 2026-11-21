@@ -938,7 +938,7 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
     name: "get_presentation_links",
     title: "Get presentation links",
     description:
-      "Returns the URLs of a presentation: urls.present (opens the player; give it to the user) and urls.manage (the presentation's page in the owner's panel, where the owner reviews and approves its scripts), plus its public links (none in this version). It does not create links.",
+      "Returns the URLs of a presentation: urls.present (opens the player; give it to the user) and urls.manage (the presentation's page in the owner's panel, where the owner reviews and approves its scripts), plus public_links.active_count, how many public links the owner shared. Agents never create, see or turn off public links: if the user wants to share the presentation, tell them to use Share on urls.manage.",
     schema: presentationLinksInput,
     annotations: READ,
     write: false,
@@ -948,12 +948,18 @@ export function createMcpServer(options: CreateMcpServerOptions): McpServer {
         { presentationId: a.presentation_id, include: [] },
         call,
       );
+      // ADR-026: a count only (never a link, a secret, an id or a label).
+      const links = await core.countShareLinks(
+        principal,
+        { presentationId: view.presentationId },
+        call,
+      );
       return {
         presentation_id: view.presentationId,
         title: view.title,
         revision: view.revision,
         urls: urlsOf(view.presentationId),
-        share_links: [],
+        public_links: { active_count: links.active },
       };
     },
   });

@@ -906,7 +906,7 @@
   {
     "name": "get_presentation_links",
     "title": "Get presentation links",
-    "description": "Returns the URLs of a presentation: urls.present (opens the player; give it to the user) and urls.manage (the presentation's page in the owner's panel, where the owner reviews and approves its scripts), plus its public links (none in this version). It does not create links.",
+    "description": "Returns the URLs of a presentation: urls.present (opens the player; give it to the user) and urls.manage (the presentation's page in the owner's panel, where the owner reviews and approves its scripts), plus public_links.active_count, how many public links the owner shared. Agents never create, see or turn off public links: if the user wants to share the presentation, tell them to use Share on urls.manage.",
     "inputSchema": {
       "type": "object",
       "properties": {

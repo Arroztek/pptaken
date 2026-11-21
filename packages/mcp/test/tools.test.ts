@@ -207,13 +207,58 @@ describe("tools", () => {
     expect(meta.body).toMatchObject({ revision: 3 });
 
     const links = await call("get_presentation_links", { presentation_id: id });
-    expect(links.body).toMatchObject({ title: "Renamed", revision: 3, share_links: [] });
+    expect(links.body).toMatchObject({
+      title: "Renamed",
+      revision: 3,
+      public_links: { active_count: 0 },
+    });
 
     const del = await call("delete_presentation", { presentation_id: id });
     expect(del.body).toMatchObject({ presentation_id: id, trashed: true });
     expect(Date.parse(del.body.restorable_until)).toBeGreaterThan(0);
     const gone = await call("get_presentation", { presentation_id: id });
     expect(gone.body.code).toBe("NOT_FOUND");
+  });
+
+  it("get_presentation_links never creates, lists or leaks public links: a count only (ADR-026)", async () => {
+    const { call, t } = await connect();
+    const created = await call("create_presentation", {
+      title: "Shared",
+      slides: [{ id: "a", html: "<p>a</p>" }],
+    });
+    const id = created.body.presentation_id as string;
+    const owner = {
+      actor: "owner" as const,
+      workspaceId: "default",
+      scopes: new Set(["decks:read", "decks:write"] as const),
+    };
+    const view = await t.core.createShareLink(owner, {
+      presentationId: id,
+      kind: "view",
+      label: "For Ana",
+    });
+    const presenter = await t.core.createShareLink(owner, {
+      presentationId: id,
+      kind: "presenter",
+    });
+    const before = await t.store.shareLinks.listForDeck("default", id);
+    const links = await call("get_presentation_links", { presentation_id: id });
+    expect(links.isError).toBe(false);
+    expect(Object.keys(links.body).sort()).toEqual(
+      ["presentation_id", "public_links", "revision", "title", "urls"].sort(),
+    );
+    expect(links.body.urls).toEqual({
+      present: `https://slides.example.com/p/${id}`,
+      manage: `https://slides.example.com/decks/${id}`,
+    });
+    expect(links.body.public_links).toEqual({ active_count: 2 });
+    for (const leak of [view.secret, presenter.secret, view.id, presenter.id, "For Ana", "/s/"]) {
+      expect(links.text).not.toContain(leak);
+    }
+    // It created nothing.
+    expect(await t.store.shareLinks.listForDeck("default", id)).toEqual(before);
+    // No tool can create or manage links.
+    expect(TOOL_NAMES.filter((n) => /link|share/.test(n))).toEqual(["get_presentation_links"]);
   });
 
   it("add_asset uploads base64 and the ref is usable in slides", async () => {
