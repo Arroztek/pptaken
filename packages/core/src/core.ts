@@ -8,6 +8,7 @@ import type {
   Clock,
   IdGenerator,
   PptxConverter,
+  ShareLinkSecrets,
   UnitOfWork,
   VendorFetcher,
 } from "./ports.js";
@@ -92,6 +93,21 @@ import {
   type ScriptsReview,
   type ScriptsStatus,
 } from "./usecases/scripts.js";
+import {
+  type CreateShareLinkInput,
+  checkShareLink,
+  countShareLinks,
+  createShareLink,
+  listShareLinks,
+  type ResolvedShareLink,
+  recordShareLinkOpen,
+  resolveShareLink,
+  revokeAllShareLinks,
+  revokeShareLink,
+  type ShareLinkView,
+  type UpdateShareLinkInput,
+  updateShareLink,
+} from "./usecases/share-links.js";
 
 /** Everything the core needs, provided by the composition root (`apps/server`). */
 export interface CoreDeps {
@@ -106,6 +122,8 @@ export interface CoreDeps {
   vendor?: VendorFetcher;
   /** Trust lineage policy (ADR-024): automatic approval of edits to already-approved code. Off without it. */
   trust?: TrustPolicy;
+  /** Public-link secrets (ADR-026), from the server's crypto. Without it links cannot be created or resolved. */
+  shareSecrets?: ShareLinkSecrets;
 }
 
 /**
@@ -152,10 +170,10 @@ export interface Core {
     input: { presentationId: string },
     call?: CallContext,
   ): Promise<TrashResult>;
-  /** `decks:write` + owner. Restores from the trash. */
+  /** `decks:write` + owner. Restores from the trash; its public links come back only with `restoreLinks`. */
   restorePresentation(
     p: Principal,
-    input: { presentationId: string },
+    input: { presentationId: string; restoreLinks?: boolean },
     call?: CallContext,
   ): Promise<PresentationSummary>;
   /** `decks:write` + owner. Permanent deletion of a presentation in the trash. */
@@ -287,6 +305,53 @@ export interface Core {
     call?: CallContext,
   ): Promise<{ deleted: number }>;
 
+  /** Owner only (human, ADR-026). Creates a public link; the result carries its secret. Audited by link id. */
+  createShareLink(
+    p: Principal,
+    input: CreateShareLinkInput,
+    call?: CallContext,
+  ): Promise<ShareLinkView>;
+  /** Owner only. The deck's links that are not turned off, with their secrets (for the panel to show again). */
+  listShareLinks(
+    p: Principal,
+    input: { presentationId: string },
+    call?: CallContext,
+  ): Promise<ShareLinkView[]>;
+  /** Owner only. Rename, change the expiry, freeze or unfreeze. Audited. */
+  updateShareLink(
+    p: Principal,
+    input: UpdateShareLinkInput,
+    call?: CallContext,
+  ): Promise<ShareLinkView>;
+  /** Owner only. Turns one link off. Audited. */
+  revokeShareLink(
+    p: Principal,
+    input: { presentationId: string; linkId: string },
+    call?: CallContext,
+  ): Promise<{ revoked: true }>;
+  /** Owner only. Turns off every link of the deck. Audited. */
+  revokeAllShareLinks(
+    p: Principal,
+    input: { presentationId: string },
+    call?: CallContext,
+  ): Promise<{ revoked: number }>;
+  /** `decks:read`. Counts only (agents may ask; never secrets, ids or labels). */
+  countShareLinks(
+    p: Principal,
+    input: { presentationId: string },
+    call?: CallContext,
+  ): Promise<{ active: number; turnedOffByTrash: number }>;
+  /** Guest side (no principal): the link a secret opens now, or `null` for every failure. */
+  resolveShareLink(workspaceId: string, secret: unknown): Promise<ResolvedShareLink | null>;
+  /** Guest side: whether link `linkId` of `deckId` still works now. */
+  checkShareLink(
+    workspaceId: string,
+    linkId: string,
+    deckId: string,
+  ): Promise<ResolvedShareLink | null>;
+  /** Guest side: counts one opening of a link. */
+  recordShareLinkOpen(workspaceId: string, linkId: string): Promise<void>;
+
   /** Owner only. Newest first. */
   listAuditLog(
     p: Principal,
@@ -304,6 +369,7 @@ export function createCore(deps: CoreDeps): Core {
     config: resolveConfig(deps.config),
     vendor: deps.vendor,
     trust: deps.trust,
+    shareSecrets: deps.shareSecrets,
   };
   return {
     config: ctx.config,
@@ -336,6 +402,15 @@ export function createCore(deps: CoreDeps): Core {
     reportScriptErrors: (p, i, c) => reportScriptErrors(ctx, p, i, c),
     getScriptErrors: (p, i, c) => getScriptErrors(ctx, p, i, c),
     clearScriptErrors: (p, i, c) => clearScriptErrors(ctx, p, i, c),
+    createShareLink: (p, i, c) => createShareLink(ctx, p, i, c),
+    listShareLinks: (p, i, c) => listShareLinks(ctx, p, i, c),
+    updateShareLink: (p, i, c) => updateShareLink(ctx, p, i, c),
+    revokeShareLink: (p, i, c) => revokeShareLink(ctx, p, i, c),
+    revokeAllShareLinks: (p, i, c) => revokeAllShareLinks(ctx, p, i, c),
+    countShareLinks: (p, i, c) => countShareLinks(ctx, p, i, c),
+    resolveShareLink: (ws, secret) => resolveShareLink(ctx, ws, secret),
+    checkShareLink: (ws, linkId, deckId) => checkShareLink(ctx, ws, linkId, deckId),
+    recordShareLinkOpen: (ws, linkId) => recordShareLinkOpen(ctx, ws, linkId),
     listAuditLog: (p, i, c) =>
       runRead(c, async () => {
         requireOwner(p, "read the audit log");

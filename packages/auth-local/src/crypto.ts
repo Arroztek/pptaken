@@ -37,6 +37,8 @@ export type KeyPurpose =
   | "audience-identity"
   | "live-ticket"
   | "presenter-unlock"
+  | "share-link-lookup"
+  | "share-link-seal"
   | "generic";
 
 /** HKDF-SHA256 subkey of the instance secret for one purpose (32 bytes). */

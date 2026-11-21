@@ -11,6 +11,7 @@ import type {
   RevisionRepository,
   ScriptApprovalRepository,
   ScriptErrorRepository,
+  ShareLinkRepository,
   UnitOfWork,
 } from "@pptaken/core";
 import Database from "better-sqlite3";
@@ -59,6 +60,7 @@ export class SqliteStorage implements UnitOfWork {
   readonly idempotency: IdempotencyRepository;
   readonly scriptApprovals: ScriptApprovalRepository;
   readonly scriptErrors: ScriptErrorRepository;
+  readonly shareLinks: ShareLinkRepository;
   /** Result of the migration run done at open. */
   readonly migration: MigrateResult;
 
@@ -77,6 +79,7 @@ export class SqliteStorage implements UnitOfWork {
     this.idempotency = repos.idempotency;
     this.scriptApprovals = repos.scriptApprovals;
     this.scriptErrors = repos.scriptErrors;
+    this.shareLinks = repos.shareLinks;
     this.migration = migration;
   }
 

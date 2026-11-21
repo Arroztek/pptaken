@@ -289,6 +289,91 @@ export interface ScriptErrorRepository {
   ): Promise<number>;
 }
 
+/** What a public link opens (ADR-026): the audience's simple version, or the presenter experience with notes. */
+export type ShareLinkKind = "view" | "presenter";
+
+/**
+ * Why a link stopped: `owner` (turned off by the owner), `trash` (the deck went to the trash; the owner may turn
+ * these back on when restoring it).
+ */
+export type ShareLinkRevokeReason = "owner" | "trash";
+
+/**
+ * A public link of a deck (ADR-026). The secret itself is never stored in clear: `secretHash` is its keyed lookup
+ * hash and `sealedSecret` an authenticated encryption of it under the instance secret (so the owner's panel can
+ * show the link again). Neither may appear in logs, audit entries or API answers.
+ */
+export interface ShareLinkRecord {
+  workspaceId: string;
+  /** ULID: the public identifier of the link (audit entries, the panel's developer details). */
+  id: string;
+  deckId: string;
+  kind: ShareLinkKind;
+  /** The owner's private label (plain text, at most 80 characters, cleaned); `""` when none. */
+  label: string;
+  secretHash: string;
+  sealedSecret: string;
+  createdAt: number;
+  /** After this instant the link is dead; `null`: never expires. */
+  expiresAt: number | null;
+  /** A revision the link is frozen on; `null`: follows the deck's latest revision. */
+  pinnedRevision: number | null;
+  revokedAt: number | null;
+  revokedReason: ShareLinkRevokeReason | null;
+  lastOpenedAt: number | null;
+  openCount: number;
+}
+
+/** The fields an owner can change on a link (and the revocation fields the use cases set). */
+export type ShareLinkPatch = Partial<
+  Pick<ShareLinkRecord, "label" | "expiresAt" | "pinnedRevision" | "revokedAt" | "revokedReason">
+>;
+
+export interface ShareLinkRepository {
+  /** Inserts a link. Throws if the id or the secret hash already exists. */
+  insert(link: ShareLinkRecord): Promise<void>;
+  get(workspaceId: string, id: string): Promise<ShareLinkRecord | null>;
+  /** The link whose `secretHash` equals `hash` (one indexed equality lookup), or `null`. */
+  findByHash(workspaceId: string, hash: string): Promise<ShareLinkRecord | null>;
+  /** Every link of the deck, revoked ones included, newest first. */
+  listForDeck(workspaceId: string, deckId: string): Promise<ShareLinkRecord[]>;
+  /** Links neither revoked nor expired at `now`, in the workspace (`deckId` omitted) or for one deck. */
+  countActive(workspaceId: string, now: number, deckId?: string): Promise<number>;
+  /** Applies `patch` to the link of `deckId`; returns false when there is no such link. */
+  update(workspaceId: string, deckId: string, id: string, patch: ShareLinkPatch): Promise<boolean>;
+  /** Revokes every link of the deck not revoked yet; returns how many it revoked. */
+  revokeAllForDeck(
+    workspaceId: string,
+    deckId: string,
+    at: number,
+    reason: ShareLinkRevokeReason,
+  ): Promise<number>;
+  /** Clears the revocation of the deck's links revoked for `reason`; returns how many. */
+  unrevokeForDeck(
+    workspaceId: string,
+    deckId: string,
+    reason: ShareLinkRevokeReason,
+  ): Promise<number>;
+  /** Counts one opening: `openCount + 1`, `lastOpenedAt = at`. */
+  recordOpen(workspaceId: string, id: string, at: number): Promise<void>;
+  /** Deletes every link of the deck (permanent deletion); returns how many. */
+  deleteForDeck(workspaceId: string, deckId: string): Promise<number>;
+  /** Revision numbers some link of the deck is pinned to (live or not): retention never deletes them. */
+  pinnedRevisions(workspaceId: string, deckId: string): Promise<number[]>;
+}
+
+/**
+ * The secret side of public links, provided by the server (node:crypto): the core never sees key material. See
+ * `createShareSecrets` in @pptaken/auth-local.
+ */
+export interface ShareLinkSecrets {
+  generate(): string;
+  hash(secret: string): string;
+  matches(a: string, b: string): boolean;
+  seal(secret: string, linkId: string): string;
+  open(sealed: string, linkId: string): string | null;
+}
+
 export interface IdempotencyRepository {
   get(workspaceId: string, key: string): Promise<IdempotencyRecord | null>;
   /** Inserts the record. Throws if the key already exists. */
@@ -306,6 +391,7 @@ export interface Repositories {
   readonly idempotency: IdempotencyRepository;
   readonly scriptApprovals: ScriptApprovalRepository;
   readonly scriptErrors: ScriptErrorRepository;
+  readonly shareLinks: ShareLinkRepository;
 }
 
 /**

@@ -28,6 +28,9 @@ import {
   type ScriptApprovalRepository,
   type ScriptErrorRecord,
   type ScriptErrorRepository,
+  type ShareLinkPatch,
+  type ShareLinkRecord,
+  type ShareLinkRepository,
   sha256Hex,
   type UnitOfWork,
 } from "@pptaken/core";
@@ -83,6 +86,7 @@ interface State {
   idempotency: Map<string, IdempotencyRecord>;
   scriptApprovals: Map<string, ScriptApprovalRecord>;
   scriptErrors: Map<string, ScriptErrorRecord>;
+  shareLinks: Map<string, ShareLinkRecord>;
 }
 
 function emptyState(): State {
@@ -95,6 +99,7 @@ function emptyState(): State {
     idempotency: new Map(),
     scriptApprovals: new Map(),
     scriptErrors: new Map(),
+    shareLinks: new Map(),
   };
 }
 
@@ -109,6 +114,7 @@ function cloneState(s: State): State {
     idempotency: new Map(s.idempotency),
     scriptApprovals: new Map(s.scriptApprovals),
     scriptErrors: new Map(s.scriptErrors),
+    shareLinks: new Map(s.shareLinks),
   };
 }
 
@@ -161,7 +167,8 @@ function repositories(exec: Exec): Repositories {
           [...s.revisions.values()].some((r) => r.workspaceId === ws && r.deckId === id) ||
           [...s.links.values()].some((l) => l.workspaceId === ws && l.deckId === id) ||
           s.scriptApprovals.has(k(ws, id)) ||
-          [...s.scriptErrors.values()].some((r) => r.workspaceId === ws && r.deckId === id);
+          [...s.scriptErrors.values()].some((r) => r.workspaceId === ws && r.deckId === id) ||
+          [...s.shareLinks.values()].some((r) => r.workspaceId === ws && r.deckId === id);
         if (used) throw new Error("Foreign key constraint: the deck still has revisions or assets");
         s.decks.delete(k(ws, id));
         return true;
@@ -406,7 +413,104 @@ function repositories(exec: Exec): Repositories {
       }),
   };
 
-  return { decks, revisions, assets, audit, idempotency, scriptApprovals, scriptErrors };
+  const forDeck = (s: State, ws: string, deckId: string) =>
+    [...s.shareLinks.values()].filter((r) => r.workspaceId === ws && r.deckId === deckId);
+  const live = (r: ShareLinkRecord, now: number) =>
+    r.revokedAt === null && (r.expiresAt === null || r.expiresAt > now);
+  const shareLinks: ShareLinkRepository = {
+    insert: (link) =>
+      exec(true, (s) => {
+        if (!s.decks.has(k(link.workspaceId, link.deckId))) throw new Error("Unknown deck");
+        if (s.shareLinks.has(k(link.workspaceId, link.id))) {
+          throw new DuplicateKeyError(`share link ${link.id}`);
+        }
+        if ([...s.shareLinks.values()].some((r) => r.secretHash === link.secretHash)) {
+          throw new DuplicateKeyError("share link secret");
+        }
+        s.shareLinks.set(k(link.workspaceId, link.id), clone(link));
+      }),
+    get: (ws, id) => exec(false, (s) => clone(s.shareLinks.get(k(ws, id)) ?? null)),
+    findByHash: (ws, hash) =>
+      exec(false, (s) =>
+        clone(
+          [...s.shareLinks.values()].find((r) => r.workspaceId === ws && r.secretHash === hash) ??
+            null,
+        ),
+      ),
+    listForDeck: (ws, deckId) =>
+      exec(false, (s) =>
+        forDeck(s, ws, deckId)
+          .sort((a, b) => (a.id < b.id ? 1 : -1))
+          .map(clone),
+      ),
+    countActive: (ws, now, deckId) =>
+      exec(
+        false,
+        (s) =>
+          [...s.shareLinks.values()].filter(
+            (r) =>
+              r.workspaceId === ws && (deckId === undefined || r.deckId === deckId) && live(r, now),
+          ).length,
+      ),
+    update: (ws, deckId, id, patch: ShareLinkPatch) =>
+      exec(true, (s) => {
+        const link = s.shareLinks.get(k(ws, id));
+        if (link === undefined || link.deckId !== deckId) return false;
+        s.shareLinks.set(k(ws, id), { ...link, ...clone(patch) });
+        return true;
+      }),
+    revokeAllForDeck: (ws, deckId, at, reason) =>
+      exec(true, (s) => {
+        let n = 0;
+        for (const r of forDeck(s, ws, deckId)) {
+          if (r.revokedAt !== null) continue;
+          s.shareLinks.set(k(ws, r.id), { ...r, revokedAt: at, revokedReason: reason });
+          n++;
+        }
+        return n;
+      }),
+    unrevokeForDeck: (ws, deckId, reason) =>
+      exec(true, (s) => {
+        let n = 0;
+        for (const r of forDeck(s, ws, deckId)) {
+          if (r.revokedAt === null || r.revokedReason !== reason) continue;
+          s.shareLinks.set(k(ws, r.id), { ...r, revokedAt: null, revokedReason: null });
+          n++;
+        }
+        return n;
+      }),
+    recordOpen: (ws, id, at) =>
+      exec(true, (s) => {
+        const link = s.shareLinks.get(k(ws, id));
+        if (link === undefined) return;
+        s.shareLinks.set(k(ws, id), { ...link, openCount: link.openCount + 1, lastOpenedAt: at });
+      }),
+    deleteForDeck: (ws, deckId) =>
+      exec(true, (s) => {
+        const doomed = forDeck(s, ws, deckId);
+        for (const r of doomed) s.shareLinks.delete(k(ws, r.id));
+        return doomed.length;
+      }),
+    pinnedRevisions: (ws, deckId) =>
+      exec(false, (s) => [
+        ...new Set(
+          forDeck(s, ws, deckId)
+            .map((r) => r.pinnedRevision)
+            .filter((n): n is number => n !== null),
+        ),
+      ]),
+  };
+
+  return {
+    decks,
+    revisions,
+    assets,
+    audit,
+    idempotency,
+    scriptApprovals,
+    scriptErrors,
+    shareLinks,
+  };
 }
 
 /**
@@ -424,6 +528,7 @@ export class MemoryUnitOfWork implements UnitOfWork {
   readonly idempotency: IdempotencyRepository;
   readonly scriptApprovals: ScriptApprovalRepository;
   readonly scriptErrors: ScriptErrorRepository;
+  readonly shareLinks: ShareLinkRepository;
 
   constructor() {
     const repos = repositories(async (write, fn) => {
@@ -442,6 +547,7 @@ export class MemoryUnitOfWork implements UnitOfWork {
     this.idempotency = repos.idempotency;
     this.scriptApprovals = repos.scriptApprovals;
     this.scriptErrors = repos.scriptErrors;
+    this.shareLinks = repos.shareLinks;
   }
 
   transaction<T>(work: (tx: Repositories) => Promise<T>): Promise<T> {

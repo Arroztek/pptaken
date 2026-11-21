@@ -194,6 +194,8 @@ export interface TrashResult {
   trashed: true;
   /** Epoch ms until which the owner can restore it from the panel. */
   restorableUntil: number;
+  /** Public links the trash turned off (ADR-026). */
+  linksTurnedOff: number;
 }
 
 export interface PurgeResult {
@@ -720,27 +722,52 @@ export async function trashPresentation(
       await loadLiveDeck(tx, principal, id);
       const now = ctx.clock.now();
       await tx.decks.setDeletedAt(principal.workspaceId, id, now);
-      await audit(ctx, tx, principal, call, "presentation.trash", `deck:${id}`, "ok");
+      // ADR-026: the trash turns the deck's public links off at once (in the same transaction). Restoring the deck
+      // turns them back on only when the owner says so.
+      const linksTurnedOff = await tx.shareLinks.revokeAllForDeck(
+        principal.workspaceId,
+        id,
+        now,
+        "trash",
+      );
+      await audit(
+        ctx,
+        tx,
+        principal,
+        call,
+        "presentation.trash",
+        `deck:${id}`,
+        "ok",
+        linksTurnedOff > 0 ? { linksTurnedOff } : null,
+      );
       return {
         presentationId: id,
         trashed: true as const,
         restorableUntil: now + ctx.config.trashRetentionMs,
+        linksTurnedOff,
       };
     });
   });
 }
 
-/** Human only. Restores a presentation from the trash. */
+/**
+ * Human only. Restores a presentation from the trash. Its public links stay off (ADR-026) unless `restoreLinks` is
+ * true: then the links the trash turned off come back (expired ones stay expired).
+ */
 export async function restorePresentation(
   ctx: Ctx,
   principal: Principal,
-  rawInput: { presentationId: string },
+  rawInput: { presentationId: string; restoreLinks?: boolean },
   call?: CallContext,
 ): Promise<PresentationSummary> {
   return runWrite(ctx, principal, call, "presentation.restore", targetOf(rawInput), async () => {
     requireScope(principal, "decks:write");
     requireOwner(principal, "restore a presentation from the trash");
-    const id = requireString(requireObject(rawInput).presentationId, "presentationId");
+    const input = requireObject(rawInput);
+    const id = requireString(input.presentationId, "presentationId");
+    if (input.restoreLinks !== undefined && typeof input.restoreLinks !== "boolean") {
+      throw validationError("restoreLinks must be true or false", { path: "restoreLinks" });
+    }
     return ctx.store.transaction(async (tx) => {
       const deck = await tx.decks.get(principal.workspaceId, id);
       if (deck === null || deck.deletedAt === null) {
@@ -750,7 +777,20 @@ export async function restorePresentation(
         });
       }
       await tx.decks.setDeletedAt(principal.workspaceId, id, null);
-      await audit(ctx, tx, principal, call, "presentation.restore", `deck:${id}`, "ok");
+      const linksRestored =
+        input.restoreLinks === true
+          ? await tx.shareLinks.unrevokeForDeck(principal.workspaceId, id, "trash")
+          : 0;
+      await audit(
+        ctx,
+        tx,
+        principal,
+        call,
+        "presentation.restore",
+        `deck:${id}`,
+        "ok",
+        linksRestored > 0 ? { linksRestored } : null,
+      );
       return summaryView({ ...deck, deletedAt: null });
     });
   });
@@ -800,6 +840,7 @@ export async function purgeDeck(
     await tx.idempotency.deleteForDeck(ws, id);
     await tx.scriptApprovals.delete(ws, id);
     await tx.scriptErrors.deleteForDeck(ws, id);
+    await tx.shareLinks.deleteForDeck(ws, id);
     await tx.decks.delete(ws, id);
     await audit(ctx, tx, principal, call, action, `deck:${id}`, "ok", {
       revisionsDeleted,

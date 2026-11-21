@@ -54,6 +54,8 @@ const INSTALL_CODE_SETTING = "install_code";
 export const PRESENTER_PASSWORD_SETTING = "presenter_password";
 /** ADR-024: "off" when the owner wants to approve every change of a deck's interactive code. Default on. */
 export const AUTO_APPROVE_SETTING = "scripts_auto_approve";
+/** ADR-026: "off" when the owner turned public links off for the whole instance. Default on. */
+export const PUBLIC_LINKS_SETTING = "public_links";
 /**
  * A well-formed hash (all-zero salt and key) that no password verifies against: checked when no presenter password
  * is set, so a request costs the same scrypt time whether or not one exists (no timing oracle).
@@ -386,6 +388,18 @@ export class LocalAuth implements AuthProvider {
 
   async setAutoApproveUpdates(on: boolean): Promise<void> {
     await this.store.putSetting(this.ws, AUTO_APPROVE_SETTING, on ? "on" : "off", this.clock.now());
+  }
+
+  /**
+   * ADR-026: whether the owner allows public links (view and presenter links). On unless the owner turned it off
+   * from the panel; the operator's PPTAKEN_PUBLIC_LINKS switch is checked separately by the server.
+   */
+  async publicLinksAllowed(): Promise<boolean> {
+    return (await this.store.getSetting(this.ws, PUBLIC_LINKS_SETTING)) !== "off";
+  }
+
+  async setPublicLinksAllowed(on: boolean): Promise<void> {
+    await this.store.putSetting(this.ws, PUBLIC_LINKS_SETTING, on ? "on" : "off", this.clock.now());
   }
 
   /** Whether a presenter password is set. */

@@ -209,6 +209,8 @@ export async function pruneRevisions(
         const numbers = await tx.revisions.listNumbers(ws, deck.id);
         const keepSet = new Set(numbers.slice(-keep));
         keepSet.add(fresh.currentRevision);
+        // ADR-026: a public link frozen on a revision keeps that revision.
+        for (const pinned of await tx.shareLinks.pinnedRevisions(ws, deck.id)) keepSet.add(pinned);
         const doomed = numbers.filter((n) => !keepSet.has(n));
         if (doomed.length === 0) return 0;
         const n = await tx.revisions.deleteMany(ws, deck.id, doomed);

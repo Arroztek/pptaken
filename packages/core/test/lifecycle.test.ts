@@ -52,6 +52,7 @@ describe("trash, restore and purge", () => {
       presentationId: id,
       trashed: true,
       restorableUntil: t.clock.now() + 30 * DAY_MS,
+      linksTurnedOff: 0,
     });
     expect((await failure(t.core.trashPresentation(agent, { presentationId: id }))).code).toBe(
       "NOT_FOUND",

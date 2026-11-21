@@ -17,6 +17,7 @@ export {
   runRevisionRepositoryContract,
   runScriptApprovalRepositoryContract,
   runScriptErrorRepositoryContract,
+  runShareLinkRepositoryContract,
   runStorageContract,
   runUnitOfWorkContract,
   type StorageFactory,
@@ -25,6 +26,7 @@ export {
 export {
   agentPrincipal,
   createTestCore,
+  fakeShareSecrets,
   makeAssetRecord,
   makeAuditEntry,
   makeDeck,

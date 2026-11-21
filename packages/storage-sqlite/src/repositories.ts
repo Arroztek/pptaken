@@ -20,6 +20,10 @@ import type {
   ScriptErrorKind,
   ScriptErrorRecord,
   ScriptErrorRepository,
+  ShareLinkKind,
+  ShareLinkRecord,
+  ShareLinkRepository,
+  ShareLinkRevokeReason,
 } from "@pptaken/core";
 import { type Kysely, type Selectable, sql } from "kysely";
 
@@ -253,8 +257,27 @@ export interface DeckScriptErrorTable {
   last_seen: number;
 }
 
+/** Migration 0008 (ADR-026). */
+export interface ShareLinkTable {
+  workspace_id: string;
+  id: string;
+  deck_id: string;
+  kind: string;
+  label: string;
+  secret_hash: string;
+  sealed_secret: string;
+  created_at: number;
+  expires_at: number | null;
+  pinned_revision: number | null;
+  revoked_at: number | null;
+  revoked_reason: string | null;
+  last_opened_at: number | null;
+  open_count: number;
+}
+
 /** Typed view of the database for Kysely. */
 export interface Database {
+  share_link: ShareLinkTable;
   deck_scripts_approval: DeckScriptsApprovalTable;
   deck_script_error: DeckScriptErrorTable;
   deck: DeckTable;
@@ -876,8 +899,156 @@ function scriptErrors(db: Db): ScriptErrorRepository {
   };
 }
 
+function shareLinks(db: Db): ShareLinkRepository {
+  const toRecord = (r: Selectable<ShareLinkTable>): ShareLinkRecord => ({
+    workspaceId: r.workspace_id,
+    id: r.id,
+    deckId: r.deck_id,
+    kind: r.kind as ShareLinkKind,
+    label: r.label,
+    secretHash: r.secret_hash,
+    sealedSecret: r.sealed_secret,
+    createdAt: r.created_at,
+    expiresAt: r.expires_at,
+    pinnedRevision: r.pinned_revision,
+    revokedAt: r.revoked_at,
+    revokedReason: r.revoked_reason as ShareLinkRevokeReason | null,
+    lastOpenedAt: r.last_opened_at,
+    openCount: r.open_count,
+  });
+  return {
+    async insert(link) {
+      await db
+        .insertInto("share_link")
+        .values({
+          workspace_id: link.workspaceId,
+          id: link.id,
+          deck_id: link.deckId,
+          kind: link.kind,
+          label: link.label,
+          secret_hash: link.secretHash,
+          sealed_secret: link.sealedSecret,
+          created_at: link.createdAt,
+          expires_at: link.expiresAt,
+          pinned_revision: link.pinnedRevision,
+          revoked_at: link.revokedAt,
+          revoked_reason: link.revokedReason,
+          last_opened_at: link.lastOpenedAt,
+          open_count: link.openCount,
+        })
+        .execute();
+    },
+    async get(ws, id) {
+      const r = await db
+        .selectFrom("share_link")
+        .selectAll()
+        .where("workspace_id", "=", ws)
+        .where("id", "=", id)
+        .executeTakeFirst();
+      return r === undefined ? null : toRecord(r);
+    },
+    async findByHash(ws, hash) {
+      const r = await db
+        .selectFrom("share_link")
+        .selectAll()
+        .where("secret_hash", "=", hash)
+        .where("workspace_id", "=", ws)
+        .executeTakeFirst();
+      return r === undefined ? null : toRecord(r);
+    },
+    async listForDeck(ws, deckId) {
+      const rows = await db
+        .selectFrom("share_link")
+        .selectAll()
+        .where("workspace_id", "=", ws)
+        .where("deck_id", "=", deckId)
+        .orderBy("id", "desc")
+        .execute();
+      return rows.map(toRecord);
+    },
+    async countActive(ws, now, deckId) {
+      let q = db
+        .selectFrom("share_link")
+        .select((eb) => eb.fn.countAll<number>().as("n"))
+        .where("workspace_id", "=", ws)
+        .where("revoked_at", "is", null)
+        .where((eb) => eb.or([eb("expires_at", "is", null), eb("expires_at", ">", now)]));
+      if (deckId !== undefined) q = q.where("deck_id", "=", deckId);
+      const row = await q.executeTakeFirst();
+      return Number(row?.n ?? 0);
+    },
+    async update(ws, deckId, id, patch) {
+      const set: Partial<ShareLinkTable> = {};
+      if (patch.label !== undefined) set.label = patch.label;
+      if (patch.expiresAt !== undefined) set.expires_at = patch.expiresAt;
+      if (patch.pinnedRevision !== undefined) set.pinned_revision = patch.pinnedRevision;
+      if (patch.revokedAt !== undefined) set.revoked_at = patch.revokedAt;
+      if (patch.revokedReason !== undefined) set.revoked_reason = patch.revokedReason;
+      if (Object.keys(set).length === 0) {
+        return (await this.get(ws, id))?.deckId === deckId;
+      }
+      const res = await db
+        .updateTable("share_link")
+        .set(set)
+        .where("workspace_id", "=", ws)
+        .where("deck_id", "=", deckId)
+        .where("id", "=", id)
+        .executeTakeFirst();
+      return count(res.numUpdatedRows) > 0;
+    },
+    async revokeAllForDeck(ws, deckId, at, reason) {
+      const res = await db
+        .updateTable("share_link")
+        .set({ revoked_at: at, revoked_reason: reason })
+        .where("workspace_id", "=", ws)
+        .where("deck_id", "=", deckId)
+        .where("revoked_at", "is", null)
+        .executeTakeFirst();
+      return count(res.numUpdatedRows);
+    },
+    async unrevokeForDeck(ws, deckId, reason) {
+      const res = await db
+        .updateTable("share_link")
+        .set({ revoked_at: null, revoked_reason: null })
+        .where("workspace_id", "=", ws)
+        .where("deck_id", "=", deckId)
+        .where("revoked_reason", "=", reason)
+        .executeTakeFirst();
+      return count(res.numUpdatedRows);
+    },
+    async recordOpen(ws, id, at) {
+      await db
+        .updateTable("share_link")
+        .set((eb) => ({ open_count: eb("open_count", "+", 1), last_opened_at: at }))
+        .where("workspace_id", "=", ws)
+        .where("id", "=", id)
+        .execute();
+    },
+    async deleteForDeck(ws, deckId) {
+      const res = await db
+        .deleteFrom("share_link")
+        .where("workspace_id", "=", ws)
+        .where("deck_id", "=", deckId)
+        .executeTakeFirst();
+      return count(res.numDeletedRows);
+    },
+    async pinnedRevisions(ws, deckId) {
+      const rows = await db
+        .selectFrom("share_link")
+        .select("pinned_revision")
+        .distinct()
+        .where("workspace_id", "=", ws)
+        .where("deck_id", "=", deckId)
+        .where("pinned_revision", "is not", null)
+        .execute();
+      return rows.map((r) => r.pinned_revision as number);
+    },
+  };
+}
+
 export function createRepositories(db: Db): Repositories {
   return {
+    shareLinks: shareLinks(db),
     scriptErrors: scriptErrors(db),
     scriptApprovals: scriptApprovals(db),
     decks: decks(db),

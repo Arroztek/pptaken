@@ -101,6 +101,12 @@ export type {
   ScriptErrorKind,
   ScriptErrorRecord,
   ScriptErrorRepository,
+  ShareLinkKind,
+  ShareLinkPatch,
+  ShareLinkRecord,
+  ShareLinkRepository,
+  ShareLinkRevokeReason,
+  ShareLinkSecrets,
   UnitOfWork,
   VendorErrorCode,
   VendorFetcher,
@@ -190,6 +196,15 @@ export type {
   ScriptErrorView,
 } from "./usecases/script-errors.js";
 export type { ScriptSource, ScriptsReview, ScriptsStatus } from "./usecases/scripts.js";
+export {
+  type CreateShareLinkInput,
+  cleanShareLabel,
+  type ResolvedShareLink,
+  SHARE_LINK_KINDS,
+  SHARE_LINK_LIMITS,
+  type ShareLinkView,
+  type UpdateShareLinkInput,
+} from "./usecases/share-links.js";
 export {
   provenanceUrl,
   type VendoredAsset,

@@ -121,6 +121,7 @@ export {
   SECRET_KEY_FILE,
   SecretKeyError,
 } from "./secrets.js";
+export { createShareSecrets, SHARE_SECRET_PATTERN, type ShareSecrets } from "./share-secrets.js";
 export {
   type ApiTokenRecord,
   type AuthStore,

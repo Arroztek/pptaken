@@ -16,14 +16,22 @@ import {
   type RevisionRecord,
   SCOPES,
   type Scope,
+  type ShareLinkSecrets,
   type SlideInput,
   sha256Hex,
   type TrustPolicy,
   type UnitOfWork,
+  utf8Encode,
   type VendorFetcher,
 } from "@pptaken/core";
 import { DECK_SCHEMA_VERSION, type Deck, type Slide } from "@pptaken/schema";
-import { createTestIdGenerator, ManualClock, MemoryBlobStore, MemoryUnitOfWork } from "./memory.js";
+import {
+  createTestIdGenerator,
+  ManualClock,
+  MemoryBlobStore,
+  MemoryUnitOfWork,
+  seededRandom,
+} from "./memory.js";
 
 export const TEST_WORKSPACE = "default";
 
@@ -160,6 +168,8 @@ export function createTestCore(
     vendor?: VendorFetcher;
     /** Trust lineage policy (ADR-024): automatic approval of edits to already-approved code. */
     trust?: TrustPolicy;
+    /** Public-link secrets (ADR-026); default: {@link fakeShareSecrets}. `null`: none. */
+    shareSecrets?: ShareLinkSecrets | null;
   } = {},
 ): TestCore {
   const clock = (options.clock as ManualClock | undefined) ?? new ManualClock();
@@ -175,6 +185,28 @@ export function createTestCore(
     ...(options.convertPptx === undefined ? {} : { convertPptx: options.convertPptx }),
     ...(options.vendor === undefined ? {} : { vendor: options.vendor }),
     ...(options.trust === undefined ? {} : { trust: options.trust }),
+    ...(options.shareSecrets === null
+      ? {}
+      : { shareSecrets: options.shareSecrets ?? fakeShareSecrets(options.seed ?? 1) }),
   });
   return { core, store, blobs, clock, ids };
+}
+
+/**
+ * Deterministic public-link secrets for tests (NOT secure): counter-based secrets, SHA-256 lookup hashes and a
+ * reversible "sealed" form bound to the link id. The server uses `createShareSecrets` from @pptaken/auth-local.
+ */
+export function fakeShareSecrets(seed = 1): ShareLinkSecrets {
+  const random = seededRandom(seed + 7919);
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+  return {
+    generate: () => Array.from(random(22), (b) => alphabet[b % 64] as string).join(""),
+    hash: (secret) => sha256Hex(utf8Encode(`fake-share|${secret}`)),
+    matches: (a, b) => a === b,
+    seal: (secret, linkId) => `fake.${linkId}.${secret}`,
+    open: (sealed, linkId) => {
+      const prefix = `fake.${linkId}.`;
+      return sealed.startsWith(prefix) ? sealed.slice(prefix.length) : null;
+    },
+  };
 }

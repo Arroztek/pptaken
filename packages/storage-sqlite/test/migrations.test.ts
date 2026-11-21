@@ -74,6 +74,7 @@ describe("migrations", () => {
         "oauth_tokens",
         "revision",
         "schema_migrations",
+        "share_link",
       ].sort(),
     );
     const db = new Database(file);

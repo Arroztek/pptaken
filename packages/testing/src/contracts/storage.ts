@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Contract suites of the storage ports. Every adapter (in-memory, storage-sqlite, a future storage-postgres)
 // must pass them unchanged: they are the definition of the ports' behaviour.
-import type { ScriptErrorRecord, UnitOfWork } from "@pptaken/core";
+import type { ScriptErrorRecord, ShareLinkRecord, UnitOfWork } from "@pptaken/core";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   makeAssetRecord,
@@ -507,6 +507,100 @@ export function runScriptErrorRepositoryContract(name: string, factory: StorageF
   });
 }
 
+export function runShareLinkRepositoryContract(name: string, factory: StorageFactory): void {
+  describe(`${name}: ShareLinkRepository contract`, () => {
+    const uow = useHarness(factory);
+    let n = 0;
+    const link = (deckId: string, over: Partial<ShareLinkRecord> = {}): ShareLinkRecord => {
+      n++;
+      return {
+        workspaceId: WS,
+        id: `01J${String(n).padStart(23, "0")}`,
+        deckId,
+        kind: "view",
+        label: "",
+        secretHash: `${n}`.padStart(64, "a"),
+        sealedSecret: `v1.sealed${n}`,
+        createdAt: 10 + n,
+        expiresAt: null,
+        pinnedRevision: null,
+        revokedAt: null,
+        revokedReason: null,
+        lastOpenedAt: null,
+        openCount: 0,
+        ...over,
+      };
+    };
+
+    it("inserts, finds by hash, lists newest first, counts the active ones and isolates workspaces", async () => {
+      const deck = makeDeckRecord();
+      await uow().decks.insert(deck);
+      const a = link(deck.id, { label: "Q3 review for Ana" });
+      const b = link(deck.id, { kind: "presenter", expiresAt: 100 });
+      const c = link(deck.id, { revokedAt: 5, revokedReason: "owner" });
+      for (const x of [a, b, c]) await uow().shareLinks.insert(x);
+      expect(await uow().shareLinks.get(WS, a.id)).toEqual(a);
+      expect(await uow().shareLinks.get(OTHER_WS, a.id)).toBeNull();
+      expect(await uow().shareLinks.findByHash(WS, b.secretHash)).toEqual(b);
+      expect(await uow().shareLinks.findByHash(OTHER_WS, b.secretHash)).toBeNull();
+      expect(await uow().shareLinks.findByHash(WS, "f".repeat(64))).toBeNull();
+      expect((await uow().shareLinks.listForDeck(WS, deck.id)).map((x) => x.id)).toEqual([
+        c.id,
+        b.id,
+        a.id,
+      ]);
+      expect(await uow().shareLinks.countActive(WS, 50, deck.id)).toBe(2);
+      expect(await uow().shareLinks.countActive(WS, 100)).toBe(1);
+      expect(await uow().shareLinks.countActive(OTHER_WS, 50)).toBe(0);
+      // The secret hash is unique.
+      await expect(
+        uow().shareLinks.insert(link(deck.id, { secretHash: a.secretHash })),
+      ).rejects.toThrow();
+    });
+
+    it("updates, revokes and brings back by reason, counts openings, keeps pinned revisions, deletes", async () => {
+      const deck = makeDeckRecord();
+      const other = makeDeckRecord();
+      await uow().decks.insert(deck);
+      await uow().decks.insert(other);
+      const a = link(deck.id, { pinnedRevision: 2 });
+      const b = link(deck.id);
+      const c = link(deck.id, { revokedAt: 1, revokedReason: "owner" });
+      const d = link(other.id);
+      for (const x of [a, b, c, d]) await uow().shareLinks.insert(x);
+      expect(await uow().shareLinks.update(WS, deck.id, a.id, { label: "x", expiresAt: 99 })).toBe(
+        true,
+      );
+      expect(await uow().shareLinks.update(WS, other.id, a.id, { label: "y" })).toBe(false);
+      expect(await uow().shareLinks.get(WS, a.id)).toMatchObject({ label: "x", expiresAt: 99 });
+      await uow().shareLinks.recordOpen(WS, b.id, 40);
+      await uow().shareLinks.recordOpen(WS, b.id, 41);
+      expect(await uow().shareLinks.get(WS, b.id)).toMatchObject({
+        openCount: 2,
+        lastOpenedAt: 41,
+      });
+      expect(await uow().shareLinks.pinnedRevisions(WS, deck.id)).toEqual([2]);
+      expect(await uow().shareLinks.revokeAllForDeck(WS, deck.id, 50, "trash")).toBe(2);
+      expect(await uow().shareLinks.get(WS, d.id)).toMatchObject({ revokedAt: null });
+      expect(await uow().shareLinks.unrevokeForDeck(WS, deck.id, "trash")).toBe(2);
+      // A link the owner turned off stays off.
+      expect(await uow().shareLinks.get(WS, c.id)).toMatchObject({ revokedReason: "owner" });
+      expect(await uow().shareLinks.get(WS, b.id)).toMatchObject({
+        revokedAt: null,
+        revokedReason: null,
+      });
+      await expect(uow().decks.delete(WS, deck.id)).rejects.toThrow();
+      expect(await uow().shareLinks.deleteForDeck(WS, deck.id)).toBe(3);
+      expect(await uow().shareLinks.listForDeck(WS, deck.id)).toEqual([]);
+      expect(await uow().shareLinks.listForDeck(WS, other.id)).toHaveLength(1);
+    });
+
+    it("refuses a link for an unknown deck", async () => {
+      await expect(uow().shareLinks.insert(link(makeDeckRecord().id))).rejects.toThrow();
+    });
+  });
+}
+
 export function runUnitOfWorkContract(name: string, factory: StorageFactory): void {
   describe(`${name}: UnitOfWork (transaction) contract`, () => {
     const uow = useHarness(factory);
@@ -596,5 +690,6 @@ export function runStorageContract(name: string, factory: StorageFactory): void 
   runIdempotencyRepositoryContract(name, factory);
   runScriptApprovalRepositoryContract(name, factory);
   runScriptErrorRepositoryContract(name, factory);
+  runShareLinkRepositoryContract(name, factory);
   runUnitOfWorkContract(name, factory);
 }

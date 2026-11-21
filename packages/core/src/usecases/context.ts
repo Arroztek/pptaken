@@ -16,6 +16,7 @@ import type {
   DeckRecord,
   IdGenerator,
   Repositories,
+  ShareLinkSecrets,
   UnitOfWork,
   VendorFetcher,
 } from "../ports.js";
@@ -31,6 +32,8 @@ export interface Ctx {
   vendor?: VendorFetcher | undefined;
   /** Trust lineage policy (ADR-024); without it no edit is ever approved automatically. */
   trust?: TrustPolicy | undefined;
+  /** Public-link secrets (ADR-026); without it links cannot be created and no secret resolves. */
+  shareSecrets?: ShareLinkSecrets | undefined;
 }
 
 /**
