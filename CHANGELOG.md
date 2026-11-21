@@ -23,6 +23,8 @@ changes; they are always listed under "Changed" or "Removed". See [`docs/releasi
 
 ### Changed
 
+- `PPTAKEN_SCRIPTS` now defaults to `owner`: interactive decks work out of the box and still run only after the owner approves them. Set `PPTAKEN_SCRIPTS=off` to disable them. `npx pptaken` follows the same default (`--scripts off` to disable).
+- `PPTAKEN_TRUST_PROXY` is automatic when unset or empty: on if `PPTAKEN_PUBLIC_URL` starts with `https://` (a proxy is assumed to terminate TLS), off otherwise; an explicit `true`/`false` always wins. Set `false` if the port can be reached without going through the proxy. `docker/compose.yaml` passes it empty by default. Quick starts and deploy guides no longer ask you to set either variable.
 - Moving a presentation to the trash turns its public links off; restoring asks before turning them back on (Undo
   right after a deletion restores them). Delete confirmations say how many links are affected.
 - `POST /api/v1/presenter/unlock` now requires the grant of a presenter link of that deck, and the unlock token is

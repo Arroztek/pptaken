@@ -45,7 +45,7 @@ npx pptaken
 It prints the address (http://localhost:8080), a one-time install code and where your data is kept; `Ctrl+C` stops
 it. Claude Code on the same computer can connect right away; Claude Desktop and claude.ai need a public `https://`
 address, which is what the Docker setup below is for. Options (`--port`, `--data-dir`, `--host`, `--public-url`,
-`--scripts owner`, `backup`, `reset-password`, ...) and limits: [`docs/guides/npx.md`](docs/guides/npx.md).
+`--scripts off`, `backup`, `reset-password`, ...) and limits: [`docs/guides/npx.md`](docs/guides/npx.md).
 Update with `npx pptaken@latest`.
 
 ## Install with Docker

@@ -264,3 +264,7 @@ isolate the cross-site frame in this run (the spike had measured it did), so onl
 a busy loop. WebRTC egress is proven blocked only in Chromium (the harness cannot observe Firefox's, and this WebKit
 build has none). Real browsers and mobile were not tested. Scripts therefore stay **off by default**, and public use
 stays out of scope until the external review.
+
+## Note, 2026-11-21: new default
+
+The default of `PPTAKEN_SCRIPTS` changed from `off` to `owner`. Interactive decks now work out of the box; the owner still has to approve each deck (and each change to its code), and `PPTAKEN_SCRIPTS=off` disables them for the instance. The conditions above are unchanged except that condition 1 now holds unless the operator sets `off`. The text above records the decision as taken on 2026-11-17.

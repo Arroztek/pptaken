@@ -2,20 +2,21 @@
 
 Your agent can add JavaScript to slides: live charts, small simulations, sliders that change a diagram. PPTaken
 treats that code as untrusted until **you** read it and approve it, and it runs only where it is safe to. This guide
-explains how to turn it on, review it and present it. The decisions behind it are in
+explains how to review it and present it, and how to turn it off. The decisions behind it are in
 [ADR-020](../adr/0020-interactive-mode.md), [ADR-021](../adr/0021-presenter-password-and-approval-screen.md),
 [ADR-022](../adr/0022-vendoring-and-html-importer.md) and, for presenter links, [ADR-026](../adr/0026-public-links.md).
 
-## 1. Turn it on
+## 1. It works out of the box
 
-Interactive code is off by default. Whoever runs your PPTaken sets one environment variable and restarts it:
+Interactive decks work by default (`PPTAKEN_SCRIPTS=owner`): approved code runs in the owner's signed-in session. You
+set nothing. Whoever runs your PPTaken can turn them off with one environment variable and a restart:
 
 ```sh
-PPTAKEN_SCRIPTS=owner
+PPTAKEN_SCRIPTS=off
 ```
 
 With it off, slides with code still work: everyone sees their static version, and the presentation page in the
-panel shows the code and explains how to turn it on.
+panel shows the code and explains that interactive parts are disabled on this instance.
 
 ## 2. What your agent does
 

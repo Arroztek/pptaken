@@ -53,7 +53,7 @@ shown only until the owner account exists; later starts say "Sign in" instead.
 | `--host <address>`             | `PPTAKEN_HOST`                | `127.0.0.1` (this computer only)         |
 | `--data-dir <folder>`          | `PPTAKEN_DATA_DIR`            | per-user folder (below)                  |
 | `--public-url <url>`           | `PPTAKEN_PUBLIC_URL`          | `http://localhost:<port>`                |
-| `--scripts owner\|off`         | `PPTAKEN_SCRIPTS`             | `off`                                    |
+| `--scripts owner\|off`         | `PPTAKEN_SCRIPTS`             | `owner`                                  |
 | `--admin-password-file <file>` | `PPTAKEN_ADMIN_PASSWORD_FILE` | none (the install code is used)          |
 | `--log-level <level>`          | `PPTAKEN_LOG_LEVEL`           | `warn`                                   |
 | `--json-logs`                  |                               | human lines on stderr                    |
@@ -120,7 +120,7 @@ The package has a single dependency (`better-sqlite3`), no install scripts, and 
 
 - Runs while the terminal is open: no service, auto-start or auto-update yet.
 - HTTP only; HTTPS needs a reverse proxy or a tunnel in front.
-- Interactive decks need `--scripts owner`; they then run in your own session after you approve them.
+- Interactive decks run by default, in your own session, after you approve them. Use `--scripts off` to never run them.
 
 ## For maintainers
 

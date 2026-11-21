@@ -63,6 +63,13 @@ describe("operations", () => {
     expect(() => loadConfig({ PPTAKEN_PUBLIC_URL: "https://x.example/sub" })).toThrow(/path/);
     expect(() => loadConfig({ PPTAKEN_PORT: "eighty" })).toThrow(/PPTAKEN_PORT/);
     expect(() => loadConfig({ PPTAKEN_TRUST_PROXY: "maybe" })).toThrow(/PPTAKEN_TRUST_PROXY/);
+    expect(loadConfig({}).trustProxy).toBe(false);
+    expect(loadConfig({ PPTAKEN_PUBLIC_URL: "http://localhost:8080" }).trustProxy).toBe(false);
+    expect(loadConfig({ PPTAKEN_PUBLIC_URL: "https://slides.example.com" }).trustProxy).toBe(true);
+    expect(
+      loadConfig({ PPTAKEN_PUBLIC_URL: "https://slides.example.com", PPTAKEN_TRUST_PROXY: "false" })
+        .trustProxy,
+    ).toBe(false);
     expect(() => loadConfig({ PPTAKEN_CONTENT_URL: "https://c.example" })).toThrow(/PUBLIC_URL/);
     const ok = loadConfig({ PPTAKEN_PUBLIC_URL: "https://slides.example.com/" });
     expect(ok).toMatchObject({ publicUrl: "https://slides.example.com", port: 8080 });

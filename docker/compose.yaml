@@ -15,11 +15,11 @@ services:
     environment:
       # The URL people and agents use to reach this instance (no trailing slash).
       PPTAKEN_PUBLIC_URL: ${PPTAKEN_PUBLIC_URL:-http://localhost:8080}
-      # Set to "true" only behind a reverse proxy you control (X-Forwarded-For / X-Forwarded-Proto).
-      PPTAKEN_TRUST_PROXY: ${PPTAKEN_TRUST_PROXY:-false}
+      # Empty = automatic: on when PPTAKEN_PUBLIC_URL is https (a proxy is then terminating TLS), off otherwise.
+      PPTAKEN_TRUST_PROXY: ${PPTAKEN_TRUST_PROXY:-}
       # Optional. Listed so values set in the Dokploy/Coolify UI reach the container (empty = built-in default).
       PPTAKEN_CONTENT_URL: ${PPTAKEN_CONTENT_URL:-}
-      # Interactive mode (ADR-020): "owner" runs owner-approved author scripts; default "off".
+      # Interactive mode (ADR-020): default "owner" runs owner-approved author scripts; "off" never runs them.
       PPTAKEN_SCRIPTS: ${PPTAKEN_SCRIPTS:-}
       # Public links (ADR-026): "off" turns every shared /s/ link off; default "on".
       PPTAKEN_PUBLIC_LINKS: ${PPTAKEN_PUBLIC_LINKS:-}

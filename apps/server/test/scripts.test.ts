@@ -51,8 +51,8 @@ async function documentOf(hh: Harness, url: string) {
 }
 
 describe("configuration", () => {
-  it("keeps scripts off by default and validates PPTAKEN_SCRIPTS", () => {
-    expect(loadConfig({}).scripts).toBe("off");
+  it("runs approved scripts by default and validates PPTAKEN_SCRIPTS", () => {
+    expect(loadConfig({}).scripts).toBe("owner");
     expect(loadConfig({ PPTAKEN_SCRIPTS: "owner" }).scripts).toBe("owner");
     expect(loadConfig({ PPTAKEN_SCRIPTS: "OFF" }).scripts).toBe("off");
     expect(() => loadConfig({ PPTAKEN_SCRIPTS: "public" })).toThrow(ConfigError);

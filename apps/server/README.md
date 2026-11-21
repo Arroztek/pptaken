@@ -50,10 +50,10 @@ pnpm --filter @pptaken/server smoke:vendor               # MANUAL only: one real
 | `PPTAKEN_PUBLIC_URL` | derived from each request | origin only (`https://slides.example.com`) |
 | `PPTAKEN_PORT` / `PPTAKEN_HOST` | `8080` / `0.0.0.0` | |
 | `PPTAKEN_DATA_DIR` | `./data` | created `0700`; holds `secret.key` (`0600`), `pptaken.db`, `blobs/` |
-| `PPTAKEN_TRUST_PROXY` | `false` | take the client IP from the **last** `X-Forwarded-For` entry and the scheme from `X-Forwarded-Proto` |
+| `PPTAKEN_TRUST_PROXY` | automatic | take the client IP from the **last** `X-Forwarded-For` entry and the scheme from `X-Forwarded-Proto`. Unset or empty: on when `PPTAKEN_PUBLIC_URL` starts with `https://`, off otherwise; an explicit `true`/`false` wins |
 | `PPTAKEN_WEB_DIR` | `../web/dist` (relative to this package) | |
 | `PPTAKEN_CONTENT_URL` | none | separate cookie-less origin for `/c/*` (recommended; needs `PPTAKEN_PUBLIC_URL`). On a different **site** it also isolates scripted decks in Firefox (ADR-020) |
-| `PPTAKEN_SCRIPTS` | `off` | interactive mode (ADR-020): `owner` lets approved author scripts run in the owner's own session; `off` stores them but always serves the static version |
+| `PPTAKEN_SCRIPTS` | `owner` | interactive mode (ADR-020): `owner` lets approved author scripts run in the owner's own session; `off` stores them but always serves the static version |
 | `PPTAKEN_VENDOR_FETCH` | `on` | ingest-time vendoring (ADR-022): `on` downloads the external fonts, stylesheets, images and CDN scripts a deck references once, stores them and rewrites the deck; `off` refuses writes that reference external resources |
 | `PPTAKEN_VENDOR_ALLOW_HOSTS` | (empty) | comma-separated hosts (and their subdomains) vendoring may fetch from; empty: any public https host |
 | `PPTAKEN_VENDOR_DENY_HOSTS` | (empty) | comma-separated hosts (and their subdomains) vendoring never fetches from |

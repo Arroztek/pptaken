@@ -38,7 +38,7 @@ npx pptaken [start] [options]
   --host <address>           default 127.0.0.1 (this computer only); 0.0.0.0 exposes it to your network over HTTP
   --data-dir <folder>        where your data is stored (default below)
   --public-url <url>         the address people and Claude use, e.g. https://slides.example.com
-  --scripts <owner|off>      let interactive decks run after you approve them (default off)
+  --scripts <owner|off>      interactive decks run only after you approve them; off never runs them (default owner)
   --admin-password-file <f>  create the owner from a password file instead of the install code
   --open                     open the browser when ready
   --log-level <level>        debug, info, warn (default) or error

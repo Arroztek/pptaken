@@ -34,8 +34,8 @@ export interface ServerConfig {
    */
   contentOrigin: ContentOriginRelation;
   /**
-   * Interactive mode (ADR-020, PPTAKEN_SCRIPTS): `off` (default: author scripts are stored but never run) or
-   * `owner` (they run in the owner's own session once the owner approved the deck's scripts digest).
+   * Interactive mode (ADR-020, PPTAKEN_SCRIPTS): `owner` (default: author scripts run in the owner's own session once the owner
+   * approved the deck's scripts digest) or `off` (they are stored but never run).
    */
   scripts: "off" | "owner";
   /**
@@ -198,10 +198,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   if (!["debug", "info", "warn", "error"].includes(logLevel)) {
     throw new ConfigError("PPTAKEN_LOG_LEVEL must be debug, info, warn or error");
   }
-  const scripts = (env.PPTAKEN_SCRIPTS || "off").toLowerCase();
+  const scripts = (env.PPTAKEN_SCRIPTS || "owner").toLowerCase();
   if (scripts !== "off" && scripts !== "owner") {
     throw new ConfigError(
-      'PPTAKEN_SCRIPTS must be "off" (default) or "owner" (author scripts run in the owner\'s own session after approval)',
+      'PPTAKEN_SCRIPTS must be "owner" (default) or "off" (author scripts run in the owner\'s own session after approval)',
     );
   }
   const allowedHosts = (env.PPTAKEN_ALLOWED_HOSTS ?? "")
@@ -245,7 +245,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     host: env.PPTAKEN_HOST || "0.0.0.0",
     port: int("PPTAKEN_PORT", env.PPTAKEN_PORT),
     dataDir: resolve(env.PPTAKEN_DATA_DIR || "./data"),
-    trustProxy: bool("PPTAKEN_TRUST_PROXY", env.PPTAKEN_TRUST_PROXY),
+    trustProxy:
+      env.PPTAKEN_TRUST_PROXY === undefined || env.PPTAKEN_TRUST_PROXY === ""
+        ? publicUrl?.startsWith("https://") === true
+        : bool("PPTAKEN_TRUST_PROXY", env.PPTAKEN_TRUST_PROXY),
     webDir: resolve(env.PPTAKEN_WEB_DIR || runtimePaths.webDir),
     fontsDir: resolve(env.PPTAKEN_FONTS_DIR || runtimePaths.fontsDir),
     allowedHosts,

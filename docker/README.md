@@ -47,8 +47,10 @@ password. It is only used while no owner exists (it never resets a password; use
 password that fails the policy stops the server with a clear message. Without it, the install-code flow below applies.
 
 Open the public URL, enter the install code and choose a password (at least 12 characters). Set
-`PPTAKEN_PUBLIC_URL` to the address people and agents use (for example `https://slides.example.com`); behind a reverse
-proxy also set `PPTAKEN_TRUST_PROXY=true`.
+`PPTAKEN_PUBLIC_URL` to the address people and agents use (for example `https://slides.example.com`). With an `https://`
+address, `PPTAKEN_TRUST_PROXY` is automatic (a proxy is assumed to terminate TLS), so you set nothing else. Set
+`PPTAKEN_TRUST_PROXY=false` if the port can be reached without going through the proxy. Interactive decks also work by
+default; set `PPTAKEN_SCRIPTS=off` to disable them.
 
 - **Image**: multi-stage `node:22-alpine`, production dependencies only, no npm/corepack/yarn in the final layer,
   runs as `node` (uid 1000), `HEALTHCHECK` on `/healthz`, includes the built web app when `apps/web` exists.
@@ -78,8 +80,9 @@ work. Behind a reverse proxy:
 - No redirects on `/mcp`: no cross-host redirect (www/apex), no trailing-slash or `/mcp/` rewrite, no http→https
   redirect for the URL you paste into Claude (paste the https URL). Claude drops the `Authorization` header when it
   follows a redirect, which shows up as an endless sign-in loop.
-- Set `PPTAKEN_TRUST_PROXY=true` so rate limits see client IPs (`X-Forwarded-For`), and keep the default
-  `Host` forwarding (`passHostHeader`).
+- With an `https://` `PPTAKEN_PUBLIC_URL`, PPTaken trusts the proxy automatically so rate limits see client IPs
+  (`X-Forwarded-For`); set `PPTAKEN_TRUST_PROXY=false` if the port is also reachable without the proxy. Keep the
+  default `Host` forwarding (`passHostHeader`).
 - Quick check from anywhere:
   `curl -i https://slides.example.com/.well-known/oauth-authorization-server` must answer `200` JSON whose
   `issuer` is exactly your public URL, and `curl -i -X POST https://slides.example.com/mcp` must answer `401` with a

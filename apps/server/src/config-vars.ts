@@ -52,13 +52,13 @@ export const CONFIG_VARS: readonly ConfigVar[] = [
   {
     name: "PPTAKEN_TRUST_PROXY",
     type: "boolean",
-    default: "false",
+    default: "true when PPTAKEN_PUBLIC_URL is https, otherwise false",
     required: false,
     example: "true",
     since: "0.1.0",
     group: "network",
     description:
-      "Take the client IP and the scheme from X-Forwarded-For and X-Forwarded-Proto. Set it to true only behind a reverse proxy you control; otherwise anyone can forge those headers. Accepts true, false, 1, 0, yes, no, on, off.",
+      "Take the client IP and the scheme from X-Forwarded-For and X-Forwarded-Proto. Unset, it is on when PPTAKEN_PUBLIC_URL is https (a proxy is then terminating TLS) and off otherwise. Set it to false if the port can be reached without going through your proxy: otherwise anyone can forge those headers. Accepts true, false, 1, 0, yes, no, on, off.",
   },
   {
     name: "PPTAKEN_ADMIN_PASSWORD",
@@ -85,14 +85,14 @@ export const CONFIG_VARS: readonly ConfigVar[] = [
   {
     name: "PPTAKEN_SCRIPTS",
     type: "enum",
-    default: "off",
-    allowed: ["off", "owner"],
+    default: "owner",
+    allowed: ["owner", "off"],
     required: false,
     example: "owner",
     since: "0.1.0",
     group: "interactive",
     description:
-      "Interactive mode. off: code that an agent adds to slides is stored but never runs. owner: code runs in the owner's own signed-in session after the owner has allowed it.",
+      "Interactive mode. owner (default): code that an agent adds to slides runs in the owner's own signed-in session, only after the owner has allowed it. off: that code is stored but never runs.",
   },
   {
     name: "PPTAKEN_CONTENT_URL",

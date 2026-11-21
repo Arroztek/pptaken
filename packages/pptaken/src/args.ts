@@ -282,7 +282,7 @@ Options for start:
   --data-dir <folder>        where your presentations are stored (default: see below)
   --public-url <url>         the address people and Claude use, e.g. https://slides.example.com
                              (default http://localhost:<port>)
-  --scripts <owner|off>      allow interactive decks to run after you approve them (default off)
+  --scripts <owner|off>      interactive decks run only after you approve them; off never runs them (default owner)
   --admin-password-file <f>  create the owner account from the password in this file (no install code)
   --open                     open the browser once PPTaken is ready
   --log-level <level>        debug, info, warn or error (default warn)

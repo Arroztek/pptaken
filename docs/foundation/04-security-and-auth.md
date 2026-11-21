@@ -175,7 +175,7 @@ Out of the model's scope in v1: a malicious server administrator (has total acce
 | Remote: `pointer` / `nav` | Connection | 30/s / 10/s |
 | Audience: questions / votes / answers | Participant and IP | 3/min / 30/min / 1 per question |
 
-Behind a reverse proxy, the real IP is taken from `X-Forwarded-For` **only** if `PPTAKEN_TRUST_PROXY` is enabled; otherwise anyone could forge it.
+Behind a reverse proxy, the real IP is taken from `X-Forwarded-For` **only** if `PPTAKEN_TRUST_PROXY` is enabled; otherwise anyone could forge it. Unset, it is enabled automatically when `PPTAKEN_PUBLIC_URL` starts with `https://` (a proxy terminates TLS) and disabled otherwise; an explicit `true`/`false` always wins, and operators set `false` when the port is reachable without the proxy.
 
 **Validation**: all input (HTTP, MCP, WebSocket) goes through a Zod schema before touching the core. Queries are always parameterized (Kysely guarantees it).
 
@@ -248,7 +248,7 @@ Threat model entries added with it (see [ADR-020](../adr/0020-interactive-mode.m
 
 | # | Threat | Type | Impact | Controls |
 |---|---|---|---|---|
-| T21 | A prompt-injected agent writes a script that exfiltrates (owner IP via WebRTC/STUN, keystrokes typed in the frame, timing) | I | High | Off by default (`PPTAKEN_SCRIPTS`); human approval bound to the scripts digest; hash-only CSP with no nonce, `connect-src 'none'`, `worker-src 'none'`, `script-src-attr 'none'`, `webrtc 'block'`, Trusted Types, `X-DNS-Prefetch-Control: off`; runtime lockdown of WebRTC, network constructors, beacons, popups and of element creation/parsing (`<script>`, `<link>`, `<meta>`, frames) before any author code; adversarial corpus in three engines |
+| T21 | A prompt-injected agent writes a script that exfiltrates (owner IP via WebRTC/STUN, keystrokes typed in the frame, timing) | I | High | Owner-only and never without approval (`PPTAKEN_SCRIPTS=owner` is the default since 2026-11-21, `off` disables it); human approval bound to the scripts digest; hash-only CSP with no nonce, `connect-src 'none'`, `worker-src 'none'`, `script-src-attr 'none'`, `webrtc 'block'`, Trusted Types, `X-DNS-Prefetch-Control: off`; runtime lockdown of WebRTC, network constructors, beacons, popups and of element creation/parsing (`<script>`, `<link>`, `<meta>`, frames) before any author code; adversarial corpus in three engines |
 | T22 | A script loads code or leaks data through an external `<script>`/`<link rel=preload>` whose `integrity` names an allowed hash | I, E | High | Found while implementing (all three engines reach the attacker with hash-only CSP alone): Trusted Types default policy + creation/parsing lockdown; corpus probe per creation path |
 | T23 | A script drives the trusted shell (forged ready/state/keys, approving a remote, opening windows) | T, E | High | Private MessagePort handshake before any author code; `ready` once and checked against the server's slide list; `state` checked; every gated key, `Enter` and `f` from the frame dropped before `onKey`; navigation keys rate-limited; synthetic events ignored |
 | T24 | A script freezes the presenter's tab (busy loop, DOM/allocation bombs) | D | Medium | Heartbeat watchdog that replaces the frame with a plain element and loads the static version (where the frame is out of process); `?safe=1`; size limits; warning and optional separate-site content origin; documented freeze in WebKit/Safari and Firefox without a separate site |
