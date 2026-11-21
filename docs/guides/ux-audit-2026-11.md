@@ -171,6 +171,34 @@ grid; the choice is remembered in this browser (`localStorage`, guarded) and not
 - **Not verified:** screen readers beyond the automated checks; the QR code scanned by a real phone camera (the
   matrix is the same encoder the phone pairing uses).
 
+## 10. Loaders (added 2026-11-21)
+
+Two loaders, one per surface, both drawn from the brand illustrations (`docs/brand/illustrations`): pure CSS on inline
+SVG (no request, no library, nothing the strict CSPs need to allow), invisible for the first 180 ms so a fast load
+never flashes, laid out as their final box (or a fixed overlay) so nothing jumps, and a polite live region with a
+visually hidden "Loading" / "Cargando".
+
+- **App: "the cue"** (`Loader` in `@pptaken/ui`, styles in `components.css`). The stage manager's cue light comes on
+  (standby), a signal runs down the dotted wire, the slide lights amber with its arrow (go). Lights snap, the signal
+  travels; one loop every 2.4 s. Sizes: `page` (boot and route changes, with the visible caption "Setting the
+  stage…"), `section` (lists, the deck page, the trash, connected apps, access keys, sharing, approval, consent, the
+  presenter password card), `inline` (busy buttons and the import line: only the slide, lit by a wipe, in
+  `currentColor`, so it reads on an amber button; silent, the button's `aria-busy` says it). Use the component for
+  every new loading state; do not write "Loading…" text.
+- **Presentation: "the follow spot finds the screen"** (`loaderHtml` and `LOADER_CSS` in `@pptaken/player`). On the
+  black stage a follow spot swings in from the wings, its pool travels the floor, the empty screen lights up as a slide
+  (title and two lines), the light cuts and the spot travels on and irises out; 4.8 s a loop. Server-rendered in
+  `/p/:id`, `/p/:id/presenter` and `/s/<secret>` (and its presenter window), so it is up before any module loads; the
+  page scripts translate its label, hide it on `ready`, and hide it on every error, fault or dead link so the
+  existing status messages stand alone. A slow load keeps it, with "taking too long" beside it. The presenter view
+  stays transparent under it until ready (at most 10 s). Player pages are always dark: the loader uses the stage
+  tokens.
+- **Reduced motion:** nothing travels. The cue's slide rests lit and breathes slowly; the follow spot rests on the
+  lit screen, which breathes.
+- **Checked:** `apps/web/test/e2e/loader.spec.ts` (held requests: boot, list, Spanish, busy button, delay, reduced
+  motion; three engines), `packages/player/test/loader.test.ts`, server tests for the pages and their CSS,
+  screenshots at 360 and 1280 in light and dark with frame sequences of both loops.
+
 ## 7. Not verified
 
 - Real Claude Desktop/web connector flow (external); verified only against the mock server and the server tests.

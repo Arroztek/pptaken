@@ -20,6 +20,13 @@ changes; they are always listed under "Changed" or "Removed". See [`docs/releasi
   `noindex`, `no-store`, rate limits, and the secret redacted from logs.
 - `PPTAKEN_PUBLIC_LINKS=on|off` (default `on`) and **Settings › Sharing › Allow links that open without an account**.
 - Migration `0008_share_links`.
+- Two loaders instead of the plain "Loading…" text (`docs/guides/ux-audit-2026-11.md`, section 10). The panel's
+  `Loader` (`@pptaken/ui`): "the cue", a lamp, a signal down a dotted wire and a slide that lights up, in three sizes
+  (`page` for boot and route changes, `section` for lists, the deck page, the trash, connected apps and other
+  sections, `inline` inside busy buttons in place of the spinner). The presentation loader (`@pptaken/player`
+  `loaderHtml` / `LOADER_CSS`): "the follow spot finds the screen", server-rendered on the player, presenter and
+  public-link pages until the deck is ready, gone on any error. Both are pure CSS on inline SVG, appear only after
+  180 ms, hold still under reduced motion and speak a localized "Loading" in a polite live region.
 
 ### Changed
 
