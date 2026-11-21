@@ -1,0 +1,51 @@
+# PPTaken, one service, BUILT FROM THIS REPOSITORY instead of pulling the published image.
+# Use it as the compose file of a platform that deploys on every push to a branch (Dokploy, Coolify): each deployment
+# rebuilds the image from the commit it checked out. Same settings, same volume and same variables as compose.yaml.
+# Like compose.yaml it publishes NO host port: the platform routes to container port 8080.
+#
+# Without a platform: docker compose -f docker/compose.source.yaml -f docker/compose.standalone.yaml up -d --build
+services:
+  pptaken:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: pptaken:local
+    restart: unless-stopped
+    environment:
+      # The URL people and agents use to reach this instance (no trailing slash).
+      PPTAKEN_PUBLIC_URL: ${PPTAKEN_PUBLIC_URL:-http://localhost:8080}
+      # Empty = automatic: on when PPTAKEN_PUBLIC_URL is https (a proxy is then terminating TLS), off otherwise.
+      PPTAKEN_TRUST_PROXY: ${PPTAKEN_TRUST_PROXY:-}
+      # Optional. Listed so values set in the Dokploy/Coolify UI reach the container (empty = built-in default).
+      PPTAKEN_CONTENT_URL: ${PPTAKEN_CONTENT_URL:-}
+      # Interactive mode (ADR-020): default "owner" runs owner-approved author scripts; "off" never runs them.
+      PPTAKEN_SCRIPTS: ${PPTAKEN_SCRIPTS:-}
+      # Public links (ADR-026): "off" turns every shared /s/ link off; default "on".
+      PPTAKEN_PUBLIC_LINKS: ${PPTAKEN_PUBLIC_LINKS:-}
+      PPTAKEN_ALLOWED_HOSTS: ${PPTAKEN_ALLOWED_HOSTS:-}
+      PPTAKEN_LANG: ${PPTAKEN_LANG:-}
+      PPTAKEN_LOG_LEVEL: ${PPTAKEN_LOG_LEVEL:-}
+      PPTAKEN_SECRET_KEY: ${PPTAKEN_SECRET_KEY:-}
+      # Optional: creates the owner at first start so no install code is needed (min. 12 characters).
+      PPTAKEN_ADMIN_PASSWORD: ${PPTAKEN_ADMIN_PASSWORD:-}
+      # Files saved from the web when a presentation is written (fonts, libraries, images): see the docs.
+      PPTAKEN_VENDOR_FETCH: ${PPTAKEN_VENDOR_FETCH:-}
+      PPTAKEN_VENDOR_ALLOW_HOSTS: ${PPTAKEN_VENDOR_ALLOW_HOSTS:-}
+      PPTAKEN_VENDOR_DENY_HOSTS: ${PPTAKEN_VENDOR_DENY_HOSTS:-}
+      PPTAKEN_MAX_API_BODY_KB: ${PPTAKEN_MAX_API_BODY_KB:-}
+      PPTAKEN_MAX_MCP_BODY_MB: ${PPTAKEN_MAX_MCP_BODY_MB:-}
+      PPTAKEN_MAX_IMPORT_MB: ${PPTAKEN_MAX_IMPORT_MB:-}
+    expose:
+      - "8080"
+    volumes:
+      - pptaken-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  pptaken-data:

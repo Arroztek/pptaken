@@ -12,6 +12,7 @@ move to Docker later by copying it.
 | `docker/compose.yaml`            | The service: published image, one volume, hardened container, **no host port** (Dokploy, Coolify, Traefik). |
 | `docker/compose.standalone.yaml` | Override that publishes `127.0.0.1:8080` (change with `PPTAKEN_BIND` / `PPTAKEN_PORT`) for use without a proxy. |
 | `docker/compose.build.yaml`      | Override that builds the image from this checkout (tag `pptaken:local`) instead of pulling it.               |
+| `docker/compose.source.yaml`     | Same as `compose.yaml` but built from this repository: for platforms that deploy on every push (Dokploy, Coolify). |
 
 ```sh
 # from the repository root, standalone on http://localhost:8080
