@@ -140,6 +140,7 @@ describe("first-run flow", () => {
         createdBy: "agent",
         scripts: "none",
         scriptErrors: 0,
+        sharedLinks: 0,
       },
     ]);
     res = await api("GET", `/api/v1/decks/${id}`, { cookie });

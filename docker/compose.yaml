@@ -21,6 +21,8 @@ services:
       PPTAKEN_CONTENT_URL: ${PPTAKEN_CONTENT_URL:-}
       # Interactive mode (ADR-020): "owner" runs owner-approved author scripts; default "off".
       PPTAKEN_SCRIPTS: ${PPTAKEN_SCRIPTS:-}
+      # Public links (ADR-026): "off" turns every shared /s/ link off; default "on".
+      PPTAKEN_PUBLIC_LINKS: ${PPTAKEN_PUBLIC_LINKS:-}
       PPTAKEN_ALLOWED_HOSTS: ${PPTAKEN_ALLOWED_HOSTS:-}
       PPTAKEN_LANG: ${PPTAKEN_LANG:-}
       PPTAKEN_LOG_LEVEL: ${PPTAKEN_LOG_LEVEL:-}

@@ -3,9 +3,9 @@
 // approved author scripts, and the "view" grant that such a page needs to see the deck at all.
 //
 // Two credentials, deliberately separate:
-// - the view grant (`X-PPTaken-View`): what lets a page without an owner session load a deck's STATIC version. In
-//   this phase only the test-only guest page mints it; phase F5's presenter/public links will mint it from the
-//   link (ADR-021 §F5). It never runs scripts.
+// - the view grant (`X-PPTaken-View`): what lets a page without an owner session load a deck's STATIC version.
+//   Public links (ADR-026) mint a link-bound grant (public-links.ts); the test-only guest page mints a deck-only one.
+//   It never runs scripts. Only a PRESENTER link's grant may be upgraded by an unlock.
 // - the unlock token (`X-PPTaken-Unlock`): minted by POST /api/v1/presenter/unlock after the presenter password,
 //   bound to deck id + the approved scripts digest + the presenter password epoch, at most 8 h. It only upgrades a
 //   view grant of the same deck to the scripted document; on its own it grants nothing (no API, no panel, no deck
@@ -33,12 +33,17 @@ const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 export async function unlockableDigest(
   s: Services,
   deckId: string,
-  options: { guest: boolean } = { guest: true },
+  options: { guest: boolean; revision?: number | null } = { guest: true },
 ): Promise<string | null> {
   const id = ULID.test(deckId) ? deckId : "0".repeat(26);
   const deck = await s.storage.decks.get(DEFAULT_WORKSPACE_ID, id);
   if (deck === null || deck.deletedAt !== null) return null;
-  const revision = await s.storage.revisions.get(DEFAULT_WORKSPACE_ID, id, deck.currentRevision);
+  // ADR-026: a presenter link frozen on a revision unlocks that revision's code (if it is the approved one).
+  const revision = await s.storage.revisions.get(
+    DEFAULT_WORKSPACE_ID,
+    id,
+    options.revision ?? deck.currentRevision,
+  );
   if (revision === null) return null;
   const digest = scriptsDigest(revision.document);
   const approval = await s.storage.scriptApprovals.get(DEFAULT_WORKSPACE_ID, id);
@@ -49,51 +54,55 @@ export async function unlockableDigest(
   return digest;
 }
 
+/**
+ * ADR-026: an unlock is bound to the presenter link it was made through (`test` for the test-only guest route), so
+ * a token unlocked through one link cannot be replayed through another, nor outlive its link.
+ */
 export function signUnlockToken(
   s: Services,
-  claims: { deckId: string; digest: string; epoch: string },
+  claims: { deckId: string; digest: string; epoch: string; linkId: string },
 ): { token: string; exp: number } {
   const exp = s.clock.now() + UNLOCK_TTL_MS;
   const token = signToken(s.unlockKey, {
     purpose: "unlock",
-    subject: `${claims.deckId}:${claims.digest}:${claims.epoch}`,
+    subject: `${claims.deckId}:${claims.digest}:${claims.epoch}:${claims.linkId}`,
     exp,
   });
   return { token, exp };
 }
 
 /**
- * Whether `token` unlocks `deckId` whose current approved digest is `digest`, under the current presenter password.
- * The expected subject is rebuilt from the current state, so any change since the unlock makes it fail.
+ * Whether `token` unlocks `deckId` whose current approved digest is `digest`, under the current presenter password,
+ * through link `linkId`. The expected subject is rebuilt from the current state, so any change since the unlock
+ * makes it fail.
  */
 export async function verifyUnlockToken(
   s: Services,
   token: string | undefined,
   deckId: string,
   digest: string,
+  linkId: string,
 ): Promise<boolean> {
   if (token === undefined || token === "") return false;
   const epoch = await s.auth.presenterPasswordEpoch();
   if (epoch === null) return false;
   return verifyToken(s.unlockKey, token, {
     purpose: "unlock",
-    subject: `${deckId}:${digest}:${epoch}`,
+    subject: `${deckId}:${digest}:${epoch}:${linkId}`,
     now: s.clock.now(),
   });
 }
 
-/** A view grant for one deck (static version only). Minted by guest pages: today the test route, later F5 links. */
+/**
+ * A deck-only view grant, minted ONLY by the test-only guest route (ADR-021). Public links (ADR-026) use link-bound
+ * grants instead (public-links.ts); this one is honoured only on a server created with `testRoutes`.
+ */
 export function signViewGrant(s: Services, deckId: string): string {
   return signToken(s.contentKey, {
     purpose: "view",
     subject: deckId,
     exp: s.clock.now() + VIEW_TTL_MS,
   });
-}
-
-export function verifyViewGrant(s: Services, token: string | undefined, deckId: string): boolean {
-  if (token === undefined || token === "") return false;
-  return verifyToken(s.contentKey, token, { purpose: "view", subject: deckId, now: s.clock.now() });
 }
 
 /**

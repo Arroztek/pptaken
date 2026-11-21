@@ -27,6 +27,7 @@ import { Hono } from "hono";
 import type { AppEnv, Services } from "./context.js";
 import { loadFontFaces } from "./fonts.js";
 import { contentOrigin, ownOrigin, playerCsp, publicOrigin, SERVICE_WORKER_CSP } from "./http.js";
+import { claimsOf, contentTokenLink, liveLink } from "./public-links.js";
 import { runtimePaths } from "./runtime-paths.js";
 import { ownerSession } from "./session.js";
 
@@ -75,11 +76,14 @@ const t = labelsFor(locale);
 // Interactive mode (ADR-020): ?safe=1 forces the static version; otherwise the server decides (owner session,
 // instance switch, approved digest) and the shell hardens itself when it runs scripts.
 const safe = new URLSearchParams(location.search).get("safe") === "1";
-// A page served WITHOUT an owner session (ADR-021: future presenter/public links; today only the test route) has a
-// view grant for the static version and offers the presenter-password unlock (U). No presenter window, remote
-// control or offline copy there. The unlock token lives in sessionStorage only and goes in a header.
+// A page served WITHOUT an owner session (ADR-021, ADR-026: a public link /s/<secret>, or the test-only guest route)
+// has a grant for the static version. A VIEW link never runs scripts, never offers the unlock and has no presenter
+// window; a PRESENTER link adds the presenter window (notes) and the presenter-password unlock (U). Guests never get
+// the remote control, the offline copy or printing. The unlock token lives in sessionStorage only, in a header.
 const guest = body.dataset.viewer === "guest";
 const view = body.dataset.view || "";
+const kind = guest ? (body.dataset.kind === "view" ? "view" : "presenter") : "owner";
+const presenterLink = guest && kind === "presenter" ? body.dataset.presenter || "" : "";
 let source = null;
 let player = null;
 let remote = null;
@@ -108,14 +112,17 @@ function mount(src) {
     title: document.title,
     locale,
     remoteKeys: !guest && !src.fromCopy,
-    unlockKey: guest,
+    unlockKey: guest && kind === "presenter",
+    print: !guest,
     onKey: (code, from) => {
       // A guest's static frame: Esc gives the keyboard back to the trusted page (where U works).
       if (guest && from === "frame" && code === "Escape") stage.focus({ preventScroll: true });
       return remote ? remote.onKey(code, from) : false;
     },
-    ...(guest ? {} : { presenterUrl: "/p/" + encodeURIComponent(id) + "/presenter", sync: syncChannelName(id) ?? undefined }),
-    onReady: (slides) => { status.hidden = true; body.dataset.slides = String(slides.length); body.dataset.state = "ready"; },
+    ...(guest
+      ? presenterLink ? { presenterUrl: presenterLink, sync: syncChannelName(id) ?? undefined } : {}
+      : { presenterUrl: "/p/" + encodeURIComponent(id) + "/presenter", sync: syncChannelName(id) ?? undefined }),
+    onReady: (slides) => { status.hidden = true; body.dataset.slides = String(slides.length); body.dataset.state = "ready"; if (guest) showHint(); },
     onLoadTimeout: () => { body.dataset.state = "slow"; showStatus(t.loadSlow, false); },
     onChange: (s) => { body.dataset.slide = String(s.slide); body.dataset.step = String(s.step); body.dataset.mode = s.mode; body.dataset.black = String(s.black); remote?.onChange(s); unlock?.setIndicatorVisible(!s.black); },
     ...(scripted ? {
@@ -149,8 +156,18 @@ function mount(src) {
   unlock?.setIndicator(scripted);
   return p;
 }
+// Guests: one quiet hint the first time the deck is ready (the full key help stays on ?), gone after 6 s.
+let hinted = false;
+function showHint() {
+  if (hinted) return;
+  hinted = true;
+  showStatus(kind === "presenter" && presenterLink ? t.guestPresenterHint : t.guestHint, false);
+  status.dataset.hint = "shown";
+  setTimeout(() => { if (status.dataset.hint === "shown") { status.hidden = true; status.dataset.hint = "hidden"; } }, 6000);
+}
 // Status line (bottom left): what happened and what to do, with a link to the deck's page for the owner. Text only.
 function showStatus(text, withLink) {
+  delete status.dataset.hint;
   status.hidden = false;
   status.replaceChildren(document.createTextNode(text));
   if (withLink) {
@@ -192,20 +209,28 @@ async function start() {
   if (guest) {
     if (source.unlockRejected) forgetUnlockToken(id);
     stage.tabIndex = -1;
-    unlock = createUnlockDialog({
-      doc: document,
-      mount: body,
-      locale,
-      frames: () => (player ? [player.iframe] : []),
-      available: () => navigator.onLine && source !== null && !source.fromCopy,
-      submit: (password) => requestUnlock(id, password),
-      onUnlocked,
-      returnFocus: () => stage,
-    });
-    body.dataset.unlock = "ready";
+    if (kind === "presenter") {
+      unlock = createUnlockDialog({
+        doc: document,
+        mount: body,
+        locale,
+        frames: () => (player ? [player.iframe] : []),
+        available: () => navigator.onLine && source !== null && !source.fromCopy,
+        submit: (password) => requestUnlock(id, password, fetch, { "X-PPTaken-View": view }),
+        onUnlocked,
+        returnFocus: () => stage,
+      });
+      body.dataset.unlock = "ready";
+    }
   }
   player = mount(source);
-  if (guest && source.unlockRejected) unlock.flash(t.unlockEnded);
+  if (guest && source.unlockRejected) unlock?.flash(t.unlockEnded);
+  if (guest) {
+    // One count of the opening (public links only; the page is the only caller, a link preview bot never is).
+    if (body.dataset.link === "1") {
+      fetch("/api/v1/share/" + encodeURIComponent(id) + "/opened", { method: "POST", credentials: "omit", cache: "no-store", headers: { "X-PPTaken-View": view, "X-PPTaken-CSRF": "1" } }).catch(() => {});
+    }
+  }
   if (!guest && !source.fromCopy) {
     Promise.all([import("/_rt/screen.js"), import("/_rt/qr.js")]).then(([m, q]) => {
       remote = m.startRemoteScreen({
@@ -227,7 +252,9 @@ start().catch(() => { body.dataset.state = "error"; showStatus(t.loadFailed, fal
 `;
 
 const PAGE_CSS =
-  "html,body{margin:0;height:100%;background:#000;color:#FAF7F2;font:16px system-ui,sans-serif}#stage{position:fixed;inset:0}#status{position:fixed;left:16px;bottom:16px;color:#8B8FA0}";
+  "html,body{margin:0;height:100%;background:#000;color:#FAF7F2;font:16px system-ui,sans-serif}#stage{position:fixed;inset:0}#status{position:fixed;left:16px;bottom:16px;color:#8B8FA0}" +
+  // Public links (ADR-026): no printing from a guest page (a deterrent: the browser prints a blank page).
+  "@media print{body[data-viewer=guest]>*{display:none!important}}";
 
 const PRESENTER_SCRIPT = `// PPTaken presenter page: loads the presenter data (notes, once, kept in memory) and the deck (signed content
 // URL, or the stored offline copy without a network), then mounts the view.
@@ -240,9 +267,13 @@ const id = body.dataset.deck;
 const status = document.getElementById("status");
 const locale = pickLocale(navigator.languages);
 const t = labelsFor(locale);
+// ADR-026: the presenter window of a PRESENTER link (no owner session): notes and previews through the link's grant
+// (a header, never a cookie); no panel links, no remote control, no offline copy.
+const guest = body.dataset.viewer === "guest";
+const view = body.dataset.view || "";
 status.textContent = t.loading;
 async function get(path) {
-  const res = await fetch(path, { credentials: "same-origin" });
+  const res = await fetch(path, guest ? { credentials: "omit", cache: "no-store", headers: { "X-PPTaken-View": view } } : { credentials: "same-origin" });
   if (res.status === 401) throw new SignedOutError();
   if (!res.ok) throw new Error(path + " " + res.status);
   return res.json();
@@ -250,7 +281,10 @@ async function get(path) {
 async function start() {
   const base = "/api/v1/decks/" + encodeURIComponent(id);
   // The previews never run author scripts (ADR-020): always the static version.
-  const [raw, source] = await Promise.all([get(base + "/presenter"), loadContent(id, fetch, { safe: true })]);
+  const [raw, source] = await Promise.all([
+    get(guest ? "/api/v1/share/" + encodeURIComponent(id) + "/presenter" : base + "/presenter"),
+    loadContent(id, fetch, guest ? { safe: true, headers: { "X-PPTaken-View": view }, offline: false } : { safe: true }),
+  ]);
   const data = parsePresenterData(raw);
   if (!data) throw new Error("presenter data");
   document.title = t.presenterTitle + " · " + data.title;
@@ -263,10 +297,10 @@ async function start() {
     sync: syncChannelName(id) ?? undefined,
     // The page is owner-only and the deck came from the network with the owner session: link back to the panel.
     // An offline copy proves no session, so no link there.
-    panelUrl: source.fromCopy ? undefined : "/decks",
+    panelUrl: source.fromCopy || guest ? undefined : "/decks",
     // ADR-023: the actionable script notices link to the deck's page and copy a message for the owner's agent.
-    deckId: source.fromCopy ? undefined : id,
-    deckPageUrl: source.fromCopy ? undefined : "/decks/" + encodeURIComponent(id),
+    deckId: source.fromCopy || guest ? undefined : id,
+    deckPageUrl: source.fromCopy || guest ? undefined : "/decks/" + encodeURIComponent(id),
     // ADR-021: offline the deck is static and nothing asks for a password; say so here, never on the audience screen.
     interactiveNotice: interactiveNotice() ?? undefined,
     onFinish: () => { body.dataset.finished = "true"; },
@@ -285,8 +319,8 @@ async function start() {
   await presenter.ready;
   status.hidden = true;
   body.dataset.state = "ready";
-  if (!source.fromCopy) mountRemote(locale).catch(() => {});
-  if (!source.fromCopy) offlineCopyStatus(id).then((r) => presenter.setOfflineCopy(r.kept));
+  if (!source.fromCopy && !guest) mountRemote(locale).catch(() => {});
+  if (!source.fromCopy && !guest) offlineCopyStatus(id).then((r) => presenter.setOfflineCopy(r.kept));
 }
 // Remote control panel (pairing QR, approvals, kick): a button here, over HTTP only (no socket in this window).
 async function mountRemote(locale) {
@@ -314,7 +348,11 @@ async function mountRemote(locale) {
   button.addEventListener("click", () => panel.toggle());
 }
 start().catch((error) => {
-  if (error instanceof SignedOutError) { location.href = "/login"; return; }
+  if (error instanceof SignedOutError) {
+    if (guest) { body.dataset.state = "error"; status.textContent = t.linkInvalid; return; }
+    location.href = "/login";
+    return;
+  }
   body.dataset.state = "error";
   status.textContent = t.loadError;
 });
@@ -385,14 +423,6 @@ function emptyCover(c: Context, s: Services, status: 403 | 404): Response {
       "Referrer-Policy": "no-referrer",
     },
   });
-}
-
-/** Subject of a signed token (unverified; only used to pick what to verify against). */
-function subjectOf(token: string): string | null {
-  const payload = token.split(".")[0];
-  if (payload === undefined || !/^[A-Za-z0-9_-]{1,400}$/.test(payload)) return null;
-  const parts = Buffer.from(payload, "base64url").toString("utf8").split("|");
-  return parts.length === 4 ? (parts[2] ?? null) : null;
 }
 
 /** Routes served on the app origin: the player page and its static modules. */
@@ -560,11 +590,23 @@ export function contentRoutes(s: Services): Hono<AppEnv> {
   app.get("/asset/:token/:sha256", async (c) => {
     const token = c.req.param("token");
     const sha = c.req.param("sha256");
-    const deckId = subjectOf(token);
-    if (deckId === null || !ULID.test(deckId) || !SHA256.test(sha)) return forbiddenText();
-    if (
-      !verifyToken(s.contentKey, token, { purpose: "asset", subject: deckId, now: s.clock.now() })
-    ) {
+    const claims = claimsOf(token);
+    const deckId = claims?.subject.split(":")[0] ?? null;
+    if (claims === null || deckId === null || !ULID.test(deckId) || !SHA256.test(sha)) {
+      return forbiddenText();
+    }
+    const now = s.clock.now();
+    if (claims.purpose === "lasset") {
+      // ADR-026: a public link's asset URL works only while the link does.
+      const bound = contentTokenLink("lasset", claims.subject, deckId, null);
+      if (
+        bound === null ||
+        !verifyToken(s.contentKey, token, { purpose: "lasset", subject: claims.subject, now }) ||
+        (await liveLink(s, bound.linkId, deckId)) === null
+      ) {
+        return forbiddenText();
+      }
+    } else if (!verifyToken(s.contentKey, token, { purpose: "asset", subject: deckId, now })) {
       return forbiddenText();
     }
     try {
@@ -644,25 +686,45 @@ export function contentRoutes(s: Services): Hono<AppEnv> {
     if (!ULID.test(deckId) || !/^[1-9][0-9]{0,8}$/.test(revisionText)) return notFoundText();
     const now = s.clock.now();
     const token = c.req.query("ct") ?? "";
-    // Two kinds of token: "doc" (static document, subject `<deck>:<revision>`) and, interactive mode (ADR-020),
-    // "sdoc" (minted only for the owner's session, subject `<deck>:<revision>:<scripts digest>`).
+    // Kinds of token: "doc" (static document, subject `<deck>:<revision>`) and, interactive mode (ADR-020), "sdoc"
+    // (minted only for the owner's session, subject `<deck>:<revision>:<scripts digest>`). Public links (ADR-026):
+    // "ldoc" and "lsdoc", the same with the link id appended; the link must still work NOW and still show this
+    // revision, so turning a link off stops even a document URL already handed out.
     const docOk = verifyToken(s.contentKey, token, {
       purpose: "doc",
       subject: `${deckId}:${revisionText}`,
       now,
     });
     let signedDigest: string | null = null;
+    let linkId: string | null = null;
     if (!docOk) {
-      const subject = subjectOf(token) ?? "";
-      const prefix = `${deckId}:${revisionText}:`;
-      const candidate = subject.startsWith(prefix) ? subject.slice(prefix.length) : "";
-      if (
-        !SHA256.test(candidate) ||
-        !verifyToken(s.contentKey, token, { purpose: "sdoc", subject, now })
-      ) {
-        return forbiddenText();
+      const claims = claimsOf(token);
+      const subject = claims?.subject ?? "";
+      if (claims?.purpose === "ldoc" || claims?.purpose === "lsdoc") {
+        const bound = contentTokenLink(claims.purpose, subject, deckId, revisionText);
+        if (
+          bound === null ||
+          !verifyToken(s.contentKey, token, { purpose: claims.purpose, subject, now })
+        ) {
+          return forbiddenText();
+        }
+        const live = await liveLink(s, bound.linkId, deckId);
+        if (live === null || live.revision !== Number(revisionText)) return forbiddenText();
+        // Only a presenter link ever gets the scripted document (and only after the unlock, at content-url).
+        if (bound.digest !== null && live.link.kind !== "presenter") return forbiddenText();
+        linkId = bound.linkId;
+        signedDigest = bound.digest;
+      } else {
+        const prefix = `${deckId}:${revisionText}:`;
+        const candidate = subject.startsWith(prefix) ? subject.slice(prefix.length) : "";
+        if (
+          !SHA256.test(candidate) ||
+          !verifyToken(s.contentKey, token, { purpose: "sdoc", subject, now })
+        ) {
+          return forbiddenText();
+        }
+        signedDigest = candidate;
       }
-      signedDigest = candidate;
     }
     let document: Awaited<ReturnType<typeof s.core.getRevision>>["document"];
     try {
@@ -688,13 +750,16 @@ export function contentRoutes(s: Services): Hono<AppEnv> {
       const digest = scriptsDigest(document);
       const approval = await s.storage.scriptApprovals.get(DEFAULT_WORKSPACE_ID, deckId);
       scripted = digest === signedDigest && approval?.digest === digest;
+      // ADR-024: a guest (public link) only ever runs code the owner approved with a click.
+      if (linkId !== null) scripted = scripted && approval?.ownerDigest === digest;
     }
     const servedDeck = scripted ? deck : staticDeck(deck).deck;
     const nonce = randomBytes(18).toString("base64");
     const origin = contentOrigin(c, s.config);
+    // A link's document gets link-bound asset URLs: they stop working when the link does.
     const assetToken = signToken(s.contentKey, {
-      purpose: "asset",
-      subject: deckId,
+      purpose: linkId === null ? "asset" : "lasset",
+      subject: linkId === null ? deckId : `${deckId}:${linkId}`,
       exp: now + ASSET_TOKEN_TTL_MS,
     });
     const assetBaseUrl = `${origin}/c/asset/${assetToken}/`;

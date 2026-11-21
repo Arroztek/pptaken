@@ -39,6 +39,11 @@ export interface ServerConfig {
    */
   scripts: "off" | "owner";
   /**
+   * Public links (ADR-026, PPTAKEN_PUBLIC_LINKS): `true` (default) lets the owner share view and presenter links;
+   * `false` makes every `/s/` link answer the generic "not available" page. The owner's Settings switch also applies.
+   */
+  publicLinks: boolean;
+  /**
    * Ingest-time vendoring (ADR-022, PPTAKEN_VENDOR_FETCH): `on` (default) fetches the external resources a deck
    * references once and stores them; `off` refuses writes that reference external resources.
    */
@@ -211,6 +216,10 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
   if (vendor !== "on" && vendor !== "off") {
     throw new ConfigError('PPTAKEN_VENDOR_FETCH must be "on" (default) or "off"');
   }
+  const publicLinks = (env.PPTAKEN_PUBLIC_LINKS || "on").toLowerCase();
+  if (publicLinks !== "on" && publicLinks !== "off") {
+    throw new ConfigError('PPTAKEN_PUBLIC_LINKS must be "on" (default) or "off"');
+  }
   const hostList = (name: string): string[] => {
     const list = (env[name] ?? "")
       .split(",")
@@ -232,6 +241,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     contentUrl,
     contentOrigin: contentOriginRelation(publicUrl, contentUrl),
     scripts,
+    publicLinks: publicLinks === "on",
     host: env.PPTAKEN_HOST || "0.0.0.0",
     port: int("PPTAKEN_PORT", env.PPTAKEN_PORT),
     dataDir: resolve(env.PPTAKEN_DATA_DIR || "./data"),

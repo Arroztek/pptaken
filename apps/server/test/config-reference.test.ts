@@ -30,6 +30,9 @@ describe("configuration reference", () => {
     expect(config.scripts).toBe(CONFIG_VARS.find((v) => v.name === "PPTAKEN_SCRIPTS")?.default);
     expect(config.logLevel).toBe(CONFIG_VARS.find((v) => v.name === "PPTAKEN_LOG_LEVEL")?.default);
     expect(config.vendorFetch).toBe(true);
+    expect(config.publicLinks).toBe(
+      CONFIG_VARS.find((v) => v.name === "PPTAKEN_PUBLIC_LINKS")?.default === "on",
+    );
     expect(config.trustProxy).toBe(false);
     expect(config.maxApiBodyBytes).toBe(64 * 1024);
     expect(config.maxMcpBodyBytes).toBe(4 * 1024 * 1024);

@@ -339,6 +339,15 @@ const REVIEWED_GET_ROUTES: Record<string, string> = {
   "GET /c/asset/:token/:sha256": "file (signed token)",
   "GET /c/:deckId/:revision/cover": "document (signed cover token): first slide, static, no script",
   "GET /c/:deckId/:revision": "document (signed token)",
+  // ADR-026: public links. Reading a link page signs a grant and reads; the opening is counted by the page's own
+  // POST /api/v1/share/:deckId/opened (so link-preview bots that only GET never count, and GET stays side-effect
+  // free). Failed lookups take tokens from the in-memory guessing limiters only (rate limiting, like every route).
+  "GET /api/v1/decks/:id/links": "read (owner session)",
+  "GET /api/v1/share/:deckId/presenter": "read (presenter-link grant)",
+  "GET /s/:secret": "page (public link); signs a link grant; no stored state",
+  "GET /s/:secret/presenter": "page (presenter link's presenter window); signs a link grant",
+  "ALL /s": "the generic 'link not available' page",
+  "ALL /s/*": "the generic 'link not available' page",
 };
 
 describe("GET routes of the app origin", () => {

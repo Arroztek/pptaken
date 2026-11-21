@@ -22,10 +22,13 @@ afterEach(async () => {
   h = undefined;
 });
 
-/** A harness whose client IP comes from the `x-test-ip` header (no proxy needed). */
+/**
+ * A harness whose client IP comes from the `x-test-ip` header (no proxy needed). Test routes are on by default: the
+ * deck-only view grant of the test guest page stands for a presenter link here (ADR-026 covers real links).
+ */
 async function harness(
   env: Record<string, string> = { PPTAKEN_SCRIPTS: "owner" },
-  testRoutes = false,
+  testRoutes = true,
 ) {
   h = await makeHarness(env, {
     socketIp: (raw) => raw.headers.get("x-test-ip") ?? "10.0.0.1",
@@ -55,10 +58,11 @@ async function setPresenter(hh: Harness, cookie: string, password = PRESENTER) {
   return hh.api("POST", "/api/v1/presenter/password", { cookie, body: { password } });
 }
 
-function unlock(hh: Harness, deckId: string, password: string, ip = "10.0.0.1") {
+async function unlock(hh: Harness, deckId: string, password: string, ip = "10.0.0.1") {
+  const { signViewGrant } = await import("../src/presenter-unlock.js");
   return hh.api("POST", "/api/v1/presenter/unlock", {
     body: { deckId, password },
-    headers: { "x-test-ip": ip },
+    headers: { "x-test-ip": ip, "X-PPTaken-View": signViewGrant(hh.server.services, deckId) },
   });
 }
 
@@ -399,9 +403,15 @@ describe("what an unlock token does", () => {
 
 describe("guest page and presenter data", () => {
   it("the guest page exists only with test routes", async () => {
-    const plain = await harness();
+    const plain = await harness({ PPTAKEN_SCRIPTS: "owner" }, false);
     const res = await plain.h.api("GET", `/__test/guest/${plain.id}`, { cookie: "" });
     expect(res.status).toBe(404);
+    // Without test routes the deck-only view grant is worthless too (production never honours it).
+    const { signViewGrant } = await import("../src/presenter-unlock.js");
+    const refused = await plain.h.api("GET", `/api/v1/decks/${plain.id}/content-url`, {
+      headers: { "X-PPTaken-View": signViewGrant(plain.h.server.services, plain.id) },
+    });
+    expect(refused.status).toBe(401);
     await plain.h.cleanup();
     h = undefined;
     const withRoutes = await harness({ PPTAKEN_SCRIPTS: "owner" }, true);

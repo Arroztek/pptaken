@@ -7,6 +7,7 @@ import { join } from "node:path";
 import {
   createLocalAuth,
   createOAuthService,
+  createShareSecrets,
   deriveKey,
   loadOrCreateSecretKey,
   type ScryptParams,
@@ -57,6 +58,7 @@ import { mcpRoutes } from "./routes-mcp.js";
 import { isOAuthPopupPath, OAUTH_MAX_BODY_BYTES, oauthRoutes } from "./routes-oauth.js";
 import { presenterRoutes } from "./routes-present.js";
 import { remotePageRoutes } from "./routes-remote.js";
+import { shareRoutes } from "./routes-share.js";
 import { type CimdFetcherOverride, fetchClientMetadataDocument } from "./safe-fetch.js";
 import { WebApp } from "./static.js";
 import {
@@ -91,6 +93,14 @@ export interface CreateServerOptions {
    * `main.ts` never sets it.
    */
   testRoutes?: boolean;
+}
+
+/**
+ * The request path as it may be logged: a public link's secret (`/s/<secret>…`, ADR-026) is replaced by `<link>`,
+ * and the path is capped at 200 characters.
+ */
+export function loggablePath(path: string): string {
+  return path.replace(/^\/s\/[^/]*/i, "/s/<link>").slice(0, 200);
 }
 
 /** Largest body of `POST /api/v1/decks/:id/script-errors` (20 bounded entries fit with room for JSON escapes). */
@@ -191,6 +201,8 @@ export async function createServer(
       scriptsEnabled: config.scripts === "owner",
     },
     convertPptx: options.convertPptx ?? createPptxConverter(),
+    // ADR-026: public-link secrets (keyed lookup hash + sealed copy, HKDF subkeys of the instance secret).
+    shareSecrets: createShareSecrets(secret.key),
   });
   const oauth = createOAuthService({
     store: createSqliteOAuthStore(storage),
@@ -256,6 +268,7 @@ export async function createServer(
     contentKey: deriveKey(secret.key, "content-token"),
     liveKey: deriveKey(secret.key, "live-ticket"),
     unlockKey: deriveKey(secret.key, "presenter-unlock"),
+    testRoutes: options.testRoutes === true,
     ids,
     live: createLiveSessions({
       store: createSqliteLiveStore(storage),
@@ -330,6 +343,30 @@ export async function createServer(
         intervalMs: minute,
         clock,
       }),
+      sharePagesPerIp: new TokenBucketLimiter({
+        capacity: 300,
+        refill: 300,
+        intervalMs: minute,
+        clock,
+      }),
+      shareFailuresPerIp: new TokenBucketLimiter({
+        capacity: 20,
+        refill: 20,
+        intervalMs: 10 * minute,
+        clock,
+      }),
+      shareFailures: new TokenBucketLimiter({
+        capacity: 300,
+        refill: 300,
+        intervalMs: 10 * minute,
+        clock,
+      }),
+      sharePerLink: new TokenBucketLimiter({
+        capacity: 1200,
+        refill: 1200,
+        intervalMs: minute,
+        clock,
+      }),
     },
   };
 
@@ -349,7 +386,7 @@ export async function createServer(
     } finally {
       logger.info("request", {
         method: c.req.method,
-        path: c.req.path.slice(0, 200),
+        path: loggablePath(c.req.path),
         status: c.res.status,
         ms: Math.round(performance.now() - started),
         ip: c.get("ip"),
@@ -464,6 +501,7 @@ export async function createServer(
   app.all("/api/*", (c) => apiError(c, "NOT_FOUND", "No such API route"));
   app.route("/mcp", mcpRoutes(services));
   app.route("/c", contentRoutes(services));
+  app.route("/", shareRoutes(services)); // ADR-026: /s/<secret> link pages
   if (options.testRoutes === true) {
     logger.warn("test routes are enabled (/__test/*): never use this in production");
     app.get("/__test/guest/:deckId", (c) => guestPlayerPage(c, services));
@@ -495,7 +533,7 @@ export async function createServer(
   app.onError((error, c) => {
     logger.error("unhandled error", {
       requestId: c.get("requestId"),
-      path: c.req.path,
+      path: loggablePath(c.req.path),
       error:
         error instanceof Error
           ? { name: error.name, message: error.message, stack: error.stack }

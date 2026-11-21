@@ -15,6 +15,7 @@ import {
   ownerPrincipal,
   type ScriptErrorView,
   type ScriptsStatus,
+  type ShareLinkView,
   scriptsDigest,
   scriptsStateOf,
   scriptWarnings,
@@ -39,8 +40,9 @@ import {
   unlockableDigest,
   VIEW_HEADER,
   verifyUnlockToken,
-  verifyViewGrant,
 } from "./presenter-unlock.js";
+import { publicLinksOn, verifyGuestGrant } from "./public-links.js";
+import { presenterData } from "./routes-present.js";
 import { clearSessionCookie, ownerSession, readSessionId, setSessionCookie } from "./session.js";
 
 /** Lifetime of the signed URL of a deck document (the shell loads it right away). */
@@ -460,6 +462,8 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
           : (await s.storage.scriptErrors.list(DEFAULT_WORKSPACE_ID, id)).filter(
               (e) => e.digest === digest,
             ).length,
+      // ADR-026: how many public links are active (the list shows one quiet "Shared" chip).
+      sharedLinks: await s.storage.shareLinks.countActive(DEFAULT_WORKSPACE_ID, s.clock.now(), id),
     };
   }
 
@@ -500,18 +504,27 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
       if (trashed) {
         // The trash (owner only): what is there, when it went and until when it can come back.
         const retention = s.core.config.trashRetentionMs;
+        const decks = [];
+        for (const item of page.items) {
+          // ADR-026: links the trash turned off, which the owner may turn back on when restoring.
+          const links = await s.core.countShareLinks(owner, {
+            presentationId: item.presentationId,
+          });
+          decks.push({
+            id: item.presentationId,
+            title: item.title,
+            lang: item.lang,
+            slideCount: item.slideCount,
+            revision: item.revision,
+            updatedAt: iso(item.updatedAt),
+            deletedAt: iso(item.deletedAt),
+            restorableUntil: iso((item.deletedAt ?? item.updatedAt) + retention),
+            linksOff: links.turnedOffByTrash,
+          });
+        }
         return c.json(
           {
-            decks: page.items.map((item) => ({
-              id: item.presentationId,
-              title: item.title,
-              lang: item.lang,
-              slideCount: item.slideCount,
-              revision: item.revision,
-              updatedAt: iso(item.updatedAt),
-              deletedAt: iso(item.deletedAt),
-              restorableUntil: iso((item.deletedAt ?? item.updatedAt) + retention),
-            })),
+            decks,
             nextCursor: page.nextCursor,
           },
           200,
@@ -610,6 +623,7 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
         id: r.presentationId,
         trashed: true,
         restorableUntil: iso(r.restorableUntil),
+        linksTurnedOff: r.linksTurnedOff,
       });
     } catch (error) {
       return domainErrorResponse(c, error);
@@ -621,8 +635,15 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
     if (denied) return denied;
     const id = c.req.param("id");
     if (!ULID.test(id)) return apiError(c, "NOT_FOUND", "Presentation not found");
+    // ADR-026: the deck's links stay off unless the owner confirmed turning them back on.
+    const input = await body(c, z.object({ restoreLinks: z.boolean().optional() }).strict());
+    if (input instanceof Response) return input;
     try {
-      await s.core.restorePresentation(owner, { presentationId: id }, callOf(c));
+      await s.core.restorePresentation(
+        owner,
+        { presentationId: id, restoreLinks: input.restoreLinks === true },
+        callOf(c),
+      );
       const sum = await summary(id);
       if (sum === null) return apiError(c, "NOT_FOUND", "Presentation not found");
       return c.json(sum);
@@ -647,16 +668,22 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
   // ---------------------------------------------------------------------------------------------------------------
   // Owner settings (ADR-024). Only the panel session reaches this router; agents have no way to read or change it.
 
-  const settingsBody = z.object({ autoApproveUpdates: z.boolean() }).strict();
+  const settingsBody = z
+    .object({ autoApproveUpdates: z.boolean().optional(), publicLinks: z.boolean().optional() })
+    .strict();
+
+  const settingsJson = async () => ({
+    autoApproveUpdates: await s.auth.autoApproveUpdates(),
+    scripts: s.config.scripts,
+    // ADR-026: the owner's switch, and the operator's (which wins: when it is off, links never work).
+    publicLinks: await s.auth.publicLinksAllowed(),
+    publicLinksInstance: s.config.publicLinks ? "on" : "off",
+  });
 
   api.get("/settings", async (c) => {
     const denied = await requireOwner(c);
     if (denied) return denied;
-    return c.json(
-      { autoApproveUpdates: await s.auth.autoApproveUpdates(), scripts: s.config.scripts },
-      200,
-      { "Cache-Control": "no-store" },
-    );
+    return c.json(await settingsJson(), 200, { "Cache-Control": "no-store" });
   });
 
   api.put("/settings", async (c) => {
@@ -664,20 +691,22 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
     if (denied) return denied;
     const input = await body(c, settingsBody);
     if (input instanceof Response) return input;
-    await s.auth.setAutoApproveUpdates(input.autoApproveUpdates);
-    await auditEntry(
-      c,
-      "settings.auto_approve_updates",
-      null,
-      "ok",
-      { on: input.autoApproveUpdates },
-      "owner",
-    );
-    return c.json(
-      { autoApproveUpdates: input.autoApproveUpdates, scripts: s.config.scripts },
-      200,
-      { "Cache-Control": "no-store" },
-    );
+    if (input.autoApproveUpdates !== undefined) {
+      await s.auth.setAutoApproveUpdates(input.autoApproveUpdates);
+      await auditEntry(
+        c,
+        "settings.auto_approve_updates",
+        null,
+        "ok",
+        { on: input.autoApproveUpdates },
+        "owner",
+      );
+    }
+    if (input.publicLinks !== undefined) {
+      await s.auth.setPublicLinksAllowed(input.publicLinks);
+      await auditEntry(c, "settings.public_links", null, "ok", { on: input.publicLinks }, "owner");
+    }
+    return c.json(await settingsJson(), 200, { "Cache-Control": "no-store" });
   });
 
   // The signed content URL of the current revision for the owner's player page. Side-effect free (it only signs).
@@ -692,19 +721,37 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
   // the scripted document under the same rules as the owner (switch on, approved digest, not `?safe=1`).
   api.get("/decks/:id/content-url", async (c) => {
     const id = c.req.param("id");
-    const owned = (await ownerSession(c, s)) !== null;
-    if (!owned && !(ULID.test(id) && verifyViewGrant(s, c.req.header(VIEW_HEADER), id))) {
+    // ADR-026: a guest grant whose link still works now. When a page sends one, it is a link page and gets the
+    // link's semantics even if the browser also holds the owner's session (the owner opening their own view link
+    // sees what viewers see: static, the frozen revision, no notes).
+    const viewHeader = c.req.header(VIEW_HEADER);
+    const guest =
+      viewHeader === undefined || viewHeader === ""
+        ? null
+        : await verifyGuestGrant(s, viewHeader, id);
+    const owned = guest === null && (await ownerSession(c, s)) !== null;
+    if (!owned && guest === null) {
       const denied = await requireOwner(c);
       if (denied) return denied;
     }
+    if (guest?.linkId) {
+      const rl = s.limits.sharePerLink.take(guest.linkId);
+      if (!rl.ok) {
+        return apiError(c, "RATE_LIMITED", "Too many requests", {
+          retryAfterSec: retryAfter(rl.retryAfterMs),
+        });
+      }
+    }
     const sum = ULID.test(id) ? await summary(id) : null;
     if (sum === null) return apiError(c, "NOT_FOUND", "Presentation not found");
+    // A link frozen on a revision shows that revision; everyone else the current one.
+    const revisionNumber = guest?.revision ?? sum.revision;
     const safe = c.req.query("safe") === "1";
     let document: Deck;
     try {
       ({ document } = await s.core.getRevision(owner, {
         presentationId: id,
-        revision: sum.revision,
+        revision: revisionNumber,
       }));
     } catch (error) {
       return domainErrorResponse(c, error);
@@ -713,7 +760,10 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
     let scripts: "running" | "none" | "off" | "pending" | "safe" | "locked" = "none";
     const unlock = owned ? undefined : c.req.header(UNLOCK_HEADER);
     let unlockRejected = false;
-    if (digest !== null) {
+    if (digest !== null && guest?.kind === "view") {
+      // A view link never runs author scripts and never offers an unlock: it just shows the simple version.
+      scripts = "none";
+    } else if (digest !== null) {
       const approval = await s.storage.scriptApprovals.get(DEFAULT_WORKSPACE_ID, id);
       if (s.config.scripts !== "owner") scripts = "off";
       else if (approval?.digest !== digest) scripts = "pending";
@@ -721,25 +771,38 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
       else if (owned) scripts = "running";
       // ADR-024: automatic approvals never reach guest contexts; a guest only runs code the owner clicked for.
       else if (approval.ownerDigest !== digest) scripts = "pending";
-      else if (await verifyUnlockToken(s, unlock, id, digest)) scripts = "running";
-      else scripts = "locked";
+      else if (await verifyUnlockToken(s, unlock, id, digest, guest?.linkId ?? "test")) {
+        scripts = "running";
+      } else scripts = "locked";
     }
     // A guest's unlock token that no longer works (edited deck, revoked, password changed, expired): say so, so
     // the page forgets it and can offer the unlock again.
-    if (!owned && unlock !== undefined && unlock !== "" && scripts !== "running" && !safe) {
+    if (
+      guest?.kind === "presenter" &&
+      unlock !== undefined &&
+      unlock !== "" &&
+      scripts !== "running" &&
+      !safe
+    ) {
       unlockRejected = true;
     }
     const extra = unlockRejected ? { unlockRejected: true } : {};
     const exp = s.clock.now() + CONTENT_DOC_TTL_MS;
+    // Public links get link-bound document tokens: the content route re-checks the link on every request.
+    const linkId = guest?.linkId ?? null;
     const token =
       scripts === "running"
         ? signToken(s.contentKey, {
-            purpose: "sdoc",
-            subject: `${id}:${sum.revision}:${digest}`,
+            purpose: linkId === null ? "sdoc" : "lsdoc",
+            subject: `${id}:${revisionNumber}:${digest}${linkId === null ? "" : `:${linkId}`}`,
             exp,
           })
-        : signToken(s.contentKey, { purpose: "doc", subject: `${id}:${sum.revision}`, exp });
-    const url = `${contentOrigin(c, s.config)}/c/${id}/${sum.revision}?ct=${token}`;
+        : signToken(s.contentKey, {
+            purpose: linkId === null ? "doc" : "ldoc",
+            subject: `${id}:${revisionNumber}${linkId === null ? "" : `:${linkId}`}`,
+            exp,
+          });
+    const url = `${contentOrigin(c, s.config)}/c/${id}/${revisionNumber}?ct=${token}`;
     if (scripts !== "running")
       return c.json({ url, scripts, ...extra }, 200, { "Cache-Control": "no-store" });
     const canvas = canvasSize(document.aspectRatio);
@@ -1072,11 +1135,18 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
         retryAfterSec: retryAfter(deckGate.retryAfterMs),
       });
     }
-    const [epoch, digest] = await Promise.all([
+    // ADR-026: only a PRESENTER link's page can unlock (its grant travels in X-PPTaken-View); a view link, a dead
+    // link or no grant at all fails like a wrong password, after the same work.
+    const [epoch, grant] = await Promise.all([
       s.auth.verifyPresenterPassword(input.password),
-      unlockableDigest(s, input.deckId),
+      verifyGuestGrant(s, c.req.header(VIEW_HEADER), input.deckId),
     ]);
-    if (epoch === null || digest === null) {
+    const presenter = grant?.kind === "presenter" ? grant : null;
+    const digest = await unlockableDigest(s, input.deckId, {
+      guest: true,
+      revision: presenter?.revision ?? null,
+    });
+    if (epoch === null || digest === null || presenter === null) {
       s.limits.presenterUnlock.fail(ip);
       s.limits.presenterUnlockPerDeck.take(deckKey);
       await auditEntry(
@@ -1084,7 +1154,15 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
         "presenter.unlock",
         ULID.test(input.deckId) ? `deck:${input.deckId}` : null,
         "denied",
-        { reason: epoch === null ? "password" : "not_unlockable" },
+        {
+          reason:
+            presenter === null
+              ? "no_presenter_link"
+              : epoch === null
+                ? "password"
+                : "not_unlockable",
+          ...(presenter?.linkId ? { link: presenter.linkId } : {}),
+        },
         "system",
       );
       s.logger.warn("presenter unlock failed", { ip, requestId: c.get("requestId") });
@@ -1093,16 +1171,241 @@ export function apiRoutes(s: Services): Hono<AppEnv> {
       });
     }
     s.limits.presenterUnlock.succeed(ip);
-    const { token, exp } = signUnlockToken(s, { deckId: input.deckId, digest, epoch });
+    const linkId = presenter.linkId ?? "test";
+    const { token, exp } = signUnlockToken(s, { deckId: input.deckId, digest, epoch, linkId });
     await auditEntry(
       c,
       "presenter.unlock",
       `deck:${input.deckId}`,
       "ok",
-      { digest, expiresAt: exp },
+      { digest, expiresAt: exp, ...(presenter.linkId ? { link: presenter.linkId } : {}) },
       "system",
     );
     return c.json({ token, deckId: input.deckId, expiresAt: iso(exp) }, 200, {
+      "Cache-Control": "no-store",
+    });
+  });
+
+  // ---------------------------------------------------------------------------------------------------------------
+  // Public links (ADR-026). Management: owner session + CSRF only (this router never accepts API or OAuth tokens, and
+  // the core refuses any actor but the owner). Every change is audited by link id; answers carry the link URL (the
+  // secret) only to the owner, never IPs or user agents.
+
+  const linkBody = z
+    .object({
+      kind: z.enum(["view", "presenter"]),
+      label: z.string().max(400).optional(),
+      expires: z.string().max(40).nullable().optional(),
+      pinRevision: z.boolean().optional(),
+    })
+    .strict();
+  const linkPatchBody = z
+    .object({
+      label: z.string().max(400).optional(),
+      expires: z.string().max(40).nullable().optional(),
+      pinned: z.boolean().optional(),
+    })
+    .strict();
+
+  /** `null` (never), `1d`/`7d`/`30d`, or an ISO date-time; `undefined` when absent; a Response when invalid. */
+  const expiryOf = (
+    c: Context,
+    value: string | null | undefined,
+  ): number | null | undefined | Response => {
+    if (value === undefined) return undefined;
+    if (value === null || value === "never") return null;
+    const preset = /^(1|7|30)d$/.exec(value);
+    if (preset !== null) return s.clock.now() + Number(preset[1]) * 24 * 60 * 60 * 1000;
+    const at = Date.parse(value);
+    if (!/^\d{4}-\d{2}-\d{2}T/.test(value) || !Number.isFinite(at)) {
+      return apiError(
+        c,
+        "VALIDATION_ERROR",
+        'expires: null, "1d", "7d", "30d" or an ISO date-time',
+      );
+    }
+    return at;
+  };
+
+  const linkJson = (c: Context, l: ShareLinkView) => ({
+    id: l.id,
+    kind: l.kind,
+    label: l.label,
+    url: l.secret === null ? null : `${publicOrigin(c, s.config)}/s/${l.secret}`,
+    state: l.state,
+    createdAt: iso(l.createdAt),
+    expiresAt: iso(l.expiresAt),
+    pinnedRevision: l.pinnedRevision,
+    lastOpenedAt: iso(l.lastOpenedAt),
+    openCount: l.openCount,
+  });
+
+  /** What the Share panel needs to explain itself: whether links work and whether a presenter password exists. */
+  const sharingState = async () => ({
+    enabled: await publicLinksOn(s),
+    instance: s.config.publicLinks ? ("on" as const) : ("off" as const),
+    owner: (await s.auth.publicLinksAllowed()) ? ("on" as const) : ("off" as const),
+    presenterPassword: await s.auth.hasPresenterPassword(),
+    scripts: s.config.scripts,
+  });
+
+  api.get("/decks/:id/links", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    const id = c.req.param("id");
+    if (!ULID.test(id)) return apiError(c, "NOT_FOUND", "Presentation not found");
+    try {
+      const links = await s.core.listShareLinks(owner, { presentationId: id }, callOf(c));
+      return c.json(
+        { links: links.map((l) => linkJson(c, l)), sharing: await sharingState() },
+        200,
+        { "Cache-Control": "no-store" },
+      );
+    } catch (error) {
+      return domainErrorResponse(c, error);
+    }
+  });
+
+  api.post("/decks/:id/links", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    const id = c.req.param("id");
+    if (!ULID.test(id)) return apiError(c, "NOT_FOUND", "Presentation not found");
+    if (!(await publicLinksOn(s))) {
+      return apiError(c, "FORBIDDEN", "Public links are turned off", {
+        hint: s.config.publicLinks
+          ? "Turn on public links in Settings."
+          : "Whoever runs this server must set PPTAKEN_PUBLIC_LINKS=on.",
+      });
+    }
+    const input = await body(c, linkBody);
+    if (input instanceof Response) return input;
+    const expiresAt = expiryOf(c, input.expires);
+    if (expiresAt instanceof Response) return expiresAt;
+    try {
+      const link = await s.core.createShareLink(
+        owner,
+        {
+          presentationId: id,
+          kind: input.kind,
+          ...(input.label === undefined ? {} : { label: input.label }),
+          ...(expiresAt === undefined ? {} : { expiresAt }),
+          ...(input.pinRevision === undefined ? {} : { pinRevision: input.pinRevision }),
+        },
+        callOf(c),
+      );
+      s.logger.info("public link created", { linkId: link.id, requestId: c.get("requestId") });
+      return c.json({ link: linkJson(c, link) }, 201, { "Cache-Control": "no-store" });
+    } catch (error) {
+      return linkErrorResponse(c, error);
+    }
+  });
+
+  api.patch("/decks/:id/links/:linkId", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    const id = c.req.param("id");
+    const linkId = c.req.param("linkId");
+    if (!ULID.test(id) || !ULID.test(linkId)) return apiError(c, "NOT_FOUND", "Link not found");
+    const input = await body(c, linkPatchBody);
+    if (input instanceof Response) return input;
+    const expiresAt = expiryOf(c, input.expires);
+    if (expiresAt instanceof Response) return expiresAt;
+    try {
+      const link = await s.core.updateShareLink(
+        owner,
+        {
+          presentationId: id,
+          linkId,
+          ...(input.label === undefined ? {} : { label: input.label }),
+          ...(expiresAt === undefined ? {} : { expiresAt }),
+          ...(input.pinned === undefined
+            ? {}
+            : { pinnedRevision: input.pinned ? ("current" as const) : null }),
+        },
+        callOf(c),
+      );
+      return c.json({ link: linkJson(c, link) }, 200, { "Cache-Control": "no-store" });
+    } catch (error) {
+      return linkErrorResponse(c, error);
+    }
+  });
+
+  api.delete("/decks/:id/links/:linkId", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    const id = c.req.param("id");
+    const linkId = c.req.param("linkId");
+    if (!ULID.test(id) || !ULID.test(linkId)) return apiError(c, "NOT_FOUND", "Link not found");
+    try {
+      await s.core.revokeShareLink(owner, { presentationId: id, linkId }, callOf(c));
+      s.logger.info("public link turned off", { linkId, requestId: c.get("requestId") });
+      return c.body(null, 204);
+    } catch (error) {
+      return linkErrorResponse(c, error);
+    }
+  });
+
+  api.delete("/decks/:id/links", async (c) => {
+    const denied = await requireOwner(c);
+    if (denied) return denied;
+    const id = c.req.param("id");
+    if (!ULID.test(id)) return apiError(c, "NOT_FOUND", "Presentation not found");
+    try {
+      const r = await s.core.revokeAllShareLinks(owner, { presentationId: id }, callOf(c));
+      return c.json(r, 200, { "Cache-Control": "no-store" });
+    } catch (error) {
+      return linkErrorResponse(c, error);
+    }
+  });
+
+  function linkErrorResponse(c: Context, error: unknown): Response {
+    if (isDomainError(error) && error.code === "LIMIT_EXCEEDED") {
+      return apiError(c, "VALIDATION_ERROR", error.message, { hint: error.hint, status: 409 });
+    }
+    if (isDomainError(error) && error.code === "NOT_FOUND") {
+      return apiError(c, "NOT_FOUND", error.message, { hint: error.hint });
+    }
+    return domainErrorResponse(c, error);
+  }
+
+  // Guest side (no session): the page of a public link counts one opening, and a presenter link's presenter window
+  // reads the notes. Both need the link grant (X-PPTaken-View) of a link that works NOW; anything else is one
+  // generic 404. CSRF: the same-origin check above applies (the guest page sends the header; no cookie is used).
+  const guestGone = (c: Context) => apiError(c, "NOT_FOUND", "This link is not available");
+
+  api.post("/share/:deckId/opened", async (c) => {
+    const deckId = c.req.param("deckId");
+    const grant = await verifyGuestGrant(s, c.req.header(VIEW_HEADER), deckId);
+    if (grant === null || grant.linkId === null) return guestGone(c);
+    const rl = s.limits.sharePerLink.take(grant.linkId);
+    if (!rl.ok) {
+      return apiError(c, "RATE_LIMITED", "Too many requests", {
+        retryAfterSec: retryAfter(rl.retryAfterMs),
+      });
+    }
+    await s.core.recordShareLinkOpen(DEFAULT_WORKSPACE_ID, grant.linkId);
+    return c.body(null, 204);
+  });
+
+  api.get("/share/:deckId/presenter", async (c) => {
+    const deckId = c.req.param("deckId");
+    const grant = await verifyGuestGrant(s, c.req.header(VIEW_HEADER), deckId);
+    // Speaker notes: presenter links only (a view link's grant gets the same 404 as a dead link).
+    if (grant === null || grant.kind !== "presenter") return guestGone(c);
+    if (grant.linkId !== null) {
+      const rl = s.limits.sharePerLink.take(grant.linkId);
+      if (!rl.ok) {
+        return apiError(c, "RATE_LIMITED", "Too many requests", {
+          retryAfterSec: retryAfter(rl.retryAfterMs),
+        });
+      }
+    }
+    const data = await presenterData(s, deckId, grant.revision ?? undefined);
+    if (data === null) return guestGone(c);
+    const interactive =
+      (await unlockableDigest(s, deckId, { guest: true, revision: grant.revision })) !== null;
+    return c.json({ ...data, ...(interactive ? { interactive } : {}) }, 200, {
       "Cache-Control": "no-store",
     });
   });

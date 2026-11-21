@@ -40,6 +40,8 @@ export interface Services {
   liveKey: Buffer;
   /** HKDF subkey for presenter-password unlock tokens (ADR-021). */
   unlockKey: Buffer;
+  /** TESTS ONLY: the test-only guest route (ADR-021) and its deck-only view grant are honoured. */
+  testRoutes?: boolean;
   /** ULIDs (audit entries written by the HTTP layer). */
   ids: { ulid(): string };
   /** Live sessions, pairing and device credentials (core use cases on the SQLite store). */
@@ -75,5 +77,12 @@ export interface Services {
     /** Script error reports (ADR-023) per IP and per deck: 30 per minute each. */
     scriptErrorsPerIp: TokenBucketLimiter;
     scriptErrorsPerDeck: TokenBucketLimiter;
+    /** Public links (ADR-026): link pages (`/s/*`) per IP, 300 per minute (an audience may share one NAT). */
+    sharePagesPerIp: TokenBucketLimiter;
+    /** Failed link lookups per IP (20 per 10 minutes) and instance-wide (key "all", 300 per 10 minutes). */
+    shareFailuresPerIp: TokenBucketLimiter;
+    shareFailures: TokenBucketLimiter;
+    /** Guest calls per link (content URLs, presenter data, openings): 1200 per minute. */
+    sharePerLink: TokenBucketLimiter;
   };
 }

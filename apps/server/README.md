@@ -34,6 +34,9 @@ pnpm --filter @pptaken/server smoke:vendor               # MANUAL only: one real
 | `GET /ws` (WebSocket) | first frame `auth` (screen ticket or device credential) | `realtime.ts`: `ws` in noServer mode on the `upgrade` event; Host/Origin/IP checks by hand, 20 sockets per IP, 1 KB frames ([realtime spec](../../docs/spec/realtime.md)) |
 | `GET /r`, `GET /_rt/*` | public | the phone page and the `@pptaken/realtime` browser modules, plus the pinned QR encoder (`routes-remote.ts`) |
 | `GET /p/:deckId` | owner session (else `302 /login`) | trusted player page; loads `/_player/page.js` and the `@pptaken/player` shell modules |
+| `GET /s/:secret`, `GET /s/:secret/presenter` | the link itself (no session) | public link pages (ADR-026, `routes-share.ts`): the guest player for a view or presenter link, and a presenter link's presenter window; every failure is one generic 404 page |
+| `/api/v1/decks/:id/links[/:linkId]` | owner session + CSRF | manage public links (list, create, rename/extend/freeze, stop, stop all) |
+| `POST /api/v1/share/:deckId/opened`, `GET /api/v1/share/:deckId/presenter` | link grant (`X-PPTaken-View`) | count an opening; a presenter link's notes |
 | `GET /c/:deckId/:revision?ct=…` | signed content token (5 min, bound to deck + revision) | deck document built from the stored sanitized revision, CSP from `contentHeaders` |
 | `GET /c/asset/:token/:sha256` | signed asset token (12 h, bound to the deck) | `assetHeaders()`, only assets linked to that deck |
 | `GET /c/fonts/:family/:file.woff2` | public | bundled fonts with CORS (see open questions) |

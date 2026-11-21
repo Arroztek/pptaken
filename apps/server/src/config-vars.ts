@@ -106,6 +106,18 @@ export const CONFIG_VARS: readonly ConfigVar[] = [
       "Optional separate origin that serves slide content (/c/*), without cookies. For stronger isolation of interactive code it must be a different site than PPTAKEN_PUBLIC_URL (a sibling subdomain does not count). Both names must reach the same PPTaken. Requires PPTAKEN_PUBLIC_URL and must differ from it.",
   },
   {
+    name: "PPTAKEN_PUBLIC_LINKS",
+    type: "enum",
+    default: "on",
+    allowed: ["on", "off"],
+    required: false,
+    example: "off",
+    since: "0.1.0",
+    group: "access",
+    description:
+      'Public links. on: the owner can share a presentation with a link that opens without an account (to watch it, or to present it from another computer). off: every /s/ link answers "not available" and the panel explains how to turn links on. The owner can also turn links off in Settings.',
+  },
+  {
     name: "PPTAKEN_ALLOWED_HOSTS",
     type: "list",
     default: null,

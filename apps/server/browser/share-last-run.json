@@ -1,0 +1,51 @@
+{
+  "startedAt": "2026-11-21T12:37:25.201Z",
+  "engines": {
+    "chromium": {
+      "ok": true,
+      "checks": [
+        "view link: simple slides on the content origin, no notes, the author code never ran",
+        "view link: a quiet first-load hint (arrow keys, ? for all keys)",
+        "view link: U offers no unlock, S opens no presenter window, the key help has no P/S/U",
+        "view link: the panel API, export and the notes refuse the page's grant",
+        "presenter link: the audience page starts with the simple version (interactive parts locked)",
+        "presenter link: S opens the presenter window with the notes, no panel link",
+        "presenter link: U and the presenter password run the approved code",
+        "turned off: the open page's grant and its document URL stop working at once",
+        "turned off and unknown links show the same calm 'not available' page",
+        "no request outside the app and content origins; no console errors; no CSP violations"
+      ]
+    },
+    "firefox": {
+      "ok": true,
+      "checks": [
+        "view link: simple slides on the content origin, no notes, the author code never ran",
+        "view link: a quiet first-load hint (arrow keys, ? for all keys)",
+        "view link: U offers no unlock, S opens no presenter window, the key help has no P/S/U",
+        "view link: the panel API, export and the notes refuse the page's grant",
+        "presenter link: the audience page starts with the simple version (interactive parts locked)",
+        "presenter link: S opens the presenter window with the notes, no panel link",
+        "presenter link: U and the presenter password run the approved code",
+        "turned off: the open page's grant and its document URL stop working at once",
+        "turned off and unknown links show the same calm 'not available' page",
+        "no request outside the app and content origins; no console errors; no CSP violations"
+      ]
+    },
+    "webkit": {
+      "ok": true,
+      "checks": [
+        "view link: simple slides on the content origin, no notes, the author code never ran",
+        "view link: a quiet first-load hint (arrow keys, ? for all keys)",
+        "view link: U offers no unlock, S opens no presenter window, the key help has no P/S/U",
+        "view link: the panel API, export and the notes refuse the page's grant",
+        "presenter link: the audience page starts with the simple version (interactive parts locked)",
+        "presenter link: S opens the presenter window with the notes, no panel link",
+        "presenter link: U and the presenter password run the approved code",
+        "turned off: the open page's grant and its document URL stop working at once",
+        "turned off and unknown links show the same calm 'not available' page",
+        "no request outside the app and content origins; no console errors; no CSP violations"
+      ]
+    }
+  },
+  "ok": true
+}
