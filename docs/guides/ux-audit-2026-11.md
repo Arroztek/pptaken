@@ -139,6 +139,38 @@ grid; the choice is remembered in this browser (`localStorage`, guarded) and not
   accessibility checks, keyboard tests, and a real-server run in Chromium, Firefox and WebKit
   (`apps/server/browser/covers-e2e.mjs`).
 
+## 9. Sharing (public links, ADR-026, added 2026-11-20)
+
+- **One action, one dialog.** "Share" sits next to Present on the presentation page and opens a dialog, not a new
+  page. Two plain choices, written as who the link is for: "Anyone with the link can watch" and "For the person who
+  will present", the latter with a quiet "Includes your notes" badge and one sentence that says anyone with the link
+  can read the notes. No "view/presenter link", "token", "secret" or "hash" in the normal view; Developer details add
+  the link id only.
+- **Calm defaults.** View is preselected; the link works "until you stop it"; the name is optional and private;
+  "Freeze this version" is one checkbox with a one-line hint. Two clicks make a link: Share, Create link.
+- **After creating:** one success line, the link with a Copy button (the Spotlight of that state), and two quiet links
+  ("Show QR code", "Make another link"). The QR code reuses the server's pinned encoder (`/_rt/qr.js`) inside the
+  existing FramedQR plate.
+- **Stopping is asked once, inline** (no stacked modal over a modal): the row expands with "Stop sharing this link?
+  It stops working right away: nobody can open it again." and Cancel / Stop sharing.
+- **The presenter password appears where it matters:** one line under the presenter choice ("Interactive parts need
+  your presenter password on that computer") with "Set a presenter password" when none is set; nothing when
+  interactive mode is off. The Security card stays as it was.
+- **One chip at most:** the list's "Shared" mark is muted (not amber, not a warning) and yields to "Needs your OK"
+  and "Had a problem".
+- **Consequences said up front:** the delete confirmation adds "This also turns off N shared links"; Restore asks
+  "Turn those links back on" (unchecked) only when the trash turned links off.
+- **Off states** follow what happened + what to do + one button: "Sharing is turned off." + "Turn on … in Settings."
+  + Open Settings (or the server variable when the operator turned it off).
+- **Guests:** the slide fills the screen; one quiet line on first load ("Use the arrow keys to move. Press ? to see
+  all keys."); the dead-link page is one calm sentence with no reason and no login prompt, in the browser's language.
+- **Checked:** `share.spec.ts` in Chromium, Firefox and WebKit; screenshots of the Share dialog (choices with links,
+  presenter choice with a custom date, ready with QR, off), the "Shared" chip and the restore question at 360/768/1280,
+  light and dark, English and Spanish, with no horizontal overflow and the basic accessibility checks; guest pages in
+  Chromium, Firefox and WebKit through `apps/server/browser/share-e2e.mjs`.
+- **Not verified:** screen readers beyond the automated checks; the QR code scanned by a real phone camera (the
+  matrix is the same encoder the phone pairing uses).
+
 ## 7. Not verified
 
 - Real Claude Desktop/web connector flow (external); verified only against the mock server and the server tests.

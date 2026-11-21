@@ -9,8 +9,8 @@ a clicker, and engage your audience with live Q&A and quizzes.
 PPTaken does not try to be a slide designer. It is the stagehand behind the curtain.
 
 > **Status: early, usable, pre-1.0.** The player, the MCP server, the owner panel, phone remote, offline
-> presenting, export/import, PowerPoint import and interactive decks work today, with Docker or `npx pptaken`.
-> Public share links, audience Q&A, quizzes and the hosted cloud are not built yet. Documentation:
+> presenting, export/import, PowerPoint import, interactive decks and public links (watch or present without an
+> account) work today, with Docker or `npx pptaken`. Audience Q&A, quizzes and the hosted cloud are not built yet. Documentation:
 > https://docs.pptaken.com (coming soon). Roadmap:
 > [`docs/foundation/07-roadmap-and-backlog.md`](docs/foundation/07-roadmap-and-backlog.md).
 
@@ -23,10 +23,11 @@ PPTaken does not try to be a slide designer. It is the stagehand behind the curt
 - Phone remote (QR pairing with approval, laser pointer) that works on a local network.
 - Export to a single HTML file or a `.pkn` archive; import of `.pkn` and PowerPoint (`.pptx`).
 - Interactive decks (JavaScript) that only run after you allow them, plus fonts and libraries saved from the web.
+- Public links: a read-only link anyone can watch, and a presenter link for presenting from another computer, with
+  expiry, freezing a version and one-click turn-off (no account needed to open them).
 
 ## Coming next
 
-- Read-only public links and presenter links.
 - Audience tools: anonymous Q&A with votes, and a Kahoot-style quiz (draft until the owner approves it).
 - Background service, auto-update and a tunnel helper for the `npx` version.
 

@@ -147,7 +147,7 @@ messages, so keys work whichever side has focus. Clicking the player gives the i
 | `f` | full screen on/off (on the host element) |
 | `o` | overview on/off |
 | `s` | open (or focus) the presenter window (when the page passes `presenterUrl`) |
-| `p` | print / PDF |
+| `p` | print / PDF (not on public link pages, ADR-026) |
 | `?` | key help on/off |
 | `Escape` | close the overview or the help; in the presenter view, at the last slide and step only: finish |
 | `t`, `Shift+R` | presenter view only: start/pause the clock, reset it |
@@ -768,8 +768,9 @@ ADR-020.
 ## Presenter-password unlock (ADR-021)
 
 Module `unlock.ts` (served as `/_player/unlock.js`, part of `SHELL_FILES`). Used by the player page only when it is
-served **without an owner session** (`<body data-viewer="guest" data-view="<view grant>">`: future presenter/public
-links; today only the test route `GET /__test/guest/:deckId`). The owner's own pages never create it.
+served **without an owner session** for a **presenter** link (`<body data-viewer="guest" data-kind="presenter"
+data-view="<link grant>">`, ADR-026; also the test route `GET /__test/guest/:deckId`). View links and the owner's
+own pages never create it.
 
 - `createUnlockDialog({ doc, mount, locale, frames, available, submit, onUnlocked, returnFocus })` returns
   `{ open, close, isOpen, setIndicator, setIndicatorVisible, flash, destroy }`.
@@ -784,8 +785,8 @@ links; today only the test route `GET /__test/guest/:deckId`). The owner's own p
   content frames are `inert`, Tab/Shift+Tab cycle inside, focus that leaves comes back, keys inside never reach the
   player, Esc closes and focus returns to the stage. The field is cleared after every attempt.
 - **Availability**: `available()` is `navigator.onLine && !source.fromCopy`; offline the key does nothing.
-- **Request**: `requestUnlock(deck, password)` → `POST /api/v1/presenter/unlock` (JSON, CSRF header,
-  `credentials: "omit"`); outcomes `ok` (token shape checked), `failed` (any 4xx), `locked` (429 with
+- **Request**: `requestUnlock(deck, password, fetch?, headers?)` → `POST /api/v1/presenter/unlock` (JSON, CSRF
+  header, `credentials: "omit"`; the page passes its link grant as `X-PPTaken-View`); outcomes `ok` (token shape checked), `failed` (any 4xx), `locked` (429 with
   `Retry-After`), `network` (fetch error or 5xx).
 - **Token**: `sessionStorage["pptaken.unlock:<deck>"]` only (`readUnlockToken`, `storeUnlockToken`,
   `forgetUnlockToken`, all in try/catch); sent as `X-PPTaken-Unlock` by `loadContent(..., { headers, offline:
@@ -800,3 +801,39 @@ links; today only the test route `GET /__test/guest/:deckId`). The owner's own p
   audience screen never shows it.
 - **Tests**: `test/unlock.test.ts` (key, request, storage, guest loading, presenter data) and the end-to-end run
   `apps/server/browser/unlock-e2e.mjs` (Chromium, Firefox, WebKit).
+
+## Public link pages (ADR-026)
+
+The server's `page.js` and `presenter-page.js` serve public links too (`/s/<secret>`, `/s/<secret>/presenter`). The
+page reads `data-viewer="guest"`, `data-kind` (`view` or `presenter`), `data-view` (the link grant) and, for a
+presenter link, `data-presenter` (the presenter window's path).
+
+| | Owner (`/p/`) | View link | Presenter link |
+|---|---|---|---|
+| Content | scripted when approved | always static (`scripts: "none"`) | static, scripted after `U` + presenter password |
+| Speaker notes | presenter window | never | presenter window (`/s/<secret>/presenter`) |
+| `S` presenter window | yes | no (`presenterUrl` unset) | yes, synced over `BroadcastChannel` |
+| `U` unlock dialog | no | no | yes |
+| `P` print | yes | no (`PlayerOptions.print: false`) | no |
+| Remote control (`R`/`K`) | yes | no | no |
+| Offline layer 1 (in-memory preload) | yes | yes | yes |
+| Offline layer 2 (stored copy) | yes | no | no |
+| Panel links, script-error reports | yes | no | no |
+
+- **`PlayerOptions.print`** (default `true`): `false` makes `P` do nothing, leaves it out of the key help
+  (`keyHelpRows(..., print)`), and keeps `beforeprint` from switching to the print layout. The page CSS also hides the
+  guest page in print media (`body[data-viewer=guest]`). A deterrent, not a control.
+- **First-load hint**: when the deck is ready the status line says once, for 6 seconds, "Use the arrow keys to move.
+  Press ? to see all keys." (presenter links: "Press S to open the presenter view with your notes."). The key help
+  stays on `?`.
+- **Opening count**: the page calls `POST /api/v1/share/<deck>/opened` once (grant + CSRF header).
+- **Dead link**: when `content-url` answers `401` (the link was turned off, expired, or sharing was switched off) the
+  page says "This link is not available anymore. Ask the person who shared it for a new one."; the server's own
+  `/s/` answer for a dead link is the same sentence on a static page.
+- **Presenter window of a link**: `presenter-page.js` with `data-viewer="guest"` reads the notes from
+  `GET /api/v1/share/<deck>/presenter` and the static previews from `content-url` with the grant (never the stored
+  copy); no "Back to panel", no deck-page links, no remote panel, no offline-copy status.
+- **Offline**: guests keep layer 1 (the deck stays in memory if the network drops during the talk); layer 2 is not
+  offered to guests (it would leave a copy on a computer the owner does not control, outliving the link). See
+  ADR-026 §8.
+- **Tests**: `apps/server/browser/share-e2e.mjs` (Chromium, Firefox, WebKit).

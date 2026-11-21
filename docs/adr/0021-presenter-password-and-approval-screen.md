@@ -4,7 +4,9 @@
 phase). Related: [HTTP API](../spec/http-api.md), [player](../spec/player.md),
 [security](../foundation/04-security-and-auth.md), [user guide](../guides/interactive-decks.md). Extended by
 [ADR-022](0022-vendoring-and-html-importer.md): the approval screen also shows the deck-level script and, per
-vendored library, its final URL, redirect chain and size; the deck page lists every vendored resource.
+vendored library, its final URL, redirect chain and size; the deck page lists every vendored resource. Extended by
+[ADR-026](0026-public-links.md): the "F5 links" of §5 exist now; the unlock requires a presenter link's grant and its
+token is bound to that link.
 
 ## Context
 

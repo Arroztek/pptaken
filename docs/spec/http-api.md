@@ -93,7 +93,8 @@ The web app polls this endpoint every 2 seconds while the welcome page is open.
 `200 { "decks": [{ "id", "title", "lang", "slideCount", "revision", "updatedAt", "createdBy", "scripts" }], "nextCursor": string|null }`.
 Trashed decks are excluded. `createdBy` is `"owner"` or `"agent"`. `scripts` (ADR-021) is the trust state of the
 current revision's author scripts: `"none"`, `"pending"` or `"approved"` (the list badges). `scriptErrors`
-(ADR-023): distinct script errors reported for the current code (the amber "script errors" badge).
+(ADR-023): distinct script errors reported for the current code (the amber "script errors" badge). `sharedLinks`
+(ADR-026): how many public links of the deck are active (the quiet "Shared" chip).
 
 ### `GET /api/v1/decks/:id`
 `200` with the same summary plus `{ "urls": { "present": string, "manage": string } }` (`manage` is the
@@ -134,23 +135,69 @@ Owner session only (cookie; API and OAuth tokens never reach these routes), CSRF
 
 Owner session only, CSRF header on PUT.
 
-- `GET /api/v1/settings` → `200 { "autoApproveUpdates": boolean, "scripts": "owner" | "off" }`. Default `true`.
-- `PUT /api/v1/settings` `{ "autoApproveUpdates": boolean }` (strict) → `200` (same shape). Audited
-  (`settings.auto_approve_updates`). Off: every change of a deck's interactive code waits for the owner again.
+- `GET /api/v1/settings` → `200 { "autoApproveUpdates": boolean, "scripts": "owner" | "off", "publicLinks":
+  boolean, "publicLinksInstance": "on" | "off" }`. Defaults `true`.
+- `PUT /api/v1/settings` `{ "autoApproveUpdates"?: boolean, "publicLinks"?: boolean }` (strict) → `200` (same
+  shape). Audited (`settings.auto_approve_updates`, `settings.public_links`). `autoApproveUpdates` off: every change of
+  a deck's interactive code waits for the owner again. `publicLinks` off (ADR-026): every `/s/` link answers the
+  generic "not available" page until it is on again (links are kept); `publicLinksInstance` is the operator's
+  `PPTAKEN_PUBLIC_LINKS`, which wins when it is `off`.
 
 ### Trash (owner session required)
 
 CSRF header on DELETE and POST; every step is audited by the core (`presentation.trash`, `presentation.restore`,
 `presentation.purge`). API and OAuth tokens never reach these routes (agents trash through the MCP tool, ADR-014).
 
-- `DELETE /api/v1/decks/:id` → `200 { "id", "trashed": true, "restorableUntil": iso }`. Moves a live presentation to
-  the trash; `404` when it is not live.
+- `DELETE /api/v1/decks/:id` → `200 { "id", "trashed": true, "restorableUntil": iso, "linksTurnedOff": n }`. Moves a
+  live presentation to the trash and turns its public links off in the same transaction (ADR-026); `404` when it is
+  not live.
 - `GET /api/v1/decks?trash=1&cursor=` → `200 { "decks": [{ "id", "title", "lang", "slideCount", "revision",
-  "updatedAt", "deletedAt", "restorableUntil" }], "nextCursor" }`, newest first. The retention is 30 days.
-- `POST /api/v1/decks/:id/restore` → `200` (the deck summary, as in the list). `404` when it is not in the trash.
+  "updatedAt", "deletedAt", "restorableUntil", "linksOff" }], "nextCursor" }`, newest first. The retention is 30
+  days. `linksOff`: public links the trash turned off (and not expired), which restoring can turn back on.
+- `POST /api/v1/decks/:id/restore` `{ "restoreLinks"?: boolean }` (strict; an empty body is fine) → `200` (the deck
+  summary, as in the list). `404` when it is not in the trash. Its links stay off unless `restoreLinks` is `true`:
+  then only the links the trash turned off come back (audited `linksRestored`).
 - `DELETE /api/v1/trash/:id` → `204`. Permanent deletion of a presentation **in the trash** (its revisions, unused
-  assets and blobs, approvals and script errors); `400` for a live presentation, `404` when unknown. The panel asks
-  first, naming the presentation and saying it cannot be undone.
+  assets and blobs, approvals, script errors and public links); `400` for a live presentation, `404` when unknown.
+  The panel asks first, naming the presentation and saying it cannot be undone.
+
+### Public links (ADR-026)
+
+Management: owner session only (cookie; API and OAuth tokens never reach these routes; the core refuses any actor but
+the owner), CSRF header on POST, PATCH and DELETE. Audited by link id (`share_link.create`, `.update`, `.revoke`,
+`.revoke_all`), never the secret or the label.
+
+`Link = { "id", "kind": "view" | "presenter", "label", "url": "<public origin>/s/<secret>" | null, "state": "active"
+| "expired", "createdAt", "expiresAt": iso | null, "pinnedRevision": n | null, "lastOpenedAt": iso | null,
+"openCount" }`. `url` is `null` when the sealed secret cannot be opened (the instance secret changed): stop that link
+and make a new one. No IPs or user agents are ever recorded.
+
+- `GET /api/v1/decks/:id/links` → `200 { "links": [Link], "sharing": { "enabled", "instance": "on" | "off", "owner":
+  "on" | "off", "presenterPassword": boolean, "scripts": "owner" | "off" } }` with `Cache-Control: no-store`. Links
+  that are not turned off, newest first (expired ones included, so the owner can extend them).
+- `POST /api/v1/decks/:id/links` `{ "kind", "label"?: string ≤ 80 (cleaned), "expires"?: null | "1d" | "7d" | "30d"
+  | "<ISO date-time within a year>", "pinRevision"?: boolean }` (strict) → `201 { "link": Link }`. `403` when public
+  links are off (the hint says where to turn them on); `409` over 50 active links per deck or 500 per instance; `400`
+  for bad input.
+- `PATCH /api/v1/decks/:id/links/:linkId` `{ "label"?, "expires"?, "pinned"?: boolean }` → `200 { "link": Link }`.
+  `pinned: true` freezes the link on the current revision, `false` makes it follow the latest again; a new expiry can
+  bring an expired link back (counted against the limits).
+- `DELETE /api/v1/decks/:id/links/:linkId` → `204`: the link stops at once (grants, documents and images included).
+- `DELETE /api/v1/decks/:id/links` → `200 { "revoked": n }`: every link of the deck.
+
+Guest side (no session; the link grant in `X-PPTaken-View`; CSRF header and app origin on POST):
+
+- `GET /s/:secret` → the guest player page (see "Presenting"); `GET /s/:secret/presenter` → the presenter window of a
+  presenter link. Every failure is the same `404` page (byte for byte for the same `Accept-Language`); `429` page
+  with `Retry-After` when limited (300 pages per minute per IP; 20 failed lookups per 10 minutes per IP and 300
+  instance-wide). Headers: `Cache-Control: private, no-store`, `X-Robots-Tag: noindex, nofollow, noarchive`,
+  `Referrer-Policy: no-referrer`, the player CSP with `frame-ancestors 'none'`. No cookie is set. GET has no stored
+  effect.
+- `POST /api/v1/share/:deckId/opened` → `204`: counts one opening (called once by the page; guest calls are limited to 1200 per minute per link).
+  `404` for a grant that does not work now.
+- `GET /api/v1/share/:deckId/presenter` → `200` the presenter data (as `GET /api/v1/decks/:id/presenter`, for the
+  link's revision, with notes and `interactive`), presenter links only; a view link's grant gets the same `404` as a
+  dead link.
 
 ### Script errors (ADR-023)
 
@@ -190,17 +237,19 @@ Owner session + CSRF for management; the unlock needs no session.
   `pptaken reset-password`).
 - `DELETE /api/v1/presenter/password` → `204` (idempotent; audited `presenter_password.remove` when one existed).
   Every unlock token ends. `pptaken reset-password --clear-presenter-password` does the same from the CLI.
-- `POST /api/v1/presenter/unlock` `{ "deckId", "password" }` (no session; CSRF header and app origin required) →
-  `200 { "token", "deckId", "expiresAt" }` with `Cache-Control: no-store`. Every failure is `401 { code:
-  "UNAUTHENTICATED", message: "Unlock failed" }`: no presenter password set, wrong password (the owner password
-  included), unknown deck, scripts not approved or changed, instance switch off. `429` with `Retry-After` when
+- `POST /api/v1/presenter/unlock` `{ "deckId", "password" }` (no session; CSRF header and app origin required; since
+  ADR-026 the page's presenter-link grant in `X-PPTaken-View`) → `200 { "token", "deckId", "expiresAt" }` with
+  `Cache-Control: no-store`. Every failure is `401 { code: "UNAUTHENTICATED", message: "Unlock failed" }`: no
+  presenter password set, wrong password (the owner password included), unknown deck, scripts not approved (with a
+  click) or changed, instance switch off, no grant, a view link's grant or a dead link. `429` with `Retry-After` when
   limited: 5 attempts per minute per IP with an increasing delay after 3 failures, 30 failures per 10 minutes
-  instance-wide, 10 failures per 10 minutes per deck. Audited (`presenter.unlock`, ok or denied). The token
-  (HMAC, purpose `unlock`, at most 8 hours) is bound to the deck, its approved digest and the presenter password
-  epoch; it is not an API credential.
+  instance-wide, 10 failures per 10 minutes per deck. Audited (`presenter.unlock`, ok or denied, with the link id).
+  The token (HMAC, purpose `unlock`, at most 8 hours) is bound to the deck, its approved digest, the presenter
+  password epoch and the presenter link (`test` for the test-only guest page); it is not an API credential.
 
 Every GET route of the app origin is side-effect free (a scripted frame on the app origin can navigate itself to
 them, with the session cookie in WebKit); `apps/server/test/scripts.test.ts` enumerates them against a reviewed list.
+Public link pages (`GET /s/*`) are on it too: they read and sign; the opening counter is the page's own POST.
 
 ## Presenting (owner session required)
 
@@ -215,12 +264,19 @@ them, with the session cookie in WebKit); `apps/server/test/scripts.test.ts` enu
   `sdoc` token bound to that digest, and `expect` is what the shell must find in `ready`. Otherwise the token is a
   `doc` token and `/c/…` serves the static version (scripts and libraries removed, HTML re-sanitized with the safe
   profile). The content route re-checks the switch and the approval on every request: a revocation applies at once.
-- Without an owner session (ADR-021; future presenter/public links, today only the test-only guest page) the
-  `content-url` request must carry a view grant for that deck in `X-PPTaken-View` (otherwise `401`); it gets the
-  static version, with `scripts: "locked"` when the deck's approved scripts could run after an unlock. With a valid
-  unlock token in `X-PPTaken-Unlock` it gets `scripts: "running"` under the same rules as the owner. When an unlock
-  token was sent and no longer works (edited deck, revocation, expiry, password changed or removed) the answer adds
-  `"unlockRejected": true`. Both credentials travel in headers, never in cookies or URLs.
+- Without an owner session (ADR-021, ADR-026) the `content-url` request must carry a guest grant for that deck in
+  `X-PPTaken-View` (otherwise `401`): a public link's grant (purpose `link`, subject `<deck>:<link id>:<kind>`, 8
+  hours, re-checked against the link on every use) or, only on a server with test routes, the test page's deck-only
+  `view` grant. A **view** link always gets the static version with `scripts: "none"`. A **presenter** link gets the
+  static version with `scripts: "locked"` when the code of its revision is the one the owner approved with a click;
+  with a valid unlock token in `X-PPTaken-Unlock` (bound to that link) it gets `scripts: "running"` under the same
+  rules as the owner. When an unlock token was sent and no longer works (edited deck, revocation, expiry, password
+  changed or removed, another link) the answer adds `"unlockRejected": true`. Both credentials travel in headers,
+  never in cookies or URLs. A frozen link's URL points at its revision. Public links get **link-bound** tokens:
+  `ldoc` / `lsdoc` (subject with the link id appended) and, inside the document, `lasset` image URLs; `/c/…` checks
+  that the link still works and still shows that revision on every request, so turning a link off stops them at once.
+- `GET /s/:secret` serves the guest player page for a public link (`data-viewer="guest"`, `data-kind`); a presenter
+  link's page opens its presenter window at `/s/:secret/presenter`. See "Public links" above.
 - Test-only: `GET /__test/guest/:deckId` (registered only with `createServer(..., { testRoutes: true })`, never by
   `main.ts`) serves the guest player page with an 8-hour view grant.
 - The player page CSP's `frame-src` is exactly the content origin when `PPTAKEN_CONTENT_URL` is set, `'self'`

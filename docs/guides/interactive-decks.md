@@ -3,8 +3,8 @@
 Your agent can add JavaScript to slides: live charts, small simulations, sliders that change a diagram. PPTaken
 treats that code as untrusted until **you** read it and approve it, and it runs only where it is safe to. This guide
 explains how to turn it on, review it and present it. The decisions behind it are in
-[ADR-020](../adr/0020-interactive-mode.md), [ADR-021](../adr/0021-presenter-password-and-approval-screen.md) and
-[ADR-022](../adr/0022-vendoring-and-html-importer.md).
+[ADR-020](../adr/0020-interactive-mode.md), [ADR-021](../adr/0021-presenter-password-and-approval-screen.md),
+[ADR-022](../adr/0022-vendoring-and-html-importer.md) and, for presenter links, [ADR-026](../adr/0026-public-links.md).
 
 ## 1. Turn it on
 
@@ -64,8 +64,11 @@ script errors.
 ## 4. Where the code runs
 
 - When **you** present from your own signed-in panel session: yes, once approved.
-- On a screen **without** your session (presenter links, when they arrive in a later version): only after someone
-  types the **presenter password** there (below).
+- Through a **presenter link** (Share › "For the person who will present", see [Sharing](sharing.md)), on a screen
+  **without** your session: only after the presenter presses **U** and types the **presenter password** there
+  (below), and only code you allowed with your own click (an automatic update waits for your click first).
+- Through a **view link** (Share › "Anyone with the link can watch"): never. Viewers always see the simple version,
+  and the page never offers the presenter password.
 - Phones used as remotes, the presenter view's previews, exports (`.html`, `.pkn`) and offline copies: never. They
   always show the static version.
 - `?safe=1` on the player URL forces the static version.
@@ -73,14 +76,17 @@ script errors.
 ## 5. The presenter password
 
 **Security › Presenter password** sets one password for this PPTaken that unlocks approved code on screens where you
-are not signed in.
+are not signed in: the pages of your **presenter links**. When you make a presenter link, the Share panel reminds you
+in one line ("Interactive parts need your presenter password on that computer") and links here when none is set.
+Tell the presenter the password separately from the link (a different message or in person).
 
 - It is **not** your owner password and it cannot open the panel. PPTaken refuses to make them equal.
 - At least 12 characters. Use one you do not use anywhere else: you may type it on other people's computers.
 - On that screen, press **U** (not Ctrl+anything). PPTaken shows its own dialog over the whole page with the
   server's address; type the password. PPTaken never asks for it in any other way, and never inside a slide.
-- An unlock lasts at most 8 hours, in that browser tab only. It ends early when the code changes, when you withdraw
-  the approval, or when you change or remove the presenter password.
+- An unlock lasts at most 8 hours, in that browser tab only, and only through the link it was made with. It ends
+  early when the code changes, when you withdraw the approval, when you change or remove the presenter password, or
+  when you stop sharing that link.
 - Too many wrong attempts lock the unlock for a while (per computer, per presentation, and for everyone during an
   attack).
 - If you typed it on a computer you do not trust, change it afterwards: every unlock made with the old one ends.

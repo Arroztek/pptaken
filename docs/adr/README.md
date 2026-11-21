@@ -24,8 +24,9 @@ An **ADR** (*Architecture Decision Record*) is a short note that records **what 
 | 0018 | [Built-in OAuth authorization server for `/mcp`](0018-oauth-authorization-server.md) | accepted |
 | 0019 | [PowerPoint import](0019-powerpoint-import.md) | accepted |
 | 0020 | [Interactive mode (author scripts)](0020-interactive-mode.md) | accepted (foundation phase), completed by 0021 |
-| 0021 | [Presenter password and approval screen](0021-presenter-password-and-approval-screen.md) | accepted |
+| 0021 | [Presenter password and approval screen](0021-presenter-password-and-approval-screen.md) | accepted, extended by 0026 |
 | 0022 | [Ingest-time vendoring and the HTML-artifact importer](0022-vendoring-and-html-importer.md) | accepted |
 | 0023 | [Script error visibility](0023-script-error-visibility.md) | accepted |
 | 0024 | [Approval bound to a trust lineage (automatic interactive updates)](0024-approval-trust-lineage.md) | accepted |
 | 0025 | [npx distribution: one bundled npm package `pptaken`](0025-npx-distribution.md) | accepted |
+| 0026 | [Public links](0026-public-links.md) | accepted |

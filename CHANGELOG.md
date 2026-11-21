@@ -8,6 +8,29 @@ changes; they are always listed under "Changed" or "Removed". See [`docs/releasi
 
 ## [Unreleased]
 
+### Added
+
+- Public links (ADR-026, `docs/guides/sharing.md`). **Share** on a presentation's page makes a link that opens
+  without an account: "Anyone with the link can watch" (the simple version, no notes, no printing or download) or
+  "For the person who will present" (the presenter window with notes; interactive parts after the presenter
+  password). Optional end date, private name and "Freeze this version"; Copy and a QR code; a list with last opened,
+  Stop sharing (immediate, including documents and images already handed out), extend, and Stop all. A quiet
+  "Shared" mark in the list. Link pages are `/s/<secret>`: 128-bit secrets stored as a keyed hash plus an encrypted
+  copy (so the owner can copy a link again), one generic "not available" page for every failure, `no-referrer`,
+  `noindex`, `no-store`, rate limits, and the secret redacted from logs.
+- `PPTAKEN_PUBLIC_LINKS=on|off` (default `on`) and **Settings › Sharing › Allow links that open without an account**.
+- Migration `0008_share_links`.
+
+### Changed
+
+- Moving a presentation to the trash turns its public links off; restoring asks before turning them back on (Undo
+  right after a deletion restores them). Delete confirmations say how many links are affected.
+- `POST /api/v1/presenter/unlock` now requires the grant of a presenter link of that deck, and the unlock token is
+  bound to that link.
+- `get_presentation_links` reports `public_links: { active_count }` instead of an empty `share_links` list. Agents
+  still cannot create, list or stop links.
+- Revision retention keeps revisions that a public link is frozen on.
+
 ## [0.1.0] - 2026-11-19
 
 First release: the player, the MCP server, the owner panel, the phone remote, offline presenting, export and
