@@ -15,6 +15,7 @@
   import PageLayout from "../components/PageLayout.svelte";
   import PageSection from "../components/PageSection.svelte";
   import ScriptViewer from "../components/ScriptViewer.svelte";
+  import SharePanel from "../components/SharePanel.svelte";
   import {
     ApiError,
     api,
@@ -55,6 +56,9 @@
   let deleting = $state(false);
   let exportOpen = $state(false);
   let htmlNotes = $state(false);
+  // ADR-026: the Share panel (a dialog, not a page) and how many links are active right now.
+  let shareOpen = $state(false);
+  let sharedLinks = $state(0);
 
   async function load(deckId: string, quiet = false) {
     if (!quiet) loading = true;
@@ -65,6 +69,7 @@
       if (deckId !== id) return;
       deck = d;
       review = r;
+      sharedLinks = d.sharedLinks ?? 0;
       await loadErrors(deckId);
     } catch (e) {
       if (handleAuthError(e)) return;
@@ -99,7 +104,10 @@
     showCode = false;
     showChanges = false;
     actionError = "";
+    shareOpen = false;
     void load(deckId).then(async () => {
+      // The list's "Shared" chip points at #share: open the Share panel.
+      if (location.hash === "#share" && deck !== null) shareOpen = true;
       // Old links (#scripts, #script-errors): open what they pointed at.
       if (location.hash === "#scripts") showCode = true;
       if (location.hash === "#scripts" || location.hash === "#script-errors") {
@@ -220,7 +228,8 @@
           label: t("decks.undo"),
           run: async () => {
             try {
-              await api.restoreDeck(current.id);
+              // Undo puts the shared links back too (ADR-026: the owner is taking the deletion back).
+              await api.restoreDeck(current.id, { restoreLinks: true });
               toast.show(t("decks.restoredToast", { title: current.title }));
               navigate(`/decks/${encodeURIComponent(current.id)}`);
             } catch {
@@ -557,8 +566,23 @@
     {/snippet}
   </Dialog>
 
+  <Dialog
+    bind:open={shareOpen}
+    title={t("share.title", { title: d.title })}
+    onclose={() => {
+      if (location.hash === "#share") history.replaceState(null, "", location.pathname + location.search);
+    }}
+  >
+    {#if shareOpen}
+      <SharePanel deckId={d.id} onchange={(n) => (sharedLinks = n)} />
+    {/if}
+  </Dialog>
+
   <Dialog bind:open={deleteOpen} title={t("decks.deleteTitle", { title: d.title })}>
     <p>{t("decks.deleteText")}</p>
+    {#if sharedLinks > 0}
+      <p data-testid="delete-links">{sharedLinks === 1 ? t("decks.deleteLinksOne") : t("decks.deleteLinks", { n: sharedLinks })}</p>
+    {/if}
     {#snippet actions()}
       <Button variant="secondary" onclick={() => (deleteOpen = false)}>{t("common.cancel")}</Button>
       <Button variant="danger" icon="trash" loading={deleting} onclick={moveToTrash}>{t("decks.deleteConfirm")}</Button>
@@ -591,6 +615,11 @@
   {#if deck}
     <Button variant={status.kind === "needsOk" ? "secondary" : "primary"} icon="play" href="/p/{encodeURIComponent(deck.id)}" target="_blank"
       >{t("deck.present")}<span class="ppt-sr-only"> {t("deck.newTab")}</span></Button
+    >
+    <Button variant="secondary" icon="link" aria-haspopup="dialog" data-testid="share-button" onclick={() => (shareOpen = true)}
+      >{t("share.button")}{#if sharedLinks > 0}<span class="share-count" aria-hidden="true">{sharedLinks}</span><span class="ppt-sr-only">
+          · {sharedLinks === 1 ? t("share.chipLabelOne") : t("share.chipLabel", { n: sharedLinks })}</span
+        >{/if}</Button
     >
     <ActionMenu
       label={t("deck.moreActions")}

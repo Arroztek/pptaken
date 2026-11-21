@@ -114,8 +114,9 @@ export function navigate(to: string, options: { replace?: boolean } = {}): void 
   const url = new URL(to, location.origin);
   const path = normalizePath(url.pathname);
   leaving(route.path, path);
-  if (options.replace) history.replaceState(null, "", url.pathname + url.search);
-  else history.pushState(null, "", url.pathname + url.search);
+  // The fragment is kept: pages read it to open a part of themselves (/decks/<id>#share, /settings#sharing).
+  if (options.replace) history.replaceState(null, "", url.pathname + url.search + url.hash);
+  else history.pushState(null, "", url.pathname + url.search + url.hash);
   route.path = path;
   route.search = url.search;
   if (!options.replace) window.scrollTo(0, 0);
@@ -139,7 +140,7 @@ export function startRouter(): void {
     const url = new URL(anchor.href, location.href);
     if (url.origin !== location.origin || !isAppPath(url.pathname)) return;
     event.preventDefault();
-    navigate(url.pathname + url.search);
+    navigate(url.pathname + url.search + url.hash);
   });
   window.addEventListener("pagehide", clearSecrets);
 }

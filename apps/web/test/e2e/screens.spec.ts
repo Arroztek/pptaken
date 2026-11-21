@@ -462,6 +462,74 @@ const screens: Screen[] = [
       await expect(page.locator("input[name=auto-approve]")).toBeEnabled();
     },
   },
+  // Public links (ADR-026): the Share dialog (choices + the existing links), the ready state with its QR code, the
+  // presenter choice with the password line, the off state, the "Shared" chip, and the restore question.
+  {
+    name: "share-dialog",
+    options: { installed: true, decks: 4, links: 3, linksDeck: "deck_003" },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_003`);
+      await page.getByTestId("share-button").click();
+      await expect(page.locator(".share-link")).toHaveCount(3);
+    },
+  },
+  {
+    name: "share-presenter-dialog",
+    options: { installed: true, decks: 4 },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_003`);
+      await page.getByTestId("share-button").click();
+      await page.locator(".share-option[data-kind=presenter] input").check();
+      await page.locator("select[name=share-expiry]").selectOption("custom");
+      await expect(page.getByTestId("share-password-note")).toBeVisible();
+    },
+  },
+  {
+    name: "share-ready-dialog",
+    options: { installed: true, decks: 4 },
+    prepare: async (page, mock) => {
+      mock.state.links.clear();
+      await page.goto(`${mock.url}/decks/deck_003`);
+      await page.getByTestId("share-button").click();
+      await page.locator("input[name=share-label]").fill("Q3 review for Ana");
+      await page.locator(".share-form .ppt-btn--primary").click();
+      await page.locator(".share-ready__actions .link-btn").first().click();
+      await expect(page.locator(".share-qr svg path")).toBeVisible();
+    },
+  },
+  {
+    name: "share-off-dialog",
+    options: { installed: true, decks: 4, publicLinks: false },
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks/deck_003`);
+      await page.getByTestId("share-button").click();
+      await expect(page.locator(".share-panel .ppt-notice")).toBeVisible();
+    },
+  },
+  {
+    name: "decks-shared",
+    options: { installed: true, decks: 6, links: 2, linksDeck: "deck_003" },
+    widths: [360, 1280],
+    prepare: async (page, mock) => {
+      await page.goto(`${mock.url}/decks`);
+      await expect(page.locator('[data-chip="shared"]')).toBeVisible();
+    },
+  },
+  {
+    name: "trash-restore-links-dialog",
+    options: { installed: true, decks: 4, links: 2, linksDeck: "deck_004" },
+    prepare: async (page, mock) => {
+      if (!mock.state.trash.some((d) => d.id === "deck_004")) {
+        const r = await page.request.delete(`${mock.url}/api/v1/decks/deck_004`, {
+          headers: { "X-PPTaken-CSRF": "1", Origin: mock.url },
+        });
+        expect(r.status()).toBe(200);
+      }
+      await page.goto(`${mock.url}/trash`);
+      await page.locator(".trash-item .ppt-btn--secondary").first().click();
+      await expect(page.getByTestId("restore-links")).toBeVisible();
+    },
+  },
   {
     name: "consent",
     options: { installed: true, oauthRequests: 3 },

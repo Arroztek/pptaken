@@ -600,6 +600,79 @@ html.drawer-open { overflow: hidden; }
   color: var(--ppt-warning); font-weight: var(--ppt-weight-semibold); text-decoration: none;
 }
 .deck-chip:hover { text-decoration: underline; text-underline-offset: 3px; }
+/* ------------------------------------------------------- share (ADR-026) */
+/* The Share dialog is a little wider than a confirmation: two choices and a list side by side with their actions. */
+.ppt-dialog:has(.share-panel) { width: min(600px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); }
+.share-panel { display: grid; gap: var(--ppt-space-5, 20px); min-width: 0; }
+.share-form { display: grid; gap: var(--ppt-space-4); min-width: 0; }
+.share-lead { color: var(--ppt-text-muted); margin: 0; }
+.share-choice { display: grid; gap: var(--ppt-space-2); margin: 0; padding: 0; border: 0; min-width: 0; }
+.share-choice legend { margin-bottom: var(--ppt-space-2); padding: 0; }
+.share-option {
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--ppt-space-3); align-items: start;
+  padding: var(--ppt-space-3) var(--ppt-space-4);
+  border: var(--ppt-border-width) solid var(--ppt-border); border-radius: var(--ppt-radius-md);
+  background: var(--ppt-surface); cursor: pointer;
+  transition: border-color var(--ppt-motion-fast) var(--ppt-ease), background-color var(--ppt-motion-fast) var(--ppt-ease);
+}
+.share-option:hover { border-color: var(--ppt-border-strong); }
+.share-option:has(input:checked) { border-color: var(--ppt-interactive); background: var(--ppt-surface-2); }
+.share-option:has(input:focus-visible) { outline: var(--ppt-border-focus) solid var(--ppt-focus-ring); outline-offset: 2px; }
+.share-option input { width: 18px; height: 18px; margin: 3px 0 0; accent-color: var(--ppt-interactive); }
+.share-option__body { display: grid; gap: 2px; min-width: 0; }
+.share-option__title { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ppt-space-2); font-weight: var(--ppt-weight-semibold); }
+.share-option__name { display: inline-flex; align-items: flex-start; gap: var(--ppt-space-2); }
+.share-option__name > :first-child { flex: none; margin-top: 3px; }
+.share-option__badge {
+  display: inline-flex; align-items: center; height: 22px; padding: 0 8px;
+  border: var(--ppt-border-width) solid var(--ppt-border-strong); border-radius: 999px;
+  font-size: var(--ppt-text-xs); font-weight: var(--ppt-weight-medium); color: var(--ppt-text-muted);
+}
+.share-option__text { font-size: var(--ppt-text-sm); color: var(--ppt-text-muted); text-wrap: pretty; }
+.share-note { display: flex; gap: var(--ppt-space-2); align-items: start; margin: 0; font-size: var(--ppt-text-sm); color: var(--ppt-text-muted); }
+.share-note > :first-child { flex: none; margin-top: 2px; }
+.share-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--ppt-space-3) var(--ppt-space-4); }
+.share-fields__wide { grid-column: 1 / -1; }
+.share-ready { display: grid; gap: var(--ppt-space-3); min-width: 0; }
+.share-ready__title { display: flex; align-items: center; gap: var(--ppt-space-2); margin: 0; font-weight: var(--ppt-weight-semibold); }
+.share-ready__title > :first-child { color: var(--ppt-success); flex: none; }
+.share-ready__actions { display: flex; flex-wrap: wrap; gap: var(--ppt-space-1) var(--ppt-space-5, 20px); }
+.share-qr { display: grid; justify-items: center; }
+.share-qr[hidden] { display: none; }
+.share-list { display: grid; gap: var(--ppt-space-3); padding-top: var(--ppt-space-4); border-top: var(--ppt-border-width) solid var(--ppt-border); min-width: 0; }
+.share-list .ppt-h3 { margin: 0; }
+.share-links { display: grid; gap: var(--ppt-space-2); margin: 0; padding: 0; list-style: none; }
+.share-link {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--ppt-space-2) var(--ppt-space-3); align-items: center;
+  padding: var(--ppt-space-3) 0; border-bottom: var(--ppt-border-width) solid var(--ppt-border);
+}
+.share-link:last-child { border-bottom: 0; }
+.share-link__text { min-width: 0; display: grid; gap: 2px; }
+.share-link__name { margin: 0; font-weight: var(--ppt-weight-semibold); overflow-wrap: anywhere; }
+.share-link__meta { margin: 0; font-size: var(--ppt-text-sm); color: var(--ppt-text-muted); text-wrap: pretty; }
+.share-link[data-state="expired"] .share-link__name { color: var(--ppt-text-muted); }
+.share-link__lost { margin: 0; font-size: var(--ppt-text-sm); color: var(--ppt-warning); }
+.share-link__dev { display: flex; flex-wrap: wrap; gap: 0 var(--ppt-space-3); margin: 0; font-size: var(--ppt-text-xs); color: var(--ppt-text-muted); }
+.share-link__dev code { font-family: var(--ppt-font-mono); overflow-wrap: anywhere; }
+.share-link__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--ppt-space-1); }
+.share-confirm {
+  grid-column: 1 / -1; display: grid; gap: var(--ppt-space-2);
+  padding: var(--ppt-space-3); border-radius: var(--ppt-radius-sm); background: var(--ppt-surface-2);
+  border: var(--ppt-border-width) solid var(--ppt-border);
+}
+.share-confirm p { margin: 0; font-size: var(--ppt-text-sm); }
+.share-confirm__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--ppt-space-2); }
+.share-count {
+  display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; margin-left: 2px;
+  border-radius: 999px; background: var(--ppt-surface-2); color: var(--ppt-text);
+  font-size: var(--ppt-text-xs); font-weight: var(--ppt-weight-semibold); font-variant-numeric: tabular-nums;
+}
+@media (max-width: 480px) {
+  .share-link { grid-template-columns: minmax(0, 1fr); }
+  .share-link__actions { justify-content: flex-start; }
+}
+/* "Shared" (ADR-026): informational, so it stays quiet: muted text, no warning colour. */
+.deck-chip--quiet { gap: var(--ppt-space-1); color: var(--ppt-text-muted); font-weight: var(--ppt-weight-medium); }
 .deck-chip:focus-visible { outline: var(--ppt-border-focus) solid var(--ppt-focus-ring); outline-offset: 2px; border-radius: 2px; }
 @media (max-width: 480px) { .deck-row__title { font-size: var(--ppt-text-lg); } }
 

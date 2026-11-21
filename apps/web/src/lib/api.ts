@@ -147,6 +147,8 @@ const deckSummary = object({
   scripts: optionalNull(oneOf(SCRIPTS_STATES)),
   /** Distinct script errors reported for the current code (ADR-023); absent from older servers. */
   scriptErrors: optionalNull(count),
+  /** Active public links (ADR-026); absent from older servers. */
+  sharedLinks: optionalNull(count),
 });
 const deckPage = object({ decks: arrayOf(deckSummary), nextCursor: nullable(str) });
 /**
@@ -171,10 +173,49 @@ const trashedDeck = object({
   slideCount: count,
   deletedAt: nullable(isoDate),
   restorableUntil: isoDate,
+  /** Public links the trash turned off (ADR-026): the owner may turn them back on when restoring. */
+  linksOff: optionalNull(count),
 });
 const trashPage = object({ decks: arrayOf(trashedDeck), nextCursor: nullable(str) });
-const trashResult = object({ id: str, trashed: bool, restorableUntil: isoDate });
-const settings = object({ autoApproveUpdates: bool, scripts: optionalNull(str) });
+const trashResult = object({
+  id: str,
+  trashed: bool,
+  restorableUntil: isoDate,
+  linksTurnedOff: optionalNull(count),
+});
+const settings = object({
+  autoApproveUpdates: bool,
+  scripts: optionalNull(str),
+  /** ADR-026: the owner's switch and the operator's (PPTAKEN_PUBLIC_LINKS); absent from older servers. */
+  publicLinks: optionalNull(bool),
+  publicLinksInstance: optionalNull(oneOf(["on", "off"] as const)),
+});
+
+// Public links (ADR-026). The URL carries the secret: shown to the owner only, as text, never logged.
+export const SHARE_KINDS = ["view", "presenter"] as const;
+const shareLink = object({
+  id: str,
+  kind: oneOf(SHARE_KINDS),
+  label: str,
+  /** `null` when the server can no longer show it (its secret key changed): make a new link. */
+  url: nullable(str),
+  state: oneOf(["active", "expired"] as const),
+  createdAt: isoDate,
+  expiresAt: nullable(isoDate),
+  pinnedRevision: nullable(count),
+  lastOpenedAt: nullable(isoDate),
+  openCount: count,
+});
+const sharingState = object({
+  enabled: bool,
+  instance: oneOf(["on", "off"] as const),
+  owner: oneOf(["on", "off"] as const),
+  presenterPassword: bool,
+  scripts: str,
+});
+const shareLinkList = object({ links: arrayOf(shareLink), sharing: sharingState });
+const shareLinkResult = object({ link: shareLink });
+const revokedAll = object({ revoked: count });
 export const VENDOR_KINDS = ["script", "stylesheet", "font", "image"] as const;
 /** Provenance of one vendored external resource (ADR-022). URLs are shown as text, never followed. */
 const vendoredResource = object({
@@ -201,6 +242,8 @@ const deckDetail = object({
   createdBy: oneOf(["owner", "agent"] as const),
   scripts: optionalNull(oneOf(SCRIPTS_STATES)),
   urls: object({ present: str }),
+  /** Active public links (ADR-026); absent from older servers. */
+  sharedLinks: optionalNull(count),
   /** Ingest-time vendoring switch (ADR-022); absent from older servers. */
   vendorFetch: optionalNull(oneOf(["on", "off"] as const)),
   /** Provenance of the current revision's vendored resources (ADR-022). */
@@ -391,6 +434,11 @@ export type DeckCover = Infer<typeof deckCover>;
 export type DeckDetail = Infer<typeof deckDetail>;
 export type TrashedDeck = Infer<typeof trashedDeck>;
 export type Settings = Infer<typeof settings>;
+export type ShareLink = Infer<typeof shareLink>;
+export type ShareKind = (typeof SHARE_KINDS)[number];
+export type SharingState = Infer<typeof sharingState>;
+/** Expiry choices: never, 1/7/30 days, or an ISO date-time. */
+export type ShareExpiry = null | "1d" | "7d" | "30d" | string;
 export type ScriptsStatus = Infer<typeof scriptsStatus>;
 export type ScriptsReview = Infer<typeof scriptsReview>;
 export type ScriptSource = Infer<typeof scriptSource>;
@@ -502,7 +550,7 @@ export type Session = "signed-in" | "signed-out" | "setup-required";
 
 // ------------------------------------------------------------------ client
 
-type Method = "GET" | "POST" | "PUT" | "DELETE";
+type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
 export interface ApiClient {
@@ -551,17 +599,31 @@ export interface ApiClient {
   scriptErrors(id: string): Promise<ScriptErrors>;
   clearScriptErrors(id: string): Promise<void>;
   /** Moves a presentation to the trash (restorable for the retention period). */
-  trashDeck(id: string): Promise<{ restorableUntil: string }>;
+  trashDeck(id: string): Promise<{ restorableUntil: string; linksTurnedOff: number }>;
   /** The trash, newest first. */
   listTrash(params?: {
     cursor?: string | null;
   }): Promise<{ decks: TrashedDeck[]; nextCursor: string | null }>;
-  restoreDeck(id: string): Promise<void>;
+  /** `restoreLinks`: also turn back on the public links the trash turned off (ADR-026). */
+  restoreDeck(id: string, options?: { restoreLinks?: boolean }): Promise<void>;
   /** Deletes a presentation in the trash for good. */
   purgeDeck(id: string): Promise<void>;
   /** Owner settings (ADR-024). */
   settings(): Promise<Settings>;
-  saveSettings(input: { autoApproveUpdates: boolean }): Promise<Settings>;
+  saveSettings(input: { autoApproveUpdates?: boolean; publicLinks?: boolean }): Promise<Settings>;
+  /** Public links (ADR-026), owner session only. */
+  listLinks(deckId: string): Promise<{ links: ShareLink[]; sharing: SharingState }>;
+  createLink(
+    deckId: string,
+    input: { kind: ShareKind; label?: string; expires?: ShareExpiry; pinRevision?: boolean },
+  ): Promise<ShareLink>;
+  updateLink(
+    deckId: string,
+    linkId: string,
+    input: { label?: string; expires?: ShareExpiry; pinned?: boolean },
+  ): Promise<ShareLink>;
+  revokeLink(deckId: string, linkId: string): Promise<void>;
+  revokeAllLinks(deckId: string): Promise<number>;
   presenterPassword(): Promise<{ set: boolean }>;
   setPresenterPassword(password: string): Promise<{ set: boolean; change: "set" | "changed" }>;
   removePresenterPassword(): Promise<void>;
@@ -694,21 +756,58 @@ export function createApi(
     },
     async trashDeck(id) {
       const r = await request("DELETE", `/decks/${encodeURIComponent(id)}`, trashResult);
-      return { restorableUntil: r.restorableUntil };
+      return { restorableUntil: r.restorableUntil, linksTurnedOff: r.linksTurnedOff ?? 0 };
     },
     listTrash(params = {}) {
       const query = new URLSearchParams({ trash: "1" });
       if (params.cursor) query.set("cursor", params.cursor);
       return request("GET", `/decks?${query.toString()}`, trashPage);
     },
-    async restoreDeck(id) {
-      await request("POST", `/decks/${encodeURIComponent(id)}/restore`, null);
+    async restoreDeck(id, options = {}) {
+      await request(
+        "POST",
+        `/decks/${encodeURIComponent(id)}/restore`,
+        null,
+        options.restoreLinks === true ? { restoreLinks: true } : undefined,
+      );
     },
     async purgeDeck(id) {
       await request("DELETE", `/trash/${encodeURIComponent(id)}`, null);
     },
     settings: () => request("GET", "/settings", settings),
     saveSettings: (input) => request("PUT", "/settings", settings, input),
+    listLinks: (deckId) =>
+      request("GET", `/decks/${encodeURIComponent(deckId)}/links`, shareLinkList),
+    async createLink(deckId, input) {
+      const body: Record<string, unknown> = { kind: input.kind };
+      if (input.label !== undefined && input.label !== "") body.label = input.label;
+      if (input.expires !== undefined) body.expires = input.expires;
+      if (input.pinRevision !== undefined) body.pinRevision = input.pinRevision;
+      return (
+        await request("POST", `/decks/${encodeURIComponent(deckId)}/links`, shareLinkResult, body)
+      ).link;
+    },
+    async updateLink(deckId, linkId, input) {
+      return (
+        await request(
+          "PATCH",
+          `/decks/${encodeURIComponent(deckId)}/links/${encodeURIComponent(linkId)}`,
+          shareLinkResult,
+          input,
+        )
+      ).link;
+    },
+    async revokeLink(deckId, linkId) {
+      await request(
+        "DELETE",
+        `/decks/${encodeURIComponent(deckId)}/links/${encodeURIComponent(linkId)}`,
+        null,
+      );
+    },
+    async revokeAllLinks(deckId) {
+      return (await request("DELETE", `/decks/${encodeURIComponent(deckId)}/links`, revokedAll))
+        .revoked;
+    },
     presenterPassword: () => request("GET", "/presenter/password", presenterPasswordStatus),
     setPresenterPassword: (password) =>
       request("POST", "/presenter/password", presenterPasswordSet, { password }),

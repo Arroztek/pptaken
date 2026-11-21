@@ -1,7 +1,8 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <!--
   /trash: presentations moved to the trash, newest first, with the days left before they go for good. Restore is
-  one click; Delete forever asks once, naming the presentation and saying it cannot be undone.
+  one click (one question first when the trash turned off shared links: turn them back on?); Delete forever asks
+  once, naming the presentation and saying it cannot be undone.
 -->
 <script lang="ts">
   import { Button, Dialog, EmptyState, Notice, toast } from "@pptaken/ui";
@@ -43,14 +44,36 @@
     return days === 1 ? t("trash.dayLeft") : t("trash.daysLeft", { n: days });
   }
 
-  async function restore(item: TrashedDeck) {
+  // ADR-026: a deck whose shared links the trash turned off asks before restoring; the links come back only when
+  // the owner ticks the box (default off: restoring never silently re-opens links).
+  let restoring = $state<TrashedDeck | null>(null);
+  let restoreOpen = $state(false);
+  let restoreLinks = $state(false);
+
+  function askRestore(item: TrashedDeck) {
+    if ((item.linksOff ?? 0) === 0) {
+      void restore(item, false);
+      return;
+    }
+    restoring = item;
+    restoreLinks = false;
+    restoreOpen = true;
+  }
+
+  async function restore(item: TrashedDeck, withLinks: boolean) {
     busy = item.id;
     error = "";
     try {
-      await api.restoreDeck(item.id);
+      await api.restoreDeck(item.id, { restoreLinks: withLinks });
       items = items.filter((i) => i.id !== item.id);
-      toast.show(t("decks.restoredToast", { title: item.title }));
+      restoreOpen = false;
+      toast.show(
+        withLinks
+          ? t("trash.restoredLinksToast", { title: item.title })
+          : t("decks.restoredToast", { title: item.title }),
+      );
     } catch (e) {
+      restoreOpen = false;
       if (!handleAuthError(e)) error = errorMessage(e, t);
     } finally {
       busy = null;
@@ -104,8 +127,8 @@
             </p>
           </div>
           <div class="trash-item__actions">
-            <Button size="sm" variant="secondary" icon="arrow-u-up-left" loading={busy === item.id && !confirmOpen}
-              onclick={() => restore(item)}>{t("trash.restore")}</Button>
+            <Button size="sm" variant="secondary" icon="arrow-u-up-left" loading={busy === item.id && !confirmOpen && !restoreOpen}
+              onclick={() => askRestore(item)}>{t("trash.restore")}</Button>
             <Button size="sm" variant="ghost" onclick={() => askForever(item)}>{t("trash.deleteForever")}</Button>
           </div>
         </li>
@@ -118,6 +141,26 @@
     {/if}
   {/if}
 </PageLayout>
+
+<Dialog bind:open={restoreOpen} title={restoring ? t("trash.restoreTitle", { title: restoring.title }) : ""}>
+  {#if restoring}
+    <p data-testid="restore-links">
+      {restoring.linksOff === 1 ? t("trash.restoreLinksOne") : t("trash.restoreLinks", { n: restoring.linksOff ?? 0 })}
+    </p>
+    <div class="check-field">
+      <label class="check">
+        <input type="checkbox" name="restore-links" bind:checked={restoreLinks} aria-describedby="restore-links-hint" />
+        <span>{t("trash.restoreLinksCheck")}</span>
+      </label>
+      <p class="check-field__hint" id="restore-links-hint">{t("trash.restoreLinksHint")}</p>
+    </div>
+  {/if}
+  {#snippet actions()}
+    <Button variant="secondary" onclick={() => (restoreOpen = false)}>{t("common.cancel")}</Button>
+    <Button variant="primary" icon="arrow-u-up-left" loading={busy !== null}
+      onclick={() => restoring && restore(restoring, restoreLinks)}>{t("trash.restoreConfirm")}</Button>
+  {/snippet}
+</Dialog>
 
 <Dialog bind:open={confirmOpen} title={pending ? t("trash.foreverTitle", { title: pending.title }) : ""} dismissible={false}>
   <p>{t("trash.foreverText")}</p>

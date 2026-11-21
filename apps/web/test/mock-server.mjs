@@ -11,6 +11,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import { createServer } from "node:http";
+import { createRequire } from "node:module";
 import { dirname, extname, join, normalize, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { coverCsp, coverDocument } from "./cover-fixtures.mjs";
@@ -23,6 +24,8 @@ const DEFAULT_SCOPES = ["decks:read", "decks:write", "quiz:draft"];
 const COMMON = new Set(["password1234", "123456789012", "qwertyuiopas", "passwordpassword"]);
 
 const here = dirname(fileURLToPath(import.meta.url));
+/** The QR encoder the real server serves at /_rt/qr.js (apps/server depends on it; pinned there). */
+const QR_FILE = createRequire(join(here, "..", "..", "server", "package.json")).resolve("qr");
 const TYPES = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -455,7 +458,64 @@ export function createState(options = {}) {
     /** Static script checks (ADR-023) on the reviews: true adds the incident's findings. */
     scriptChecks: options.scriptChecks === true,
     clearedErrors: new Set(),
+    /** Public links (ADR-026) by deck id; `links` seeds `linksDeck` (default deck_001) with sample links. */
+    links: new Map(
+      options.links === undefined || options.links === 0
+        ? []
+        : [
+            [
+              options.linksDeck ?? "deck_001",
+              makeLinks(typeof options.links === "number" ? options.links : 3),
+            ],
+          ],
+    ),
+    /** The operator switch (PPTAKEN_PUBLIC_LINKS) and the owner's Settings switch. */
+    publicLinksInstance: options.publicLinksInstance ?? "on",
+    publicLinks: options.publicLinks ?? true,
+    /** Trashed decks' links turned off by the trash, by deck id. */
+    trashLinks: new Map(),
   };
+}
+
+/** Sample public links: a view link, a presenter link frozen on a version, an expired one, then more views. */
+export function makeLinks(n, now = Date.now()) {
+  const samples = [
+    {
+      kind: "view",
+      label: "Q3 review for the sales team",
+      expiresAt: null,
+      pinned: null,
+      opened: 2,
+    },
+    { kind: "presenter", label: "Ana presents in Lima", expiresAt: 7, pinned: 3, opened: null },
+    { kind: "view", label: "", expiresAt: -2, pinned: null, opened: 30 },
+  ];
+  return Array.from({ length: n }, (_, i) => {
+    const s = samples[i % samples.length];
+    const secret = createHash("sha256").update(`link-${i}`).digest("base64url").slice(0, 22);
+    return {
+      id: `01JLINK${String(i).padStart(19, "0")}`,
+      kind: s.kind,
+      label: i < samples.length ? s.label : `Link ${i + 1}`,
+      secret,
+      state: s.expiresAt !== null && s.expiresAt < 0 ? "expired" : "active",
+      createdAt: new Date(now - (i + 1) * 86_400_000).toISOString(),
+      expiresAt:
+        s.expiresAt === null ? null : new Date(now + s.expiresAt * 86_400_000).toISOString(),
+      pinnedRevision: s.pinned,
+      lastOpenedAt: s.opened === null ? null : new Date(now - s.opened * 3_600_000).toISOString(),
+      openCount: s.opened === null ? 0 : (i % 5) + 1,
+    };
+  });
+}
+
+function linkJson(state, req, link) {
+  const { secret, ...rest } = link;
+  return { ...rest, url: `${publicUrl(state, req)}/s/${secret}` };
+}
+
+function activeLinks(state, id) {
+  return (state.links.get(id) ?? []).filter((l) => l.state === "active").length;
 }
 
 /** Script errors of a deck in the mock (only deck_002 carries the configured state). */
@@ -759,6 +819,7 @@ async function handleApi(state, req, res, url) {
         updatedAt: d.updatedAt,
         deletedAt: d.deletedAt,
         restorableUntil: new Date(Date.parse(d.deletedAt) + retention).toISOString(),
+        linksOff: (state.trashLinks.get(d.id) ?? []).length,
       })),
       nextCursor: null,
     });
@@ -771,10 +832,15 @@ async function handleApi(state, req, res, url) {
     if (!deck) return fail(res, 404, "NOT_FOUND", "Presentation not found");
     state.decks = state.decks.filter((d) => d !== deck);
     state.trash.unshift({ ...deck, deletedAt: new Date().toISOString() });
+    // ADR-026: the trash turns the deck's links off (kept aside in case the owner turns them back on).
+    const off = (state.links.get(id) ?? []).filter((l) => l.state === "active");
+    state.links.delete(id);
+    if (off.length > 0) state.trashLinks.set(id, off);
     return send(res, 200, {
       id,
       trashed: true,
       restorableUntil: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+      linksTurnedOff: off.length,
     });
   }
   const restoreOne = path.match(/^\/decks\/([^/]+)\/restore$/);
@@ -782,10 +848,90 @@ async function handleApi(state, req, res, url) {
     const id = decodeURIComponent(restoreOne[1]);
     const deck = state.trash.find((d) => d.id === id);
     if (!deck) return fail(res, 404, "NOT_FOUND", "Presentation not found");
+    const body = (await readJson(req)) ?? {};
     state.trash = state.trash.filter((d) => d !== deck);
     const { deletedAt: _d, ...live } = deck;
     state.decks.unshift(live);
+    if (body.restoreLinks === true) state.links.set(id, state.trashLinks.get(id) ?? []);
+    state.trashLinks.delete(id);
+    state.restoredLinks = body.restoreLinks === true;
     return send(res, 200, live);
+  }
+
+  // Public links (ADR-026).
+  const links = path.match(/^\/decks\/([^/]+)\/links(?:\/([^/]+))?$/);
+  if (links) {
+    const id = decodeURIComponent(links[1]);
+    const deck = state.decks.find((d) => d.id === id);
+    if (!signedIn) return fail(res, 401, "UNAUTHENTICATED", "Sign in first");
+    if (!deck) return fail(res, 404, "NOT_FOUND", "Presentation not found");
+    const list = state.links.get(id) ?? [];
+    const enabled = state.publicLinksInstance === "on" && state.publicLinks;
+    if (method === "GET" && !links[2]) {
+      return send(res, 200, {
+        links: list.map((l) => linkJson(state, req, l)),
+        sharing: {
+          enabled,
+          instance: state.publicLinksInstance,
+          owner: state.publicLinks ? "on" : "off",
+          presenterPassword: state.presenterPassword !== null,
+          scripts: state.scriptsEnabled ? "owner" : "off",
+        },
+      });
+    }
+    if (method === "POST" && !links[2]) {
+      if (!enabled) return fail(res, 403, "FORBIDDEN", "Public links are turned off");
+      const body = await readJson(req);
+      if (!body || !["view", "presenter"].includes(body.kind)) {
+        return fail(res, 400, "VALIDATION_ERROR", "kind: invalid");
+      }
+      const label = typeof body.label === "string" ? body.label.trim() : "";
+      if (label.length > 80) return fail(res, 400, "VALIDATION_ERROR", "label: too long");
+      const days = { "1d": 1, "7d": 7, "30d": 30 }[body.expires];
+      const link = {
+        id: `01JNEW${String(Date.now()).slice(-10)}${String(list.length).padStart(10, "0")}`,
+        kind: body.kind,
+        label,
+        secret: randomBytes(16).toString("base64url"),
+        state: "active",
+        createdAt: new Date().toISOString(),
+        expiresAt:
+          days !== undefined
+            ? new Date(Date.now() + days * 86_400_000).toISOString()
+            : typeof body.expires === "string"
+              ? body.expires
+              : null,
+        pinnedRevision: body.pinRevision === true ? deck.revision : null,
+        lastOpenedAt: null,
+        openCount: 0,
+      };
+      state.links.set(id, [link, ...list]);
+      return send(res, 201, { link: linkJson(state, req, link) });
+    }
+    if (method === "DELETE" && !links[2]) {
+      state.links.set(id, []);
+      return send(res, 200, { revoked: list.length });
+    }
+    const link = list.find((l) => l.id === decodeURIComponent(links[2] ?? ""));
+    if (!link) return fail(res, 404, "NOT_FOUND", "Link not found");
+    if (method === "PATCH") {
+      const body = (await readJson(req)) ?? {};
+      if (typeof body.label === "string") link.label = body.label.trim();
+      if (body.expires === "7d") {
+        link.expiresAt = new Date(Date.now() + 7 * 86_400_000).toISOString();
+        link.state = "active";
+      }
+      if (typeof body.pinned === "boolean")
+        link.pinnedRevision = body.pinned ? deck.revision : null;
+      return send(res, 200, { link: linkJson(state, req, link) });
+    }
+    if (method === "DELETE") {
+      state.links.set(
+        id,
+        list.filter((l) => l !== link),
+      );
+      return send(res, 204);
+    }
   }
   const purgeOne = path.match(/^\/trash\/([^/]+)$/);
   if (method === "DELETE" && purgeOne) {
@@ -799,14 +945,23 @@ async function handleApi(state, req, res, url) {
   if (path === "/settings" && (method === "GET" || method === "PUT")) {
     if (method === "PUT") {
       const body = await readJson(req);
-      if (!body || typeof body.autoApproveUpdates !== "boolean")
-        return fail(res, 400, "VALIDATION_ERROR", "autoApproveUpdates: invalid");
-      state.autoApproveUpdates = body.autoApproveUpdates;
-      for (const r of state.reviews.values()) r.autoApproveUpdates = body.autoApproveUpdates;
+      if (
+        !body ||
+        (body.autoApproveUpdates !== undefined && typeof body.autoApproveUpdates !== "boolean") ||
+        (body.publicLinks !== undefined && typeof body.publicLinks !== "boolean")
+      )
+        return fail(res, 400, "VALIDATION_ERROR", "settings: invalid");
+      if (body.autoApproveUpdates !== undefined) {
+        state.autoApproveUpdates = body.autoApproveUpdates;
+        for (const r of state.reviews.values()) r.autoApproveUpdates = body.autoApproveUpdates;
+      }
+      if (body.publicLinks !== undefined) state.publicLinks = body.publicLinks;
     }
     return send(res, 200, {
       autoApproveUpdates: state.autoApproveUpdates,
       scripts: state.scriptsEnabled ? "owner" : "off",
+      publicLinks: state.publicLinks,
+      publicLinksInstance: state.publicLinksInstance,
     });
   }
 
@@ -814,9 +969,11 @@ async function handleApi(state, req, res, url) {
     const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
     const list = q ? state.decks.filter((d) => d.title.toLowerCase().includes(q)) : state.decks;
     const start = Number.parseInt(url.searchParams.get("cursor") || "0", 10) || 0;
-    const page = list
-      .slice(start, start + state.pageSize)
-      .map((d) => ({ ...d, scriptErrors: scriptErrorsOf(state, d).current.length }));
+    const page = list.slice(start, start + state.pageSize).map((d) => ({
+      ...d,
+      scriptErrors: scriptErrorsOf(state, d).current.length,
+      sharedLinks: activeLinks(state, d.id),
+    }));
     const next = start + state.pageSize < list.length ? String(start + state.pageSize) : null;
     return send(res, 200, { decks: page, nextCursor: next });
   }
@@ -1025,6 +1182,7 @@ async function handleApi(state, req, res, url) {
     const base = publicUrl(state, req);
     return send(res, 200, {
       ...deck,
+      sharedLinks: activeLinks(state, deck.id),
       urls: { present: `${base}/p/${deck.id}`, manage: `${base}/decks/${deck.id}` },
       vendorFetch: state.vendorFetch,
       vendored:
@@ -1186,6 +1344,15 @@ export async function startMockServer(options = {}) {
       }
       if (url.pathname === "/mcp")
         return fail(res, 401, "UNAUTHENTICATED", "Bearer token required.");
+      // The pinned QR encoder the real server serves at /_rt/qr.js (the Share panel draws link QR codes with it).
+      if (url.pathname === "/_rt/qr.js") {
+        res.writeHead(200, {
+          "Content-Type": "text/javascript; charset=utf-8",
+          "Cache-Control": "no-cache",
+          "X-Content-Type-Options": "nosniff",
+        });
+        return res.end(await readFile(QR_FILE));
+      }
       const file = normalize(join(dist, decodeURIComponent(url.pathname)));
       if (file.startsWith(dist + sep) && extname(file)) {
         const info = await stat(file).catch(() => null);

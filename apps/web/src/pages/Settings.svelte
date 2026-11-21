@@ -1,8 +1,9 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <!--
   /settings: appearance (language, theme: also in the app bar), interactive presentations (ADR-024: allow
-  interactive updates automatically, default on, stored on the server and changeable only from this session), and
-  Developer details (per browser, default off): technical detail across the panel.
+  interactive updates automatically, default on, stored on the server and changeable only from this session),
+  sharing (ADR-026: allow links that open without an account, default on), and Developer details (per browser,
+  default off): technical detail across the panel.
 -->
 <script lang="ts">
   import { Notice, ThemeToggle, toast } from "@pptaken/ui";
@@ -36,6 +37,24 @@
       toast.show(on ? t("settings.autoOnToast") : t("settings.autoOffToast"));
     } catch (e) {
       settings = { ...settings, autoApproveUpdates: before };
+      if (!handleAuthError(e)) error = t("settings.autoError");
+    } finally {
+      saving = false;
+    }
+  }
+
+  // ADR-026: the owner's switch for public links (the operator's PPTAKEN_PUBLIC_LINKS wins when it is off).
+  async function setLinks(on: boolean) {
+    if (!settings) return;
+    const before = settings.publicLinks ?? true;
+    settings = { ...settings, publicLinks: on };
+    saving = true;
+    error = "";
+    try {
+      settings = await api.saveSettings({ publicLinks: on });
+      toast.show(on ? t("settings.linksOnToast") : t("settings.linksOffToast"));
+    } catch (e) {
+      settings = { ...settings, publicLinks: before };
       if (!handleAuthError(e)) error = t("settings.autoError");
     } finally {
       saving = false;
@@ -81,6 +100,26 @@
     </div>
     {#if settings && settings.scripts === "off"}
       <p class="ppt-small ppt-muted">{t("settings.scriptsOff")}</p>
+    {/if}
+  </PageSection>
+
+  <PageSection id="sharing" title={t("settings.sharingTitle")} card>
+    <div class="check-field">
+      <label class="check">
+        <input
+          type="checkbox"
+          name="public-links"
+          checked={settings?.publicLinks ?? true}
+          disabled={settings === null || saving || settings.publicLinksInstance === "off"}
+          aria-describedby="links-hint"
+          onchange={(e) => setLinks((e.currentTarget as HTMLInputElement).checked)}
+        />
+        <span>{t("settings.linksLabel")}</span>
+      </label>
+      <p class="check-field__hint" id="links-hint">{t("settings.linksHint")}</p>
+    </div>
+    {#if settings?.publicLinksInstance === "off"}
+      <p class="ppt-small ppt-muted" data-testid="links-instance-off">{t("settings.linksInstanceOff")}</p>
     {/if}
   </PageSection>
 

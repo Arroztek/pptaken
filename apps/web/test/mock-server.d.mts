@@ -124,6 +124,26 @@ export interface MockStateOptions {
   autoApproved?: boolean;
   /** deck_001 (pending) waits because of a new outside library after an earlier approval. */
   newLib?: boolean;
+  /** Public links (ADR-026): a number of sample links on `linksDeck` (default deck_001). */
+  links?: number;
+  linksDeck?: string;
+  /** PPTAKEN_PUBLIC_LINKS (default "on") and the owner's Settings switch (default true). */
+  publicLinksInstance?: "on" | "off";
+  publicLinks?: boolean;
+}
+
+/** A public link as the mock stores it (the secret is what the URL carries). */
+export interface MockLink {
+  id: string;
+  kind: "view" | "presenter";
+  label: string;
+  secret: string;
+  state: "active" | "expired";
+  createdAt: string;
+  expiresAt: string | null;
+  pinnedRevision: number | null;
+  lastOpenedAt: string | null;
+  openCount: number;
 }
 
 export interface MockState {
@@ -162,6 +182,12 @@ export interface MockState {
   purged: string[];
   approvals: number;
   autoApproveUpdates: boolean;
+  links: Map<string, MockLink[]>;
+  trashLinks: Map<string, MockLink[]>;
+  publicLinksInstance: "on" | "off";
+  publicLinks: boolean;
+  /** The last restore asked to turn the links back on. */
+  restoredLinks?: boolean;
 }
 
 export interface MockServer {
@@ -176,6 +202,7 @@ export function makeReview(
   options?: { version?: number; enabled?: boolean; contentOrigin?: string; staleDigest?: string },
 ): MockReview;
 export function makeApps(n: number, now?: number): MockApp[];
+export function makeLinks(n: number, now?: number): MockLink[];
 export function makeOAuthRequests(n: number, now?: number): MockOAuthRequest[];
 export function createState(options?: MockStateOptions): MockState;
 export function startMockServer(

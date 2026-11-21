@@ -76,7 +76,9 @@
 
   async function undoDelete(deck: DeckSummary) {
     try {
-      await api.restoreDeck(deck.id);
+      // Undo puts everything back as it was, the shared links the trash turned off included (the owner just
+      // confirmed "This also turns off N shared links" and is now taking it back).
+      await api.restoreDeck(deck.id, { restoreLinks: true });
       toast.show(t("decks.restoredToast", { title: deck.title }));
       await load(shownQuery);
     } catch (e) {
@@ -240,10 +242,14 @@
     return `${slides} · ${edited}`;
   }
 
-  /** The one chip a card may show, only when something needs the owner. */
-  function attention(deck: DeckSummary): "needsOk" | "problems" | null {
+  /**
+   * The one chip a card may show: something that needs the owner first; otherwise a quiet "Shared" when the deck has
+   * active public links (ADR-026), so the owner always knows what is out there.
+   */
+  function attention(deck: DeckSummary): "needsOk" | "problems" | "shared" | null {
     if (deck.scripts === "pending") return "needsOk";
     if (deck.scripts === "approved" && (deck.scriptErrors ?? 0) > 0) return "problems";
+    if ((deck.sharedLinks ?? 0) > 0) return "shared";
     return null;
   }
 
@@ -485,7 +491,16 @@
 
 {#snippet chipOf(deck: DeckSummary)}
   {@const chip = attention(deck)}
-  {#if chip}
+  {#if chip === "shared"}
+    {@const n = deck.sharedLinks ?? 0}
+    <a
+      class="deck-chip deck-chip--quiet"
+      data-chip="shared"
+      href="/decks/{encodeURIComponent(deck.id)}#share"
+      aria-label={n === 1 ? t("share.chipLabelOne") : t("share.chipLabel", { n })}
+      ><Icon name="link" size={14} />{t("share.chip")}</a
+    >
+  {:else if chip}
     <a
       class="deck-chip"
       data-chip={chip}
@@ -528,6 +543,11 @@
 
 <Dialog bind:open={deleteOpen} title={deleteDeck ? t("decks.deleteTitle", { title: deleteDeck.title }) : ""}>
   <p>{t("decks.deleteText")}</p>
+  {#if (deleteDeck?.sharedLinks ?? 0) > 0}
+    <p data-testid="delete-links">
+      {deleteDeck?.sharedLinks === 1 ? t("decks.deleteLinksOne") : t("decks.deleteLinks", { n: deleteDeck?.sharedLinks ?? 0 })}
+    </p>
+  {/if}
   {#snippet actions()}
     <Button variant="secondary" onclick={() => (deleteOpen = false)}>{t("common.cancel")}</Button>
     <Button variant="danger" icon="trash" loading={deleting} onclick={confirmDelete}>{t("decks.deleteConfirm")}</Button>
