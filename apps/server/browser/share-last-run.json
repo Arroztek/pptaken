@@ -1,11 +1,14 @@
 {
-  "startedAt": "2026-11-21T12:37:25.201Z",
+  "startedAt": "2026-11-21T14:10:48.518Z",
   "engines": {
     "chromium": {
       "ok": true,
       "checks": [
         "view link: simple slides on the content origin, no notes, the author code never ran",
         "view link: a quiet first-load hint (arrow keys, ? for all keys)",
+        "loader: shown while the deck document is pending, gone when the deck is ready",
+        "loader: hidden on a failed load, the error message stands alone",
+        "loader: under reduced motion nothing travels",
         "view link: U offers no unlock, S opens no presenter window, the key help has no P/S/U",
         "view link: the panel API, export and the notes refuse the page's grant",
         "presenter link: the audience page starts with the simple version (interactive parts locked)",
@@ -21,6 +24,9 @@
       "checks": [
         "view link: simple slides on the content origin, no notes, the author code never ran",
         "view link: a quiet first-load hint (arrow keys, ? for all keys)",
+        "loader: shown while the deck document is pending, gone when the deck is ready",
+        "loader: hidden on a failed load, the error message stands alone",
+        "loader: under reduced motion nothing travels",
         "view link: U offers no unlock, S opens no presenter window, the key help has no P/S/U",
         "view link: the panel API, export and the notes refuse the page's grant",
         "presenter link: the audience page starts with the simple version (interactive parts locked)",
@@ -36,6 +42,9 @@
       "checks": [
         "view link: simple slides on the content origin, no notes, the author code never ran",
         "view link: a quiet first-load hint (arrow keys, ? for all keys)",
+        "loader: shown while the deck document is pending, gone when the deck is ready",
+        "loader: hidden on a failed load, the error message stands alone",
+        "loader: under reduced motion nothing travels",
         "view link: U offers no unlock, S opens no presenter window, the key help has no P/S/U",
         "view link: the panel API, export and the notes refuse the page's grant",
         "presenter link: the audience page starts with the simple version (interactive parts locked)",

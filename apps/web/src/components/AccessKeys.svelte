@@ -5,7 +5,7 @@
   Permissions (scopes) only with Developer details.
 -->
 <script lang="ts">
-  import { Button, Dialog, EmptyState, Notice, StatusBadge, Table, TextField, toast } from "@pptaken/ui";
+  import { Button, Dialog, EmptyState, Loader, Notice, StatusBadge, Table, TextField, toast } from "@pptaken/ui";
   import { onMount } from "svelte";
   import { api, type TokenListItem } from "../lib/api";
   import { errorMessage } from "../lib/errors";
@@ -142,7 +142,7 @@
       <div><Button size="sm" onclick={load}>{t("app.retry")}</Button></div>
     </Notice>
   {:else if loading && tokens.length === 0}
-    <p class="ppt-muted loading-line" role="status">{t("common.loading")}…</p>
+    <Loader />
   {:else if tokens.length === 0}
     <EmptyState title={t("keys.emptyTitle")} text={t("keys.emptyText")} headingLevel={3} />
   {:else}

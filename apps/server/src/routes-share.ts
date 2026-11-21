@@ -13,6 +13,7 @@
 // - The page is the trusted player page with `data-viewer="guest"` and a link grant (public-links.ts); content
 //   comes through the usual content-url / sandboxed content origin, always static for view links.
 import { DEFAULT_WORKSPACE_ID } from "@pptaken/core";
+import { loaderHtml } from "@pptaken/player";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import type { AppEnv, Services } from "./context.js";
@@ -130,12 +131,12 @@ function guestPage(
   if (page === "presenter") {
     return `${head}<title>${escapeHtml(data.title)}</title>
 <link rel="stylesheet" href="/_player/presenter.css"></head>
-<body ${attrs.join(" ")}><div id="presenter"></div><p id="status" role="status">${TEXT[lang].loading}</p>
+<body ${attrs.join(" ")}><div id="presenter"></div>${loaderHtml(TEXT[lang].loading)}<p id="status" role="status" hidden></p>
 <script type="module" src="/_player/presenter-page.js"></script></body></html>`;
   }
   return `${head}<title>${escapeHtml(data.title)}</title>
 <link rel="stylesheet" href="/_player/page.css"></head>
-<body ${attrs.join(" ")} data-offline="loading"><div id="stage"></div><p id="status" role="status">${TEXT[lang].loading}</p>
+<body ${attrs.join(" ")} data-offline="loading"><div id="stage"></div>${loaderHtml(TEXT[lang].loading)}<p id="status" role="status" hidden></p>
 <script type="module" src="/_player/page.js"></script></body></html>`;
 }
 

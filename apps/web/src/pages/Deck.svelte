@@ -8,7 +8,7 @@
   Error text is untrusted: text interpolation only, never {@html}.
 -->
 <script lang="ts">
-  import { Button, Dialog, EmptyState, Notice, toast } from "@pptaken/ui";
+  import { Button, Dialog, EmptyState, Loader, Notice, toast } from "@pptaken/ui";
   import { tick } from "svelte";
   import ActionMenu from "../components/ActionMenu.svelte";
   import CopyButton from "../components/CopyButton.svelte";
@@ -250,7 +250,7 @@
 
 {#if loading && !deck}
   <PageLayout back={{ href: "/decks", label: t("deck.back") }} title={t("deck.pageTitle")}>
-    <p class="ppt-muted loading-line" role="status">{t("common.loading")}…</p>
+    <Loader />
   </PageLayout>
 {:else if missing}
   <PageLayout back={{ href: "/decks", label: t("deck.back") }} title={t("deck.pageTitle")}>

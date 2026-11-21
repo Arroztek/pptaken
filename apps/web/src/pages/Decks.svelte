@@ -7,7 +7,7 @@
   next. Server error text is never shown as-is (Developer details adds it under the plain sentence).
 -->
 <script lang="ts">
-  import { Button, Dialog, EmptyState, Icon, Notice, toast } from "@pptaken/ui";
+  import { Button, Dialog, EmptyState, Icon, Loader, Notice, toast } from "@pptaken/ui";
   import { onDestroy, onMount } from "svelte";
   import ActionMenu from "../components/ActionMenu.svelte";
   import CopyButton from "../components/CopyButton.svelte";
@@ -277,7 +277,7 @@
   {#if importing}
     <div class="import-progress" role="status">
       <p class="ppt-muted import-status">
-        <Icon name="circle-notch" size={16} class="spin" />
+        <Loader size="inline" announce={false} />
         {progress?.phase === "process"
           ? importingKind === "pptx"
             ? t("transfer.converting", { name: importing })
@@ -413,7 +413,7 @@
     </div>
 
     {#if loading && decks.length === 0}
-      <p class="ppt-muted loading-line" role="status">{t("common.loading")}…</p>
+      <Loader />
     {:else if decks.length === 0 && !error}
       <EmptyState title={t("decks.noMatchTitle", { q: shownQuery })} text={t("decks.noMatchText")} headingLevel={2}>
         {#snippet actions()}

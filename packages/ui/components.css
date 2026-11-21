@@ -140,7 +140,6 @@
 .ppt-btn--sm .ppt-icon, .ppt-btn--sm svg { width: 16px; height: 16px; }
 .ppt-btn--lg { --_h: 52px; --_px: 28px; font-size: var(--ppt-text-md); }
 .ppt-btn--block { display: flex; width: 100%; }
-.ppt-btn[aria-busy="true"] .ppt-icon { animation: ppt-spin 0.9s linear infinite; }
 
 /* ----------------------------------------------------------- icon button */
 .ppt-icon-btn {
@@ -530,13 +529,108 @@
   to { opacity: 1; transform: none; }
 }
 @keyframes ppt-breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-@keyframes ppt-spin { to { transform: rotate(360deg); } }
 .ppt-curtain-in { animation: ppt-curtain-in var(--ppt-motion-base) var(--ppt-ease) both; }
 
 @media (prefers-reduced-motion: reduce) {
-  .ppt-badge--live .ppt-badge__dot,
-  .ppt-btn[aria-busy="true"] .ppt-icon { animation: none; }
+  .ppt-badge--live .ppt-badge__dot { animation: none; }
   .ppt-btn:active { transform: none; }
+}
+
+/* --------------------------------------------------------------- loader */
+/*
+ * The cue (brand illustration "cue-light"): the stage manager's lamp lights (standby), the signal travels down the
+ * wire, the slide lights up with its arrow (go). Lights snap, the signal travels; one loop every 2.4 s.
+ * `inline` keeps only the slide, lit by a wipe, at icon size (buttons). Pure CSS on inline SVG, no request.
+ * The whole loader stays invisible for --ppt-loader-delay, then fades in: a fast load never flashes it. Its box
+ * is laid out from the start, so nothing moves when it appears.
+ */
+.ppt-loader {
+  --ppt-loader-delay: 180ms;
+  --ppt-loader-light: var(--ppt-accent);
+  --_loop: 2.4s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  vertical-align: middle;
+  animation: ppt-loader-in var(--ppt-motion-base) var(--ppt-ease) var(--ppt-loader-delay) both;
+}
+.ppt-loader__art { display: block; overflow: visible; fill: none; }
+.ppt-loader__frame { stroke: currentColor; stroke-width: 1.5; }
+.ppt-loader__wire { stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-dasharray: 0 4.2; opacity: 0.55; }
+.ppt-loader__signal { fill: currentColor; opacity: 0; }
+.ppt-loader__lamp { fill: var(--ppt-loader-light); }
+.ppt-loader__halo { stroke: var(--ppt-loader-light); stroke-width: 1.5; opacity: 0; }
+.ppt-loader__fill { fill: var(--ppt-loader-light); opacity: 0; }
+.ppt-loader__arrow { stroke: var(--ppt-on-accent); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; opacity: 0; }
+.ppt-loader__lamp, .ppt-loader__halo, .ppt-loader__signal, .ppt-loader__fill, .ppt-loader__arrow {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: var(--_loop) linear infinite both;
+}
+.ppt-loader__lamp { animation-name: ppt-cue-lamp; }
+.ppt-loader__halo { animation-name: ppt-cue-halo; }
+.ppt-loader__signal { animation-name: ppt-cue-signal; }
+.ppt-loader__fill, .ppt-loader__arrow { animation-name: ppt-cue-go; }
+
+/* Sizes. `inline` follows the text (1.125em; 18/16 px inside buttons); the slide is currentColor, so it reads on
+   an amber button too. */
+.ppt-loader--inline { --_loop: 1.6s; width: 1.125em; height: 1.125em; }
+.ppt-loader--inline .ppt-loader__art { width: 100%; height: 100%; }
+.ppt-loader--inline .ppt-loader__fill { fill: currentColor; opacity: 0.55; transform-origin: left center; animation-name: ppt-cue-wipe; }
+.ppt-loader--section { display: flex; justify-content: flex-start; min-height: 96px; padding: var(--ppt-space-4) 0; color: var(--ppt-text-muted); }
+.ppt-loader--section .ppt-loader__art { width: 80px; height: 25px; }
+.ppt-loader--page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ppt-space-4);
+  min-height: min(60vh, 480px);
+  padding: var(--ppt-space-8) var(--ppt-space-6);
+  color: var(--ppt-text-muted);
+}
+.ppt-loader--page .ppt-loader__art { width: 112px; height: 35px; }
+.ppt-loader__caption { font-size: var(--ppt-text-sm); color: var(--ppt-text-muted); }
+.ppt-btn .ppt-loader--inline { width: 18px; height: 18px; }
+.ppt-btn--sm .ppt-loader--inline { width: 16px; height: 16px; }
+
+@keyframes ppt-loader-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ppt-cue-lamp {
+  0% { opacity: 0.3; }
+  6%, 32% { opacity: 1; }
+  36%, 100% { opacity: 0.3; }
+}
+@keyframes ppt-cue-halo {
+  0% { opacity: 0; transform: scale(0.6); }
+  8%, 30% { opacity: 0.4; transform: scale(1); }
+  36%, 100% { opacity: 0; transform: scale(0.6); }
+}
+@keyframes ppt-cue-signal {
+  0%, 34% { opacity: 0; transform: translateX(0); }
+  37% { opacity: 1; transform: translateX(0); animation-timing-function: cubic-bezier(0.22, 0.8, 0.2, 1); }
+  58% { opacity: 1; transform: translateX(21px); }
+  62%, 100% { opacity: 0; transform: translateX(21px); }
+}
+@keyframes ppt-cue-go {
+  0%, 59% { opacity: 0; }
+  64%, 88% { opacity: 1; }
+  96%, 100% { opacity: 0; }
+}
+@keyframes ppt-cue-wipe {
+  0% { opacity: 0.55; transform: scaleX(0); animation-timing-function: cubic-bezier(0.22, 0.8, 0.2, 1); }
+  45%, 72% { opacity: 0.55; transform: scaleX(1); }
+  92%, 100% { opacity: 0; transform: scaleX(1); }
+}
+@keyframes ppt-cue-rest { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+/* Reduced motion: nothing travels. The slide stays lit and only breathes, slowly. */
+@media (prefers-reduced-motion: reduce) {
+  .ppt-loader__lamp, .ppt-loader__halo, .ppt-loader__signal { animation: none; }
+  .ppt-loader__lamp { opacity: 0.3; }
+  .ppt-loader__fill, .ppt-loader__arrow, .ppt-loader--inline .ppt-loader__fill {
+    animation: ppt-cue-rest 3.2s ease-in-out infinite;
+    transform: none;
+  }
+  .ppt-loader--inline .ppt-loader__fill { opacity: 0.55; animation-name: none; }
 }
 
 /* Code must be copied exactly: no programming ligatures (JetBrains Mono turns -- and => into glyphs). */

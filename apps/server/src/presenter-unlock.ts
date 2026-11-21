@@ -13,6 +13,7 @@
 //   switch turned off all end it, because the server recomputes the subject from the current state.
 import { signToken, verifyToken } from "@pptaken/auth-local";
 import { DEFAULT_WORKSPACE_ID, scriptsDigest } from "@pptaken/core";
+import { loaderHtml } from "@pptaken/player";
 import type { Context } from "hono";
 import type { AppEnv, Services } from "./context.js";
 import { escapeHtml, playerPagePolicy } from "./routes-content.js";
@@ -124,7 +125,7 @@ export async function guestPlayerPage(c: Context<AppEnv>, s: Services): Promise<
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer"><meta name="robots" content="noindex"><title>${escapeHtml(deck.title)} · PPTaken</title>
 <link rel="stylesheet" href="/_player/page.css"></head>
-<body data-deck="${escapeHtml(deckId)}" data-viewer="guest" data-view="${escapeHtml(view)}" data-state="loading" data-offline="loading"><div id="stage"></div><p id="status" role="status">Loading…</p>
+<body data-deck="${escapeHtml(deckId)}" data-viewer="guest" data-view="${escapeHtml(view)}" data-state="loading" data-offline="loading"><div id="stage"></div>${loaderHtml("Loading…")}<p id="status" role="status" hidden></p>
 <script type="module" src="/_player/page.js"></script></body></html>`;
   return c.html(html, 200, {
     "Content-Security-Policy": playerPagePolicy(c, s),

@@ -57,6 +57,8 @@ test.describe("first run", () => {
     await expect(preview).toContainText(`"${mock.url}/mcp"`);
     expect(await page.content()).not.toMatch(/ppt_[A-Za-z0-9_-]{43}/);
     await page.getByRole("button", { name: "Copy setup prompt" }).click();
+    // The copy waits for the new key from the server: read the clipboard once it has been written.
+    await expect.poll(async () => (await clipboardText(page)) ?? "").toMatch(/ppt_/);
     const prompt = (await clipboardText(page)) ?? "";
     const secret = prompt.match(/ppt_[A-Za-z0-9_-]{43}/)?.[0];
     expect(mock.state.tokens).toHaveLength(1);

@@ -6,7 +6,7 @@
   the server). The logo_uri of a client is never fetched.
 -->
 <script lang="ts">
-  import { Button, Notice } from "@pptaken/ui";
+  import { Button, Loader, Notice } from "@pptaken/ui";
   import { onMount } from "svelte";
   import { ApiError, api, type OAuthRequest } from "../lib/api";
   import { errorMessage } from "../lib/errors";
@@ -83,7 +83,7 @@
 
 <div class="focused consent">
   {#if loading}
-    <p class="ppt-muted loading-line" role="status">{t("common.loading")}…</p>
+    <Loader />
   {:else if gone || !request}
     {#if loadError}
       <Notice tone="danger" title={loadError}>

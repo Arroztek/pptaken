@@ -219,6 +219,82 @@ try {
       );
       check("view link: a quiet first-load hint (arrow keys, ? for all keys)");
       await shot(page, name, "view");
+
+      // The presentation loader: up while the deck document is held back, gone once the deck is ready.
+      {
+        const slow = await context.newPage();
+        let release = () => {};
+        const gate = new Promise((resolve) => {
+          release = resolve;
+        });
+        const isDoc = (u) => u.origin === content && u.pathname.startsWith(`/c/${deckId}/`);
+        await slow.route(isDoc, async (route) => {
+          await gate;
+          await route.continue();
+        });
+        await slow.goto(view.url);
+        const loader = slow.locator("#pptaken-loader");
+        await loader.waitFor({ state: "visible", timeout: 10_000 });
+        await slow.waitForFunction(
+          () => getComputedStyle(document.getElementById("pptaken-loader")).opacity === "1",
+          null,
+          { timeout: 5000 },
+        );
+        const l = await slow.evaluate(() => {
+          const el = document.getElementById("pptaken-loader");
+          return {
+            role: el.getAttribute("role"),
+            live: el.getAttribute("aria-live"),
+            label: el.querySelector("[data-loader-label]")?.textContent,
+            status: document.getElementById("status").hidden,
+            state: document.body.dataset.state,
+          };
+        });
+        if (
+          l.role !== "status" ||
+          l.live !== "polite" ||
+          l.label !== "Loading…" ||
+          !l.status ||
+          l.state !== "loading"
+        )
+          throw new Error(`loader while loading ${JSON.stringify(l)}`);
+        await shot(slow, name, "loader");
+        release();
+        await slow.waitForSelector('body[data-state="ready"]', { timeout: 15_000 });
+        if (await loader.isVisible()) throw new Error("loader still visible after ready");
+        await slow.unroute(isDoc);
+        check("loader: shown while the deck document is pending, gone when the deck is ready");
+
+        // A failed load: the loader steps aside for the error message.
+        const isUrl = (u) => u.origin === app && u.pathname.endsWith("/content-url");
+        await slow.route(isUrl, (route) =>
+          route.fulfill({ status: 404, contentType: "application/json", body: "{}" }),
+        );
+        await slow.goto(view.url);
+        await slow.waitForSelector('body[data-state="error"]', { timeout: 10_000 });
+        const failed = await slow.evaluate(() => ({
+          loader: document.getElementById("pptaken-loader").hidden,
+          status: document.getElementById("status").textContent,
+        }));
+        if (!failed.loader || !/Could not load the presentation/.test(failed.status))
+          throw new Error(`loader on error ${JSON.stringify(failed)}`);
+        await slow.unroute(isUrl);
+        check("loader: hidden on a failed load, the error message stands alone");
+
+        // Reduced motion: the spot rests on the lit screen.
+        await slow.emulateMedia({ reducedMotion: "reduce" });
+        await slow.route(isDoc, () => {});
+        await slow.goto(view.url);
+        await loader.waitFor({ state: "visible", timeout: 10_000 });
+        const motion = await slow.evaluate(() => ({
+          spot: getComputedStyle(document.querySelector(".pptaken-loader__spot")).animationName,
+          slide: getComputedStyle(document.querySelector(".pptaken-loader__slide")).animationName,
+        }));
+        if (motion.spot !== "none" || motion.slide !== "pptaken-loader-rest")
+          throw new Error(`reduced motion ${JSON.stringify(motion)}`);
+        check("loader: under reduced motion nothing travels");
+        await slow.close();
+      }
       await page.locator("#stage").focus();
       await page.keyboard.press("u");
       await page.waitForTimeout(200);

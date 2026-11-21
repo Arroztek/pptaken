@@ -8,7 +8,7 @@
   once). No hashes or tokens in the normal view; Developer details adds the link id. Labels are text only.
 -->
 <script lang="ts">
-  import { Button, CopyField, FramedQR, Icon, Notice, toast } from "@pptaken/ui";
+  import { Button, CopyField, FramedQR, Icon, Loader, Notice, toast } from "@pptaken/ui";
   import { onMount } from "svelte";
   import { api, type ShareExpiry, type ShareKind, type ShareLink, type SharingState } from "../lib/api";
   import { errorMessage } from "../lib/errors";
@@ -206,7 +206,7 @@
 
 <div class="share-panel" data-testid="share-panel">
   {#if loading && sharing === null}
-    <p class="ppt-muted" role="status">{t("common.loading")}…</p>
+    <Loader />
   {:else if loadError}
     <Notice tone="danger" title={t("share.loadError")} text={loadError}>
       <div><Button size="sm" onclick={load}>{t("app.retry")}</Button></div>

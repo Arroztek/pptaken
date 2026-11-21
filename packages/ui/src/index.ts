@@ -16,6 +16,8 @@ export { default as FramedQR } from "./components/FramedQR.svelte";
 export { default as Icon } from "./components/Icon.svelte";
 export { default as IconButton } from "./components/IconButton.svelte";
 export { default as Kbd } from "./components/Kbd.svelte";
+export type { LoaderSize } from "./components/Loader.svelte";
+export { default as Loader } from "./components/Loader.svelte";
 export { default as Logo } from "./components/Logo.svelte";
 export type { Tone } from "./components/Notice.svelte";
 export { default as Notice } from "./components/Notice.svelte";

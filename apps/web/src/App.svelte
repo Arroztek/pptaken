@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script lang="ts">
-  import { Button, Notice, ToastRegion } from "@pptaken/ui";
+  import { Button, Loader, Notice, ToastRegion } from "@pptaken/ui";
   import type { Component } from "svelte";
   import { onMount, tick } from "svelte";
   import AppHeader from "./components/AppHeader.svelte";
@@ -103,7 +103,7 @@
         </Notice>
       </div>
     {:else if session.boot === "loading" || !PageComponent || shownPage !== page}
-      <p class="boot-loading" role="status">{t("app.loading")}</p>
+      <Loader size="page" label={t("common.loading")} caption={t("app.loading")} />
     {:else}
       <PageComponent />
     {/if}

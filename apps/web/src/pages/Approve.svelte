@@ -7,7 +7,7 @@
   and the screen reloads the new code.
 -->
 <script lang="ts">
-  import { Button, Notice } from "@pptaken/ui";
+  import { Button, Loader, Notice } from "@pptaken/ui";
   import ScriptViewer from "../components/ScriptViewer.svelte";
   import { ApiError, api, type DeckDetail, type ScriptsReview } from "../lib/api";
   import { deckStatus } from "../lib/deck-status";
@@ -77,7 +77,7 @@
 
 <div class="focused approve" data-testid="approve-screen">
   {#if loading}
-    <p class="ppt-muted loading-line" role="status">{t("common.loading")}…</p>
+    <Loader />
   {:else if missing}
     <div class="hero">
       <h1 class="ppt-display">{t("deck.notFoundTitle")}</h1>

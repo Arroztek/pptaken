@@ -4,7 +4,7 @@
   revokes the grant and everything under it. Return address and raw permissions only with Developer details.
 -->
 <script lang="ts">
-  import { Button, Dialog, EmptyState, Notice, Table, toast } from "@pptaken/ui";
+  import { Button, Dialog, EmptyState, Loader, Notice, Table, toast } from "@pptaken/ui";
   import { onMount } from "svelte";
   import { api, type ConnectedApp } from "../lib/api";
   import { errorMessage } from "../lib/errors";
@@ -77,7 +77,7 @@
       <div><Button size="sm" onclick={reload}>{t("app.retry")}</Button></div>
     </Notice>
   {:else if loading && apps.length === 0}
-    <p class="ppt-muted loading-line" role="status">{t("common.loading")}…</p>
+    <Loader />
   {:else if apps.length === 0}
     <EmptyState title={t("apps.emptyTitle")} text={t("apps.emptyText")} headingLevel={2}>
       {#snippet actions()}

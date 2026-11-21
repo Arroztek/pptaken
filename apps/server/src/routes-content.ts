@@ -17,6 +17,10 @@ import {
   BUILD_PLACEHOLDER,
   buildDeckDocument,
   contentHeaders,
+  LOADER_CSS,
+  LOADER_DELAY_MS,
+  LOADER_ID,
+  loaderHtml,
   RUNTIME_SHA256,
   SHELL_FILES,
 } from "@pptaken/player";
@@ -73,6 +77,12 @@ const stage = document.getElementById("stage");
 const status = document.getElementById("status");
 const locale = pickLocale(navigator.languages);
 const t = labelsFor(locale);
+// The presentation loader (server-rendered, already on screen): shown until the deck reports ready, gone as soon
+// as the page has something else to say (an error, a fault). A slow load keeps it, with the message beside it.
+const loader = document.getElementById("${LOADER_ID}");
+const loaderLabel = loader?.querySelector("[data-loader-label]");
+if (loaderLabel) loaderLabel.textContent = t.loading;
+function setLoading(on) { if (loader) loader.hidden = !on; }
 // Interactive mode (ADR-020): ?safe=1 forces the static version; otherwise the server decides (owner session,
 // instance switch, approved digest) and the shell hardens itself when it runs scripts.
 const safe = new URLSearchParams(location.search).get("safe") === "1";
@@ -99,6 +109,7 @@ function mount(src) {
   body.dataset.source = src.fromCopy ? "copy" : "network";
   body.dataset.scripts = src.scripts ?? "none";
   body.dataset.state = "loading";
+  setLoading(true);
   const scripted = src.scripts === "running";
   // ADR-023: the owner's page sends author-script failures to the panel (never shown on this audience screen).
   const reporter = scripted && !guest && src.digest ? createErrorReporter({ deckId: id, digest: src.digest }) : null;
@@ -122,7 +133,7 @@ function mount(src) {
     ...(guest
       ? presenterLink ? { presenterUrl: presenterLink, sync: syncChannelName(id) ?? undefined } : {}
       : { presenterUrl: "/p/" + encodeURIComponent(id) + "/presenter", sync: syncChannelName(id) ?? undefined }),
-    onReady: (slides) => { status.hidden = true; body.dataset.slides = String(slides.length); body.dataset.state = "ready"; if (guest) showHint(); },
+    onReady: (slides) => { setLoading(false); status.hidden = true; body.dataset.slides = String(slides.length); body.dataset.state = "ready"; if (guest) showHint(); },
     onLoadTimeout: () => { body.dataset.state = "slow"; showStatus(t.loadSlow, false); },
     onChange: (s) => { body.dataset.slide = String(s.slide); body.dataset.step = String(s.step); body.dataset.mode = s.mode; body.dataset.black = String(s.black); remote?.onChange(s); unlock?.setIndicatorVisible(!s.black); },
     ...(scripted ? {
@@ -136,6 +147,7 @@ function mount(src) {
       },
     } : {}),
     onFault: (f) => {
+      setLoading(false);
       if (f === "unresponsive") { body.dataset.state = "unresponsive"; body.dataset.scripts = "stopped"; unlock?.setIndicator(false); return; }
       body.dataset.state = "fault"; body.dataset.fault = f; showStatus(t.stoppedFault, !guest);
     },
@@ -200,7 +212,7 @@ async function start() {
     source = await load({ safe });
   } catch (error) {
     if (error instanceof SignedOutError) {
-      if (guest) { body.dataset.state = "error"; status.textContent = t.linkInvalid; return; }
+      if (guest) { body.dataset.state = "error"; setLoading(false); showStatus(t.linkInvalid, false); return; }
       location.href = "/login";
       return;
     }
@@ -248,13 +260,14 @@ async function start() {
     }).catch(() => { body.dataset.remote = "unavailable"; });
   }
 }
-start().catch(() => { body.dataset.state = "error"; showStatus(t.loadFailed, false); });
+start().catch(() => { body.dataset.state = "error"; setLoading(false); showStatus(t.loadFailed, false); });
 `;
 
 const PAGE_CSS =
-  "html,body{margin:0;height:100%;background:#000;color:#FAF7F2;font:16px system-ui,sans-serif}#stage{position:fixed;inset:0}#status{position:fixed;left:16px;bottom:16px;color:#8B8FA0}" +
+  "html,body{margin:0;height:100%;background:#000;color:#FAF7F2;font:16px system-ui,sans-serif}#stage{position:fixed;inset:0}#status{position:fixed;z-index:2;left:16px;bottom:16px;color:#8B8FA0}" +
+  LOADER_CSS +
   // Public links (ADR-026): no printing from a guest page (a deterrent: the browser prints a blank page).
-  "@media print{body[data-viewer=guest]>*{display:none!important}}";
+  "@media print{body[data-viewer=guest]>*{display:none!important}.pptaken-loader{display:none}}";
 
 const PRESENTER_SCRIPT = `// PPTaken presenter page: loads the presenter data (notes, once, kept in memory) and the deck (signed content
 // URL, or the stored offline copy without a network), then mounts the view.
@@ -271,7 +284,11 @@ const t = labelsFor(locale);
 // (a header, never a cookie); no panel links, no remote control, no offline copy.
 const guest = body.dataset.viewer === "guest";
 const view = body.dataset.view || "";
-status.textContent = t.loading;
+// The presentation loader (server-rendered): until the previews are ready, or replaced by an error message.
+const loader = document.getElementById("${LOADER_ID}");
+const loaderLabel = loader?.querySelector("[data-loader-label]");
+if (loaderLabel) loaderLabel.textContent = t.loading;
+function fail(text) { if (loader) loader.hidden = true; status.textContent = text; status.hidden = false; }
 async function get(path) {
   const res = await fetch(path, guest ? { credentials: "omit", cache: "no-store", headers: { "X-PPTaken-View": view } } : { credentials: "same-origin" });
   if (res.status === 401) throw new SignedOutError();
@@ -317,6 +334,7 @@ async function start() {
   }
   body.dataset.interactiveNotice = interactiveNotice() ? "shown" : "hidden";
   await presenter.ready;
+  if (loader) loader.hidden = true;
   status.hidden = true;
   body.dataset.state = "ready";
   if (!source.fromCopy && !guest) mountRemote(locale).catch(() => {});
@@ -349,12 +367,12 @@ async function mountRemote(locale) {
 }
 start().catch((error) => {
   if (error instanceof SignedOutError) {
-    if (guest) { body.dataset.state = "error"; status.textContent = t.linkInvalid; return; }
+    if (guest) { body.dataset.state = "error"; fail(t.linkInvalid); return; }
     location.href = "/login";
     return;
   }
   body.dataset.state = "error";
-  status.textContent = t.loadError;
+  fail(t.loadError);
 });
 `;
 
@@ -371,7 +389,15 @@ function presenterCss(s: Services): string {
       (f) =>
         `@font-face{font-family:"${f.family}";font-style:normal;font-weight:${f.weight};font-display:swap;src:url(/_player/fonts/${f.file}) format("woff2");${f.unicodeRange ? `unicode-range:${f.unicodeRange};` : ""}}`,
     );
-  return `${faces.join("\n")}\nhtml,body{margin:0;height:100%;background:#0F1115;color:#F2EFE9;font:16px Inter,system-ui,sans-serif}#status{position:fixed;left:16px;bottom:16px;margin:0;color:#8B8FA0}\n`;
+  return (
+    `${faces.join("\n")}\nhtml,body{margin:0;height:100%;background:#0F1115;color:#F2EFE9;font:16px Inter,system-ui,sans-serif}#status{position:fixed;z-index:2;left:16px;bottom:16px;margin:0;color:#8B8FA0}\n${LOADER_CSS}\n.pptaken-loader{--pptaken-loader-bg:#0F1115}\n` +
+    // The view builds itself under the loader (previews still black): kept transparent until it is ready, so the
+    // loader never sits on a half-drawn layout. Opacity, not visibility: hidden frames could be throttled. If the
+    // previews never report ready, the view (notes, clock) still shows after 10 s, and the loader steps aside.
+    `body[data-state="loading"] #presenter{opacity:0;animation:pptaken-presenter-late 1ms 10s forwards}\n` +
+    `body[data-state="loading"] .pptaken-loader{animation:pptaken-loader-in 200ms ease-out ${LOADER_DELAY_MS}ms both,pptaken-presenter-aside 1ms 10s forwards}\n` +
+    "@keyframes pptaken-presenter-late{to{opacity:1}}@keyframes pptaken-presenter-aside{to{opacity:0}}\n"
+  );
 }
 
 export function escapeHtml(text: string): string {
@@ -383,7 +409,7 @@ function playerPage(deckId: string, title: string): string {
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer"><title>${escapeHtml(title)} · PPTaken</title>
 <link rel="stylesheet" href="/_player/page.css"></head>
-<body data-deck="${escapeHtml(deckId)}" data-state="loading" data-offline="loading"><div id="stage"></div><p id="status" role="status">Loading…</p>
+<body data-deck="${escapeHtml(deckId)}" data-state="loading" data-offline="loading"><div id="stage"></div>${loaderHtml("Loading…")}<p id="status" role="status" hidden></p>
 <script type="module" src="/_player/page.js"></script></body></html>`;
 }
 

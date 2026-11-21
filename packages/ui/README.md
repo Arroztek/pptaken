@@ -46,7 +46,7 @@ Audience pages (`/a/:code`) set `<html data-surface="audience">` and load `fonts
 
 | Component | Notes |
 |---|---|
-| `Button` | `primary` (Spotlight) / `secondary` / `ghost` / `danger`; `sm` / `md` / `lg`; `icon`, `iconEnd`, `loading`, `href`, `block`. Pill, 44 px tall by default |
+| `Button` | `primary` (Spotlight) / `secondary` / `ghost` / `danger`; `sm` / `md` / `lg`; `icon`, `iconEnd`, `loading` (inline `Loader`), `href`, `block`. Pill, 44 px tall by default |
 | `IconButton` | `label` is required (accessible name and tooltip). `pressed` exposes `aria-pressed` |
 | `TextField` | Label, hint and error wired with `aria-describedby`; error has an icon. `mono` for tokens and URLs |
 | `Card` | `default` / `sunken` / `flush`; `as` picks the element |
@@ -61,6 +61,7 @@ Audience pages (`/a/:code`) set `<html data-surface="audience">` and load `fonts
 | `FramedQR` | Frame only: white plate + stage tape corners. The caller renders the QR |
 | `CopyField` | Single line or `multiline` prompt block; clipboard with fallback for plain `http://` on a LAN |
 | `EmptyState` | Two-ink illustration snippet, title, text, actions |
+| `Loader` | "The cue": `page` / `section` / `inline`; polite live region with a hidden "Loading" (`announce={false}` when something else says it); appears after 180 ms; reduced motion holds still |
 | `Kbd` | `label` gives a spoken name to symbols (`→`) |
 | `ThemeToggle` | System / Light / Dark radio group. `applyTheme()` / `readTheme()` helpers |
 | `Logo` | `lockup` / `isotype` / `small` (16 to 23 px). Frame follows `currentColor`, the slide is always Spotlight |

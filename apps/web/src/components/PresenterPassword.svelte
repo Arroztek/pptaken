@@ -6,7 +6,7 @@
   Calm by default: a status line and one button; the form appears only when the owner chooses to set or change it.
 -->
 <script lang="ts">
-  import { Button, Dialog, Notice, TextField } from "@pptaken/ui";
+  import { Button, Dialog, Loader, Notice, TextField } from "@pptaken/ui";
   import { onMount, tick } from "svelte";
   import { ApiError, api } from "../lib/api";
   import { errorMessage } from "../lib/errors";
@@ -106,6 +106,8 @@
       <span class="ppt-dot" class:ppt-dot--success={isSet} aria-hidden="true"></span>
       {isSet ? t("presenter.statusSet") : t("presenter.statusUnset")}
     </p>
+  {:else if !error}
+    <Loader />
   {/if}
   {#if editing}
     <form class="form-stack" novalidate onsubmit={submit} aria-label={t("presenter.title")} bind:this={form}>

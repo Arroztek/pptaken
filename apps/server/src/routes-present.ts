@@ -19,6 +19,7 @@ import {
 } from "@pptaken/core";
 import {
   buildOfflineDocument,
+  loaderHtml,
   type OfflineAsset,
   type OfflineFont,
   type PresenterData,
@@ -122,7 +123,7 @@ function presenterPage(deckId: string, title: string): string {
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer"><meta name="robots" content="noindex"><title>Presenter · ${escapeHtml(title)} · PPTaken</title>
 <link rel="stylesheet" href="/_player/presenter.css"></head>
-<body data-deck="${escapeHtml(deckId)}" data-state="loading"><div id="presenter"></div><p id="status" role="status">Loading…</p>
+<body data-deck="${escapeHtml(deckId)}" data-state="loading"><div id="presenter"></div>${loaderHtml("Loading…")}<p id="status" role="status" hidden></p>
 <script type="module" src="/_player/presenter-page.js"></script></body></html>`;
 }
 

@@ -211,6 +211,21 @@ describe("the link page", () => {
     expect(html).not.toMatch(/\/decks|\/login|https?:\/\/(?!localhost)/);
   });
 
+  it("shows the presentation loader in the visitor's language until the deck is ready", async () => {
+    const { h, cookie, id } = await setup();
+    const { secret } = await createLink(h, cookie, id);
+    const en = (await openLink(h, secret)).html;
+    expect(en).toContain(
+      '<div id="pptaken-loader" class="pptaken-loader" role="status" aria-live="polite">',
+    );
+    expect(en).toContain("data-loader-label>Loading…</span>");
+    expect(en).toContain('<p id="status" role="status" hidden></p>');
+    const es = await h.server.app.request(`${ORIGIN}/s/${secret}`, {
+      headers: { "Accept-Language": "es-PE,es;q=0.9", "x-test-ip": "10.8.0.1" },
+    });
+    expect(await es.text()).toContain("data-loader-label>Cargando…</span>");
+  });
+
   it("answers ONE generic page for every dead link, byte for byte", async () => {
     const { h, cookie, id } = await setup();
     const other = await h.server.services.core.createPresentation(agent, {

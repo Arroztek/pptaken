@@ -5,7 +5,7 @@
   once, naming the presentation and saying it cannot be undone.
 -->
 <script lang="ts">
-  import { Button, Dialog, EmptyState, Notice, toast } from "@pptaken/ui";
+  import { Button, Dialog, EmptyState, Loader, Notice, toast } from "@pptaken/ui";
   import { onMount } from "svelte";
   import PageLayout from "../components/PageLayout.svelte";
   import { api, type TrashedDeck } from "../lib/api";
@@ -109,7 +109,7 @@
     <Notice tone="danger" title={error} ondismiss={() => (error = "")} />
   {/if}
   {#if loading && items.length === 0}
-    <p class="ppt-muted loading-line" role="status">{t("common.loading")}…</p>
+    <Loader />
   {:else if items.length === 0}
     <EmptyState title={t("trash.emptyTitle")} text={t("trash.emptyText")} headingLevel={2}>
       {#snippet actions()}

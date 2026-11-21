@@ -3,6 +3,7 @@
   import type { HTMLAnchorAttributes, HTMLButtonAttributes } from "svelte/elements";
   import type { IconName } from "../icons";
   import Icon from "./Icon.svelte";
+  import Loader from "./Loader.svelte";
 
   type Variant = "primary" | "secondary" | "ghost" | "danger";
 
@@ -13,7 +14,7 @@
     block?: boolean;
     icon?: IconName;
     iconEnd?: IconName;
-    /** Shows a spinner, sets aria-busy and blocks clicks. */
+    /** Shows the inline loader (in place of `icon`), sets aria-busy and blocks clicks. */
     loading?: boolean;
     /** Renders a link styled as a button. */
     href?: string;
@@ -53,7 +54,8 @@
 
 {#snippet content()}
   {#if loading}
-    <Icon name="circle-notch" size={iconSize} />
+    <!-- The button's aria-busy says it; the loader itself stays silent. -->
+    <Loader size="inline" announce={false} />
   {:else if icon}
     <Icon name={icon} size={iconSize} />
   {/if}

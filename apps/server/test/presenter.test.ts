@@ -192,4 +192,35 @@ describe("presenter page", () => {
       expect((await h.server.app.request(`${ORIGIN}${bad}`)).status, bad).toBe(404);
     }
   });
+
+  it("player and presenter pages show the presentation loader before any script, with styles from the page CSS", async () => {
+    h = await makeHarness();
+    const cookie = await setupOwner(h);
+    const id = await deckWithNotes(h, cookie);
+    for (const path of [`/p/${id}`, `/p/${id}/presenter`]) {
+      const html = await (
+        await h.server.app.request(`${ORIGIN}${path}`, { headers: { Cookie: cookie } })
+      ).text();
+      expect(html, path).toContain(
+        '<div id="pptaken-loader" class="pptaken-loader" role="status" aria-live="polite">',
+      );
+      expect(html, path).toContain(
+        '<span class="pptaken-loader__label" data-loader-label>Loading…</span>',
+      );
+      // The status line stays empty and hidden until there is something to say (slow, error, hint).
+      expect(html, path).toContain('<p id="status" role="status" hidden></p>');
+      expect(html, path).not.toContain("style=");
+    }
+    for (const file of ["page.css", "presenter.css"]) {
+      const css = await (await h.server.app.request(`${ORIGIN}/_player/${file}`)).text();
+      expect(css, file).toContain(".pptaken-loader[hidden]{display:none}");
+      expect(css, file).toContain("@media (prefers-reduced-motion:reduce)");
+    }
+    // The page scripts hide it on ready and on every error, and translate its label.
+    for (const file of ["page.js", "presenter-page.js"]) {
+      const js = await (await h.server.app.request(`${ORIGIN}/_player/${file}`)).text();
+      expect(js, file).toContain('document.getElementById("pptaken-loader")');
+      expect(js, file).toContain("loaderLabel.textContent = t.loading");
+    }
+  });
 });

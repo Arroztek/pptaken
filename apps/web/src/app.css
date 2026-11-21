@@ -25,8 +25,6 @@ html.drawer-open { overflow: hidden; }
 
 .copy-buffer { position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 
-.boot-loading { padding: var(--ppt-space-16) var(--ppt-space-6); text-align: center; color: var(--ppt-text-muted); }
-.loading-line { padding: var(--ppt-space-4) 0; }
 .lang-switch .ppt-segmented__opt { font-size: var(--ppt-text-xs); font-weight: 700; letter-spacing: 0.04em; }
 
 /* Page gutters: one value per breakpoint, shared by the page, the offline bar and the top bar. */
@@ -309,8 +307,6 @@ html.drawer-open { overflow: hidden; }
 .export-option p { margin: 0; }
 .export-option > div:last-child { margin-top: var(--ppt-space-2); }
 .import-status { display: flex; align-items: center; gap: var(--ppt-space-2); margin: 0 0 var(--ppt-space-4); }
-.import-status .spin { animation: ppt-spin 0.9s linear infinite; }
-@media (prefers-reduced-motion: reduce) { .import-status .spin { animation: none; } }
 .import-warnings { margin: var(--ppt-space-2) 0 0; padding-left: 1.2em; font-size: var(--ppt-text-sm); }
 .import-progress { display: grid; gap: var(--ppt-space-2); margin: 0 0 var(--ppt-space-4); max-width: 480px; }
 .import-progress .import-status { margin: 0; }

@@ -36,6 +36,13 @@ export {
 } from "./laser.js";
 export { LIB_SOURCES, type LibSource } from "./libs-source.js";
 export {
+  LOADER_CSS,
+  LOADER_DELAY_MS,
+  LOADER_ID,
+  LOADER_LOOP_MS,
+  loaderHtml,
+} from "./loader.js";
+export {
   FORBIDDEN_ELEMENTS,
   FORBIDDEN_MARKUP,
   LOCKED_GLOBALS,
